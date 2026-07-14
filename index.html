@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="teal">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Study Hub</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.7.1/dist/umd/supabase.min.js"></script>
+    <script src="https://unpkg.com/tesseract.js@3.0.5/dist/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/Chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  </head>
+  <body>
+    <div class="ambient"></div>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <p class="eyebrow">Academic OS</p>
+          <h1>Study Hub</h1>
+          <p class="subtle">Plan smarter. Practice deeper. Improve daily.</p>
+        </div>
+        <nav class="nav">
+          <button class="nav-btn active" data-tab="dashboard">Dashboard</button>
+          <button class="nav-btn" data-tab="planner">Planner</button>
+          <button class="nav-btn" data-tab="sessions">Sessions</button>
+          <button class="nav-btn" data-tab="flashcards">Flashcards</button>
+          <button class="nav-btn" data-tab="recalls">Recalls</button>
+          <button class="nav-btn" data-tab="quizzes">Quizzes</button>
+          <button class="nav-btn" data-tab="notes">Notes</button>
+          <button class="nav-btn" data-tab="assignments">Assignments</button>
+          <button class="nav-btn" data-tab="coach">Coach</button>
+          <button class="nav-btn" data-tab="ai-content-generator">Smart AI</button>
+          <button class="nav-btn" data-tab="ai-tutor">AI Tutor</button>
+          <button class="nav-btn" data-tab="ai-lessons">AI Lessons</button>
+          <button class="nav-btn" data-tab="ai-voice">Voice Mode</button>
+          <button class="nav-btn" data-tab="analytics">Analytics</button>
+          <button class="nav-btn" data-tab="settings">Settings</button>
+        </nav>
+      </aside>
+
+      <main class="main">
+        <header class="topbar card">
+          <div>
+            <h2 id="welcomeTitle">Welcome, Scholar</h2>
+            <p id="headerDate" class="subtle"></p>
+          </div>
+          <div class="topbar-actions">
+                  <button id="quickFocusBtn">Start 25m Sprint</button>
+                  <button id="seedDataBtn" class="ghost">Load Demo Data</button>
+                  <button id="themeToggleBtn" class="ghost" title="Toggle dark mode">🌙</button>
+          </div>
+        </header>
+
+        <!-- ===== DASHBOARD ===== -->
+        <section id="dashboard" class="tab active">
+          <div class="metric-grid">
+            <article class="metric card">
+              <p class="subtle">Study Hours (7d)</p>
+              <h3 id="metricHours">0h</h3>
+            </article>
+            <article class="metric card">
+              <p class="subtle">Task Completion</p>
+              <h3 id="metricCompletion">0%</h3>
+            </article>
+            <article class="metric card">
+              <p class="subtle">Study Streak</p>
+              <h3 id="metricStreak">0 days</h3>
+            </article>
+            <article class="metric card">
+              <p class="subtle">Academic Momentum</p>
+              <h3 id="metricScore">0</h3>
+            </article>
+          </div>
+          <div class="split-grid">
+            <article class="card">
+              <h3>Daily Mission</h3>
+              <p id="missionText">Add your first study goal to begin.</p>
+            </article>
+            <article class="card">
+              <h3>Today Agenda</h3>
+              <ul id="todayAgendaList" class="list"></ul>
+            </article>
+          </div>
+          <article class="card">
+            <h3>Achievements</h3>
+            <div id="achievementList" class="chip-wrap"></div>
+          </article>
+        </section>
+
+        <!-- ===== PLANNER ===== -->
+        <section id="planner" class="tab">
+          <div class="split-grid">
+            <article class="card">
+              <h3>Add Goal</h3>
+              <form id="goalForm" class="stack">
+                <input id="goalTitle" placeholder="Goal title (e.g. Ace Calculus midterm)" required />
+                <input id="goalSubject" placeholder="Subject" required />
+                <input id="goalDeadline" type="date" required />
+                <select id="goalPriority">
+                  <option value="high">High Priority</option>
+                  <option value="medium" selected>Medium Priority</option>
+                  <option value="low">Low Priority</option>
+                </select>
+                <input id="goalHours" type="number" min="1" value="8" required />
+                <button type="submit">Create Goal</button>
+              </form>
+            </article>
+            <article class="card">
+              <h3>Add Task</h3>
+              <form id="taskForm" class="stack">
+                <input id="taskTitle" placeholder="Task (e.g. Chemistry chapter 3 problems)" required />
+                <input id="taskSubject" placeholder="Subject" required />
+                <input id="taskDue" type="date" required />
+                <input id="taskEffort" type="number" min="1" value="2" required />
+                <button type="submit">Add Task</button>
+              </form>
+            </article>
+          </div>
+          <article class="card">
+            <h3>Goals</h3>
+            <div id="goalList" class="stack"></div>
+          </article>
+          <article class="card">
+            <div class="row-between">
+              <h3>Auto Study Plan</h3>
+              <div class="inline">
+                <input id="planStartDate" type="date" />
+                <input id="hoursPerDay" type="number" min="1" value="3" />
+                <button id="generatePlanBtn">Generate</button>
+              </div>
+            </div>
+            <div id="generatedPlan" class="stack"></div>
+          </article>
+          <article class="card">
+            <h3>Task Sprint Board</h3>
+            <div class="kanban">
+              <div><h4>To Do</h4><div id="taskBoardTodo" class="stack"></div></div>
+              <div><h4>In Progress</h4><div id="taskBoardDoing" class="stack"></div></div>
+              <div><h4>Done</h4><div id="taskBoardDone" class="stack"></div></div>
+            </div>
+          </article>
+        </section>
+
+        <!-- ===== SESSIONS ===== -->
+        <section id="sessions" class="tab">
+          <div class="split-grid">
+            <article class="card">
+              <h3>Focus Timer</h3>
+              <p class="badge" id="timerMode">FOCUS</p>
+              <p class="timer-display" id="timerDisplay">25:00</p>
+              <div class="inline">
+                <button id="startPauseTimerBtn">Start</button>
+                <button id="resetTimerBtn" class="ghost">Reset</button>
+                <button id="skipTimerBtn" class="ghost">Skip</button>
+              </div>
+              <div class="inline top-gap">
+                <label>Focus (min) <input id="focusMinutes" type="number" min="5" value="25" /></label>
+                <label>Break (min) <input id="breakMinutes" type="number" min="1" value="5" /></label>
+                <button id="saveTimerSettingsBtn" class="ghost">Save</button>
+              </div>
+              <div class="inline top-gap">
+                <label><input type="checkbox" id="timerNotifyCheck" checked /> Enable notifications</label>
+              </div>
+            </article>
+            <article class="card">
+              <h3>Log Study Session</h3>
+              <form id="sessionForm" class="stack">
+                <input id="sessionSubject" placeholder="Subject" required />
+                <input id="sessionObjective" placeholder="Objective" required />
+                <input id="sessionMinutes" type="number" min="5" value="45" required />
+                <input id="sessionQuality" type="number" min="1" max="10" value="8" required />
+                <input id="sessionMethod" placeholder="Method (active recall, practice test, etc.)" required />
+                <label class="inline"><input id="sessionDeep" type="checkbox" /> Deep work session</label>
+                <textarea id="sessionNotes" placeholder="What worked? What blocked progress?"></textarea>
+                <button type="submit">Save Session</button>
+              </form>
+            </article>
+          </div>
+          <article class="card">
+            <h3>Session History</h3>
+            <div id="sessionHistory" class="stack"></div>
+          </article>
+        </section>
+
+        <!-- ===== FLASHCARDS ===== -->
+        <section id="flashcards" class="tab">
+          <div class="split-grid">
+            <article class="card">
+              <h3>Create Flashcard</h3>
+              <form id="flashcardForm" class="stack">
+                <input id="cardDeck" placeholder="Deck name (e.g. Biology Terms)" required />
+                <textarea id="cardQuestion" placeholder="Question / prompt" required></textarea>
+                <textarea id="cardAnswer" placeholder="Answer / explanation" required></textarea>
+                <button type="submit">Add Flashcard</button>
+              </form>
+              <button id="loadStarterDeckBtn" class="ghost top-gap">Generate AI Flashcards</button>
+              <div class="top-gap">
+                <h4>AI Word Finder</h4>
+                <p class="subtle">Chat with AI to find vocabulary words for your flashcards.</p>
+                <div id="flashcardAiChat" class="stack top-gap" style="max-height:200px;overflow-y:auto;"></div>
+                <div class="inline top-gap">
+                  <input id="flashcardAiInput" placeholder="e.g. 'Find 5 biology terms about cell division'" />
+                  <button id="flashcardAiSendBtn" type="button">Ask AI</button>
+                </div>
+                <button id="addAiWordsBtn" class="ghost top-gap hidden">Add AI Words as Flashcards</button>
+              </div>
+            </article>
+            <article class="card">
+              <div class="fc-header">
+                <h3>Study Mode</h3>
+                <div class="fc-stats">
+                  <span>Due: <strong id="dueCount">0</strong></span>
+                  <span>New: <strong id="newCount">0</strong></span>
+                  <span>Total: <strong id="totalCards">0</strong></span>
+                </div>
+              </div>
+              <div id="fcDeckFilter" class="fc-deck-filter"></div>
+              <div id="fcCardArea" class="fc-card-area">
+                <div id="fcFlipCard" class="fc-flip-card" tabindex="0">
+                  <div class="fc-flip-inner">
+                    <div class="fc-flip-front">
+                      <span class="fc-flip-label">QUESTION</span>
+                      <p id="fcFrontText" class="fc-flip-text">No cards due. Add cards or generate with AI.</p>
+                      <span class="fc-flip-hint">Click or press Space to flip</span>
+                    </div>
+                    <div class="fc-flip-back">
+                      <span class="fc-flip-label">ANSWER</span>
+                      <p id="fcBackText" class="fc-flip-text"></p>
+                      <span class="fc-flip-hint">Click to flip back</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="fc-nav-row">
+                  <button id="fcPrevBtn" class="fc-nav-btn" title="Previous">&#9664;</button>
+                  <span id="fcCounter" class="fc-counter">0 / 0</span>
+                  <button id="fcNextBtn" class="fc-nav-btn" title="Next">&#9654;</button>
+                </div>
+                <div id="fcRatingRow" class="fc-rating-row">
+                  <button class="fc-rate-btn fc-rate-again" data-rating="1">Again</button>
+                  <button class="fc-rate-btn fc-rate-hard" data-rating="3">Hard</button>
+                  <button class="fc-rate-btn fc-rate-good" data-rating="4">Good</button>
+                  <button class="fc-rate-btn fc-rate-easy" data-rating="5">Easy</button>
+                </div>
+              </div>
+              <div id="fcEmptyState" class="fc-empty">
+                <p>No cards due. Create cards above or generate with AI.</p>
+              </div>
+            </article>
+          </div>
+          <article class="card">
+            <h3>All Flashcards</h3>
+            <div id="cardList" class="stack"></div>
+          </article>
+        </section>
+
+        <!-- ===== QUIZZES ===== -->
+        <section id="quizzes" class="tab">
+          <div class="split-grid">
+            <article class="card">
+              <h3>AI Quiz Generator</h3>
+              <form id="quizGeneratorForm" class="stack">
+                <input id="quizTopic" placeholder="Topic (e.g. 'cell division', 'World War II', 'quadratic equations')" />
+                <select id="quizSubject">
+                  <option value="math">Math</option>
+                  <option value="science">Science</option>
+                  <option value="history">History</option>
+                  <option value="literature">Literature</option>
+                  <option value="general">General Study Skills</option>
+                </select>
+                <select id="quizLevel">
+                  <option value="easy">Easy</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+                <select id="quizType">
+                  <option value="multiple">Multiple Choice</option>
+                  <option value="truefalse">True / False</option>
+                  <option value="written">Written Answer</option>
+                  <option value="fillblank">Fill in the Blank</option>
+                  <option value="mixed">Mixed (AI Generated)</option>
+                </select>
+                <input id="quizCount" type="number" min="3" max="20" value="8" />
+                <button type="submit">Create Quiz</button>
+              </form>
+            </article>
+            <article class="card">
+              <h3>Quiz Arena</h3>
+              <p id="quizMeta" class="subtle">Generate a quiz to begin.</p>
+              <div id="quizQuestion" class="review-question"></div>
+              <form id="quizOptions" class="stack"></form>
+              <div class="inline">
+                <button id="nextQuizQuestionBtn" class="ghost hidden">Next</button>
+                <button id="submitQuizBtn" class="hidden">Submit Quiz</button>
+              </div>
+              <p id="quizResult" class="top-gap"></p>
+            </article>
+          </div>
+          <article class="card">
+            <h3>Quiz Attempts</h3>
+            <div id="quizAttemptList" class="stack"></div>
+          </article>
+          <article class="card">
+            <div class="row-between">
+              <h3>AI Timed Mock Test</h3>
+              <p class="subtle">Exam-style mode with countdown and review markers.</p>
+            </div>
+            <div class="split-grid">
+              <form id="mockTestForm" class="stack">
+                <select id="mockTestSubject">
+                  <option value="math">Math</option>
+                  <option value="science">Science</option>
+                  <option value="history">History</option>
+                  <option value="literature">Literature</option>
+                  <option value="general">General Study Skills</option>
+                </select>
+                <select id="mockTestLevel">
+                  <option value="easy">Easy</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+                <input id="mockTestCount" type="number" min="5" max="40" value="20" />
+                <input id="mockTestDuration" type="number" min="5" max="180" value="30" />
+                <button type="submit">Start Mock Test</button>
+              </form>
+              <div class="stack">
+                <p id="mockTestMeta" class="subtle">No active mock test.</p>
+                <p class="badge" id="mockTestTimer">--:--</p>
+                <div id="mockTestQuestion" class="review-question"></div>
+                <form id="mockTestOptions" class="stack"></form>
+                <div class="inline wrap">
+                  <button id="mockPrevBtn" class="ghost hidden">Previous</button>
+                  <button id="mockNextBtn" class="ghost hidden">Next</button>
+                  <button id="mockMarkBtn" class="ghost hidden">Mark For Review</button>
+                  <button id="mockSubmitBtn" class="hidden">Submit Mock Test</button>
+                </div>
+                <p id="mockTestResult" class="top-gap"></p>
+              </div>
+            </div>
+          </article>
+          <article class="card">
+            <h3>Mock Test History</h3>
+            <div id="mockTestHistory" class="stack"></div>
+          </article>
+        </section>
+
+        <!-- ===== RECALLS ===== -->
+        <section id="recalls" class="tab">
+          <div class="split-grid">
+            <article class="card">
+              <h3>AI Recall Prompt Generator</h3>
+              <form id="recallPromptForm" class="stack">
+                <select id="recallSubject">
+                  <option value="all">All Subjects</option>
+                  <option value="math">Math</option>
+                  <option value="science">Science</option>
+                  <option value="history">History</option>
+                  <option value="literature">Literature</option>
+                  <option value="general">General Study Skills</option>
+                </select>
+                <select id="recallSource">
+                  <option value="mixed">Mixed (Notes + Flashcards)</option>
+                  <option value="notes">Notes Only</option>
+                  <option value="flashcards">Flashcards Only</option>
+                </select>
+                <input id="recallPromptCount" type="number" min="3" max="30" value="8" />
+                <button type="submit">Generate Recall Set</button>
+              </form>
+              <div id="recallPromptList" class="stack top-gap"></div>
+            </article>
+            <article class="card">
+              <h3>Blurting Challenge</h3>
+              <p class="subtle">Write everything you remember, then score coverage.</p>
+              <input id="blurtTopic" placeholder="Topic (e.g. Cell Division)" />
+              <input id="blurtKeywords" placeholder="Keywords to hit (comma-separated)" class="top-gap" />
+              <div class="inline top-gap">
+                <input id="blurtMinutes" type="number" min="2" max="60" value="8" />
+                <button id="startBlurtBtn" class="ghost">Start Timer</button>
+                <span class="badge" id="blurtTimer">08:00</span>
+              </div>
+              <textarea id="blurtResponse" rows="9" class="top-gap" placeholder="Type your recall dump here..."></textarea>
+              <button id="scoreBlurtBtn" class="top-gap">Score Recall</button>
+              <div id="blurtFeedback" class="stack top-gap"></div>
+            </article>
+          </div>
+          <article class="card">
+            <h3>Recall History</h3>
+            <div id="recallHistory" class="stack"></div>
+          </article>
+        </section>
+
+        <!-- ===== NOTES (with 6 methods) ===== -->
+        <section id="notes" class="tab">
+          <article class="card">
+            <h3>Note-Taking Method</h3>
+            <div class="note-style-selector">
+              <button class="note-style-btn active" data-note-style="freeform">Freeform</button>
+              <button class="note-style-btn" data-note-style="outline">Outline</button>
+              <button class="note-style-btn" data-note-style="cornell">Cornell</button>
+              <button class="note-style-btn" data-note-style="mapping">Mapping</button>
+              <button class="note-style-btn" data-note-style="charting">Charting</button>
+              <button class="note-style-btn" data-note-style="boxing">Boxing</button>
+              <button class="note-style-btn" data-note-style="sentence">Sentence</button>
+            </div>
+          </article>
+
+          <div class="split-grid">
+            <article class="card">
+              <h3 id="noteEditorTitle">Smart Notes</h3>
+              <form id="noteForm" class="stack">
+                <input id="noteId" type="hidden" />
+                <input id="noteStyle" type="hidden" value="freeform" />
+                <input id="noteTitle" placeholder="Note title" required />
+                <input id="noteSubject" placeholder="Subject" required />
+                <input id="noteTags" placeholder="Tags (comma-separated)" />
+
+                <!-- Freeform editor (default) -->
+                <div id="noteEditorFreeform">
+                  <textarea id="noteContent" rows="10" placeholder="Write your notes in markdown style..." required></textarea>
+                </div>
+
+                <!-- Outline editor -->
+                <div id="noteEditorOutline" class="hidden">
+                  <textarea id="noteOutlineContent" rows="14" placeholder="Write outline with indentation:&#10;# Main Topic&#10;## Subtopic&#10;  - Detail&#10;  - Detail&#10;## Another Subtopic&#10;  - Detail"></textarea>
+                </div>
+
+                <!-- Cornell editor -->
+                <div id="noteEditorCornell" class="hidden">
+                  <div class="note-cornell">
+                    <div class="cornell-cues">
+                      <label><strong>Cues / Keywords</strong></label>
+                      <textarea id="noteCornellCues" placeholder="Keywords&#10;Questions&#10;Key terms"></textarea>
+                    </div>
+                    <div class="cornell-notes">
+                      <label><strong>Notes</strong></label>
+                      <textarea id="noteCornellNotes" placeholder="Write your lecture notes here..."></textarea>
+                    </div>
+                    <div class="cornell-summary">
+                      <label><strong>Summary</strong></label>
+                      <textarea id="noteCornellSummary" placeholder="Summarize the entire page here..."></textarea>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Mapping editor -->
+                <div id="noteEditorMapping" class="hidden">
+                  <input id="noteMappingCenter" placeholder="Central topic (e.g. Photosynthesis)" class="top-gap" />
+                  <textarea id="noteMappingBranches" rows="8" placeholder="Branches (one per line):&#10;Light reactions - occurs in thylakoids&#10;Calvin cycle - occurs in stroma&#10;Chlorophyll - absorbs light energy&#10;Carbon fixation - CO2 becomes glucose"></textarea>
+                </div>
+
+                <!-- Charting editor -->
+                <div id="noteEditorCharting" class="hidden">
+                  <div class="inline top-gap">
+                    <input id="noteChartCols" type="number" min="2" max="8" value="3" style="width:80px" />
+                    <button id="noteChartBuildBtn" type="button" class="ghost">Build Table</button>
+                  </div>
+                  <div id="noteChartContainer" class="top-gap"></div>
+                  <textarea id="noteChartData" class="hidden" rows="6" placeholder="Data (CSV-like, comma separated per row):&#10;Category,Description,Example&#10;Cell organelle,Mitochondria,Powerhouse of cell&#10;Chemical bond,Ionic bond,NaCl"></textarea>
+                </div>
+
+                <!-- Boxing editor -->
+                <div id="noteEditorBoxing" class="hidden">
+                  <div id="noteBoxingContainer" class="top-gap"></div>
+                  <div class="inline top-gap">
+                    <input id="noteBoxTitle" placeholder="New box title" />
+                    <button id="noteAddBoxBtn" type="button" class="ghost">Add Box</button>
+                  </div>
+                  <textarea id="noteBoxingData" class="hidden" rows="6" placeholder="Box data (JSON-like):&#10;[{"title":"Topic 1","content":"..."},{"title":"Topic 2","content":"..."}]"></textarea>
+                </div>
+
+                <!-- Sentence editor -->
+                <div id="noteEditorSentence" class="hidden">
+                  <textarea id="noteSentenceContent" rows="12" placeholder="Write each fact or idea as a complete sentence:&#10;Photosynthesis converts light energy into chemical energy.&#10;The process occurs primarily in the chloroplasts of plant cells.&#10;Carbon dioxide and water are the main reactants."></textarea>
+                </div>
+
+                <button type="submit">Save Note</button>
+              </form>
+            </article>
+
+            <article class="card">
+              <h3>Preview</h3>
+              <div id="notePreview" class="preview"></div>
+            </article>
+          </div>
+
+          <article class="card">
+            <div class="row-between">
+              <h3>Note Library</h3>
+              <input id="noteSearch" placeholder="Search notes..." />
+            </div>
+            <div id="noteList" class="stack"></div>
+          </article>
+        </section>
+
+        <!-- ===== ASSIGNMENTS (with Google Classroom) ===== -->
+        <section id="assignments" class="tab">
+          <div class="split-grid">
+            <article class="card">
+              <h3>Add Assignment</h3>
+              <form id="assignmentForm" class="stack">
+                <input id="assignTitle" placeholder="Assignment title" required />
+                <input id="assignSubject" placeholder="Subject" required />
+                <input id="assignDue" type="date" required />
+                <input id="assignWeight" type="number" min="1" max="100" value="10" required />
+                <input id="assignEarned" type="number" min="0" placeholder="Earned points (optional)" />
+                <input id="assignMax" type="number" min="1" value="100" required />
+                <button type="submit">Track Assignment</button>
+              </form>
+            </article>
+            <article class="card">
+              <h3>Grade Forecast</h3>
+              <p id="gradeForecast">No graded assignments yet.</p>
+              <h4>High Priority Work</h4>
+              <div id="highPriorityList" class="stack"></div>
+            </article>
+          </div>
+          <article class="card">
+            <h3>Assignment Tracker</h3>
+            <div id="assignmentList" class="stack"></div>
+          </article>
+          <article class="card">
+            <h3>Google Classroom Integration</h3>
+            <p class="subtle">Connect your Google Classroom to auto-import assignments.</p>
+            <div class="stack top-gap">
+              <div class="pdf-upload-zone" id="gclassroomUploadZone">
+                <p>Click to upload Google Classroom export or paste API credentials</p>
+                <input type="file" id="gclassroomImport" accept=".json,.csv" />
+              </div>
+              <div id="gclassroomStatus" class="top-gap"></div>
+              <div id="gclassroomList" class="stack top-gap"></div>
+            </div>
+          </article>
+          <article class="card">
+            <h3>Google Calendar Link</h3>
+            <p class="subtle">Add your Google Calendar iCal link to show deadlines.</p>
+            <div class="inline top-gap">
+              <input id="gcalUrl" placeholder="Google Calendar iCal URL or paste .ics link" />
+              <button id="gcalImportBtn">Import Calendar</button>
+            </div>
+            <div id="gcalEvents" class="stack top-gap"></div>
+          </article>
+        </section>
+
+        <!-- ===== COACH (with PDF upload) ===== -->
+        <section id="coach" class="tab">
+          <div class="split-grid">
+            <article class="card">
+              <h3>Daily Reflection</h3>
+              <form id="reflectionForm" class="stack">
+                <label>Mood (1-10)<input id="refMood" type="number" min="1" max="10" value="7" /></label>
+                <label>Energy (1-10)<input id="refEnergy" type="number" min="1" max="10" value="7" /></label>
+                <label>Stress (1-10)<input id="refStress" type="number" min="1" max="10" value="4" /></label>
+                <label>Sleep hours<input id="refSleep" type="number" min="0" max="14" value="7" /></label>
+                <textarea id="refWins" placeholder="Top wins today"></textarea>
+                <textarea id="refBlockers" placeholder="Main blockers"></textarea>
+                <button type="submit">Log Reflection</button>
+              </form>
+            </article>
+            <article class="card">
+              <h3>Essay Feedback Lab</h3>
+              <textarea id="essayInput" rows="12" placeholder="Paste an essay draft to get structure and readability feedback..."></textarea>
+              <button id="analyzeEssayBtn" class="top-gap">Analyze Essay</button>
+              <div id="essayFeedback" class="stack top-gap"></div>
+            </article>
+          </div>
+          <article class="card">
+            <h3>AI PDF Coach</h3>
+            <p class="subtle">Upload a PDF and ask AI questions about its content.</p>
+            <div class="pdf-upload-zone" id="pdfUploadZone">
+              <p>Click or drag a PDF here to upload</p>
+              <input type="file" id="pdfFileInput" accept=".pdf" />
+            </div>
+            <div id="pdfStatus" class="top-gap subtle"></div>
+            <div id="pdfPreview" class="pdf-content-preview top-gap hidden"></div>
+            <div id="pdfAiChat" class="stack top-gap" style="max-height:200px;overflow-y:auto;"></div>
+            <div class="inline top-gap">
+              <input id="pdfAiInput" placeholder="Ask a question about this PDF..." />
+              <button id="pdfAiSendBtn" type="button">Ask</button>
+            </div>
+          </article>
+          <article class="card">
+            <h3>Performance Coach</h3>
+            <div id="coachInsights" class="stack"></div>
+          </article>
+          <article class="card">
+            <h3>Reflection Log</h3>
+            <div id="reflectionsList" class="stack"></div>
+          </article>
+        </section>
+
+        <!-- ===== SMART AI ===== -->
+        <section id="ai-content-generator" class="tab">
+          <div class="split-grid">
+            <article class="card">
+              <h3>Smart Content Generator</h3>
+              <p class="subtle">AI creates personalized quizzes and flashcards from any topic.</p>
+              <form id="contentGeneratorForm" class="stack top-gap">
+                <input id="topicInput" placeholder="Enter topic to study (e.g., 'photosynthesis', 'world war ii')" required />
+                <select id="contentType">
+                  <option value="quiz">Generate Quiz Questions</option>
+                  <option value="flashcards">Generate Flashcards</option>
+                  <option value="both">Generate Both (Quiz + Flashcards)</option>
+                </select>
+                <select id="difficulty">
+                  <option value="easy">Easy</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+                <input id="questionCount" type="number" min="3" max="30" value="8" />
+                <button type="submit">Generate Content</button>
+              </form>
+              <div id="generationStatus" class="hidden subtle">Generating content, please wait...</div>
+              <div id="generatedContent" class="stack top-gap"></div>
+            </article>
+            <article class="card">
+              <h3>Rubric Feedback Helper</h3>
+              <p class="subtle">Get structured feedback for essays and assignments.</p>
+              <form id="rubricForm" class="stack top-gap">
+                <select id="assignmentType">
+                  <option value="essay">Essay</option>
+                  <option value="research">Research Paper</option>
+                  <option value="presentation">Presentation</option>
+                  <option value="project">Project Proposal</option>
+                </select>
+                <textarea id="assignmentContent" rows="8" placeholder="Paste your assignment, essay, or response here..." required></textarea>
+                <div class="inline wrap">
+                  <input id="assignmentTitle" placeholder="Assignment title" />
+                  <input id="subject" placeholder="Subject" />
+                  <input id="points" type="number" placeholder="Points possible" />
+                </div>
+                <button type="submit">Analyze with Rubric</button>
+              </form>
+              <div id="rubricFeedback" class="stack top-gap hidden"></div>
+            </article>
+          </div>
+          <article class="card">
+            <h3>Generated Content Preview</h3>
+            <div id="generatedContentPreview" class="stack"></div>
+          </article>
+        </section>
+
+        <!-- ===== AI TUTOR ===== -->
+        <section id="ai-tutor" class="tab">
+          <div class="split-grid">
+            <article class="card">
+              <h3>AI Study Assistant</h3>
+              <p class="subtle">Conversational AI tutor. I guide your thinking, never solve homework directly.</p>
+              <div id="aiChatHistory" class="stack"></div>
+              <div class="inline top-gap">
+                <input id="aiChatInput" placeholder="Ask the tutor or request study help..." />
+                <button id="aiSendBtn">Send</button>
+              </div>
+            </article>
+            <article class="card">
+              <h3>Study Preferences</h3>
+              <div class="stack">
+                <label>Response Style
+                  <select id="responseStyle">
+                    <option value="detailed">Detailed</option>
+                    <option value="concise">Concise</option>
+                    <option value="conceptual">Conceptual</option>
+                    <option value="example">Example-focused</option>
+                  </select>
+                </label>
+                <label>Study Mode
+                  <select id="studyMode">
+                    <option value="fast">Fast-Paced</option>
+                    <option value="thorough">Thorough</option>
+                    <option value="balanced">Balanced</option>
+                  </select>
+                </label>
+                <button id="savePreferences">Save Preferences</button>
+              </div>
+            </article>
+          </div>
+          <article class="card">
+            <h3>Session History</h3>
+            <div id="aiSessionHistory" class="stack"></div>
+          </article>
+        </section>
+
+        <!-- ===== AI INTERACTIVE LESSONS ===== -->
+        <section id="ai-lessons" class="tab">
+          <article class="card">
+            <h3>Interactive AI Lessons</h3>
+            <p class="subtle">Brilliant.org-style lessons: AI teaches you a concept, quizzes you, and adapts to your level.</p>
+            <form id="lessonForm" class="stack top-gap">
+              <input id="lessonTopic" placeholder="Topic to learn (e.g. 'photosynthesis', 'quadratic equations', 'French revolution')" required />
+              <select id="lessonDifficulty">
+                <option value="beginner">Beginner</option>
+                <option value="intermediate" selected>Intermediate</option>
+                <option value="advanced">Advanced</option>
+              </select>
+              <button type="submit">Start Lesson</button>
+            </form>
+          </article>
+          <article class="card" id="lessonArea" style="display:none;">
+            <div class="lesson-container">
+              <div class="lesson-header">
+                <div class="lesson-progress" id="lessonProgressBar"></div>
+                <span id="lessonStepCounter" class="lesson-step-counter"></span>
+              </div>
+              <div id="lessonContent"></div>
+              <div id="lessonSimArea" class="lesson-sim-area hidden"></div>
+              <div id="lessonChatArea" class="lesson-chat-area hidden">
+                <div id="lessonChatHistory" class="lesson-chat-history"></div>
+                <div class="lesson-chat-input-row">
+                  <input id="lessonChatInput" placeholder="Ask a question about this step..." />
+                  <button id="lessonChatSendBtn" type="button">Ask</button>
+                  <button id="lessonChatCloseBtn" type="button" class="ghost">Resume Lesson</button>
+                </div>
+              </div>
+              <div class="inline top-gap">
+                <button id="lessonNextBtn" class="hidden">Next Step</button>
+                <button id="lessonAskBtn" class="ghost hidden">Pause & Ask Question</button>
+                <button id="lessonRestartBtn" class="ghost hidden">Restart Lesson</button>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <!-- ===== AI VOICE MODE ===== -->
+        <section id="ai-voice" class="tab">
+          <article class="card">
+            <h3>AI Voice Mode</h3>
+            <p class="subtle">Practice languages, debate topics, or present to an AI audience using your microphone.</p>
+            <div class="sub-nav top-gap">
+              <button class="sub-nav-btn active" data-voice-mode="language">Language Practice</button>
+              <button class="sub-nav-btn" data-voice-mode="debate">Debate Mode</button>
+              <button class="sub-nav-btn" data-voice-mode="presentation">Presentation Practice</button>
+            </div>
+          </article>
+          <article class="card" id="voiceModeArea">
+            <div class="voice-mode-container">
+              <div class="voice-avatar" id="voiceAvatar">AI</div>
+              <h3 id="voiceModeTitle">Language Practice</h3>
+              <p class="subtle" id="voiceModeDesc">Select a language and have a conversation with the AI.</p>
+              <div id="voiceSettings" class="inline wrap top-gap">
+                <select id="voiceLanguage">
+                  <option value="spanish">Spanish</option>
+                  <option value="french">French</option>
+                  <option value="german">German</option>
+                  <option value="japanese">Japanese</option>
+                  <option value="mandarin">Mandarin</option>
+                  <option value="arabic">Arabic</option>
+                  <option value="portuguese">Portuguese</option>
+                  <option value="italian">Italian</option>
+                </select>
+                <input id="voiceDebateTopic" placeholder="Debate topic (for debate mode)" class="hidden" />
+              </div>
+              <div class="voice-transcript" id="voiceTranscript">
+                <p class="subtle">Press the microphone to start speaking. The AI will respond in text (speech synthesis when available).</p>
+              </div>
+              <div class="voice-controls">
+                <button class="voice-btn mode-switch" id="voiceClearBtn" title="Clear">CLR</button>
+                <button class="voice-btn mic" id="voiceStartBtn" title="Start speaking">MIC</button>
+                <button class="voice-btn stop" id="voiceStopBtn" title="Stop" style="display:none;">STOP</button>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <!-- ===== ANALYTICS ===== -->
+        <section id="analytics" class="tab">
+          <div class="split-grid">
+            <article class="card">
+              <h3>Study Minutes (Last 14 days)</h3>
+              <canvas id="studyChart" height="220"></canvas>
+            </article>
+            <article class="card">
+              <h3>Task Status Distribution</h3>
+              <canvas id="completionChart" height="220"></canvas>
+            </article>
+          </div>
+          <article class="card">
+            <h3>Subject Mastery</h3>
+            <div id="subjectMastery" class="stack"></div>
+          </article>
+          <article class="card">
+            <h3>Activity Heatmap (Last 28 days)</h3>
+            <div id="activityHeatmap" class="heatmap"></div>
+          </article>
+        </section>
+
+        <!-- ===== SETTINGS ===== -->
+        <section id="settings" class="tab">
+          <div class="split-grid">
+            <article class="card">
+              <h3>Profile</h3>
+              <form id="profileForm" class="stack">
+                <input id="profileName" placeholder="Name" required />
+                <input id="profileMajor" placeholder="Program / Major" />
+                <input id="profileWeeklyTarget" type="number" min="1" value="20" />
+                <input id="profileTargetGpa" type="number" min="0" max="4" step="0.01" value="3.8" />
+                <button type="submit">Save Profile</button>
+              </form>
+            </article>
+            <article class="card">
+              <h3>Platform Theme</h3>
+              <p class="subtle">Choose a color theme for the entire platform.</p>
+              <div class="theme-grid top-gap">
+                <button class="theme-swatch active" data-theme="teal" title="Teal">Teal</button>
+                <button class="theme-swatch" data-theme="blue" title="Blue">Blue</button>
+                <button class="theme-swatch" data-theme="orange" title="Orange">Orange</button>
+                <button class="theme-swatch" data-theme="green" title="Green">Green</button>
+                <button class="theme-swatch" data-theme="purple" title="Purple">Purple</button>
+                <button class="theme-swatch" data-theme="red" title="Red">Red</button>
+                <button class="theme-swatch" data-theme="pink" title="Pink">Pink</button>
+                <button class="theme-swatch" data-theme="yellow" title="Yellow">Yellow</button>
+              </div>
+            </article>
+          </div>
+          <article class="card">
+            <h3>API & Integrations</h3>
+            <div class="stack">
+              <div class="info-line">
+                <span><strong>Groq AI API</strong></span>
+                <span id="geminiApiStatus" class="badge">Checking...</span>
+              </div>
+              <div class="info-line">
+                <span><strong>Supabase Cloud</strong></span>
+                <span id="supabaseStatus" class="badge">Checking...</span>
+              </div>
+              <div class="info-line">
+                <span><strong>Google Classroom</strong></span>
+                <span class="badge">Requires OAuth Setup</span>
+              </div>
+              <div class="info-line">
+                <span><strong>Google Calendar</strong></span>
+                <span class="badge">iCal Import Available</span>
+              </div>
+            </div>
+            <button id="runHealthCheckBtn" class="ghost top-gap">Run Health Check</button>
+            <div id="healthCheckResults" class="top-gap"></div>
+          </article>
+          <article class="card">
+            <h3>Backup and Data</h3>
+            <div class="inline wrap">
+              <button id="exportDataBtn">Export JSON</button>
+              <label class="ghost file-label">
+                Import JSON
+                <input id="importDataInput" type="file" accept="application/json" />
+              </label>
+              <button id="resetDataBtn" class="danger">Reset All Data</button>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- Music Player -->
+    <div id="musicPlayer" class="music-player">
+      <div class="music-info">
+        <span id="musicTitle" class="music-title">Select a track</span>
+        <span id="musicArtist" class="music-artist"></span>
+      </div>
+      <div class="music-controls">
+        <button id="musicPrevBtn" class="music-btn" title="Previous">&#9664;</button>
+        <button id="musicPlayBtn" class="music-btn music-play" title="Play/Pause">&#9654;</button>
+        <button id="musicNextBtn" class="music-btn" title="Next">&#9654;</button>
+      </div>
+      <div class="music-progress">
+        <span id="musicTime">0:00</span>
+        <input id="musicSeek" type="range" min="0" max="100" value="0" class="music-seek" />
+        <span id="musicDuration">0:00</span>
+      </div>
+      <div class="music-extras">
+        <input id="musicVolume" type="range" min="0" max="100" value="70" class="music-volume" title="Volume" />
+        <button id="musicToggleList" class="music-btn music-list-btn" title="Track List">&#9776;</button>
+      </div>
+      <div id="musicTrackList" class="music-tracklist hidden"></div>
+    </div>
+    <audio id="musicAudio" preload="auto"></audio>
+
+    <script src="cloud-core.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

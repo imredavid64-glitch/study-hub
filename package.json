@@ -1,0 +1,13 @@
+{
+  "name": "study-hub",
+  "version": "1.0.0",
+  "description": "Study Hub is a full-featured academic productivity app for:",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
