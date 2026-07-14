@@ -1722,3 +1722,208 @@ canvas {
 .main {
   padding-bottom: 60px;
 }
+
+/* ===== CALENDAR ===== */
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.cal-nav h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  font-size: 0.8rem;
+}
+.cal-header {
+  text-align: center;
+  font-weight: 700;
+  padding: 6px 2px;
+  background: var(--accent-soft);
+  border-radius: 6px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+.cal-day {
+  text-align: center;
+  padding: 8px 2px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  min-height: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+}
+.cal-day:hover {
+  background: var(--accent-soft);
+}
+.cal-day.other-month {
+  opacity: 0.25;
+}
+.cal-day.today {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+.cal-day.has-event::after {
+  content: '';
+  display: block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-top: 2px;
+}
+.cal-day.today.has-event::after {
+  background: #fff;
+}
+.cal-event-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ===== SOCIAL MEDIA ===== */
+.social-embed {
+  background: #f6faf7;
+  border: 1px solid #dbe8e4;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+}
+.youtube-placeholder {
+  padding: 20px;
+}
+.youtube-placeholder p {
+  margin: 6px 0;
+}
+.social-link {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 10px 20px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 12px;
+  text-decoration: none;
+  font-weight: 700;
+  transition: filter 0.2s;
+}
+.social-link:hover {
+  filter: brightness(1.1);
+}
+
+/* ===== GRADE ANALYSIS ===== */
+.grade-subject-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #e5f0eb;
+}
+.grade-subject-row:last-child {
+  border-bottom: none;
+}
+.grade-subject-name {
+  font-weight: 600;
+}
+.grade-subject-score {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.grade-mini-chart {
+  height: 8px;
+  border-radius: 4px;
+  background: #e8f0ed;
+  overflow: hidden;
+  margin: 4px 0;
+}
+.grade-mini-chart span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+
+/* ===== PLAYLIST ===== */
+.playlist-panel {
+  position: fixed;
+  bottom: 56px;
+  left: 20px;
+  width: 340px;
+  max-height: 420px;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid rgba(24, 60, 60, 0.09);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 14px;
+  z-index: 1001;
+}
+.playlist-panel.hidden {
+  display: none;
+}
+.playlist-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.playlist-header h4 {
+  margin: 0;
+}
+.playlist-list {
+  display: grid;
+  gap: 4px;
+}
+.playlist-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.playlist-item:hover {
+  background: var(--accent-soft);
+}
+.playlist-item.active {
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+.playlist-track-list {
+  margin-top: 12px;
+  border-top: 1px solid #e5f0eb;
+  padding-top: 12px;
+}
+.playlist-track-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.playlist-track-item:hover {
+  background: #f0f6f3;
+}
+
+@media (max-width: 640px) {
+  .playlist-panel {
+    left: 10px;
+    right: 10px;
+    width: auto;
+  }
+}

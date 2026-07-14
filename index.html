@@ -33,6 +33,8 @@
           <button class="nav-btn" data-tab="ai-tutor">AI Tutor</button>
           <button class="nav-btn" data-tab="ai-lessons">AI Lessons</button>
           <button class="nav-btn" data-tab="ai-voice">Voice Mode</button>
+          <button class="nav-btn" data-tab="calendar">Calendar</button>
+          <button class="nav-btn" data-tab="social">Social</button>
           <button class="nav-btn" data-tab="analytics">Analytics</button>
           <button class="nav-btn" data-tab="settings">Settings</button>
         </nav>
@@ -759,6 +761,93 @@
           </article>
         </section>
 
+        <!-- ===== CALENDAR ===== -->
+        <section id="calendar" class="tab">
+          <div class="split-grid">
+            <article class="card">
+              <h3>Calendar</h3>
+              <div class="cal-nav">
+                <button id="calPrevBtn" class="ghost">&#9664;</button>
+                <h4 id="calMonthLabel"></h4>
+                <button id="calNextBtn" class="ghost">&#9654;</button>
+              </div>
+              <div id="calGrid" class="cal-grid"></div>
+            </article>
+            <article class="card">
+              <h3>Events</h3>
+              <form id="calEventForm" class="stack">
+                <input id="calEventTitle" placeholder="Event title" required />
+                <input id="calEventDate" type="date" required />
+                <input id="calEventTime" type="time" />
+                <input id="calEventDesc" placeholder="Description (optional)" />
+                <button type="submit">Add Event</button>
+              </form>
+              <div id="calEventList" class="stack top-gap"></div>
+            </article>
+          </div>
+          <article class="card">
+            <h3>Schedule Import</h3>
+            <p class="subtle">Upload a PDF schedule or paste iCal URL to import events.</p>
+            <div class="inline top-gap wrap">
+              <div class="pdf-upload-zone" style="flex:1;" id="calPdfZone">
+                <p>Upload PDF Schedule</p>
+                <input type="file" id="calPdfInput" accept=".pdf" />
+              </div>
+              <div style="flex:2;display:flex;gap:8px;align-items:center;">
+                <input id="calIcalUrl" placeholder="iCal URL" />
+                <button id="calIcalImportBtn" class="ghost">Import</button>
+              </div>
+            </div>
+            <div id="calImportStatus" class="top-gap subtle"></div>
+          </article>
+        </section>
+
+        <!-- ===== SOCIAL MEDIA ===== -->
+        <section id="social" class="tab">
+          <div class="split-grid">
+            <article class="card">
+              <h3>Study Hub Community</h3>
+              <p class="subtle">Connect with the Study Hub community on YouTube.</p>
+              <div class="social-embed top-gap">
+                <div class="youtube-placeholder">
+                  <p>📺 <strong>DS Indie AI</strong></p>
+                  <p class="subtle">Subscribe for study tips, updates, and tutorials.</p>
+                  <a href="https://www.youtube.com/@dsindieai/videos" target="_blank" class="social-link">Visit Channel →</a>
+                </div>
+              </div>
+            </article>
+            <article class="card">
+              <h3>Contact & Feedback</h3>
+              <p class="subtle">Reach out or submit feature requests.</p>
+              <div class="stack top-gap">
+                <div class="info-line">
+                  <span>Email</span>
+                  <span><a href="mailto:30dimrekatai@student.aisb.hu">30dimrekatai@student.aisb.hu</a></span>
+                </div>
+                <form id="feedbackForm" class="stack top-gap">
+                  <input id="feedbackName" placeholder="Your name" />
+                  <input id="feedbackEmail" placeholder="Your email" />
+                  <select id="feedbackType">
+                    <option value="feature">Feature Request</option>
+                    <option value="bug">Bug Report</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <textarea id="feedbackMessage" rows="5" placeholder="Describe your feedback..." required></textarea>
+                  <button type="submit">Send Feedback</button>
+                </form>
+              </div>
+            </article>
+          </div>
+          <article class="card">
+            <h3>Resources</h3>
+            <div class="stack">
+              <div class="item"><strong>📚 Study Hub Docs</strong><p class="subtle">Learn how to use all features effectively.</p></div>
+              <div class="item"><strong>🎯 Study Tips</strong><p class="subtle">Active recall, spaced repetition, and Pomodoro techniques.</p></div>
+              <div class="item"><strong>🛠️ API Status</strong><p class="subtle">Check your API connections in Settings.</p></div>
+            </div>
+          </article>
+        </section>
+
         <!-- ===== ANALYTICS ===== -->
         <section id="analytics" class="tab">
           <div class="split-grid">
@@ -778,6 +867,10 @@
           <article class="card">
             <h3>Activity Heatmap (Last 28 days)</h3>
             <div id="activityHeatmap" class="heatmap"></div>
+          </article>
+          <article class="card">
+            <h3>Grade Analysis</h3>
+            <div id="gradeAnalysisContainer" class="stack"></div>
           </article>
         </section>
 
@@ -870,6 +963,21 @@
         <button id="musicToggleList" class="music-btn music-list-btn" title="Track List">&#9776;</button>
       </div>
       <div id="musicTrackList" class="music-tracklist hidden"></div>
+      <button id="musicPlaylistBtn" class="music-btn music-list-btn" title="Playlists">🎵</button>
+    </div>
+    <div id="playlistPanel" class="playlist-panel hidden">
+      <div class="playlist-header">
+        <h4>My Playlists</h4>
+        <div class="inline">
+          <input id="playlistNameInput" placeholder="New playlist name" />
+          <button id="createPlaylistBtn" class="ghost">Create</button>
+        </div>
+      </div>
+      <div id="playlistList" class="playlist-list"></div>
+      <div id="playlistTrackList" class="playlist-track-list hidden">
+        <h5 id="playlistTrackListLabel"></h5>
+        <div id="playlistTracksContainer"></div>
+      </div>
     </div>
     <audio id="musicAudio" preload="auto"></audio>
 

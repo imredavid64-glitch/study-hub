@@ -7,6 +7,8 @@ const DEFAULT_STATE = {
   reflections: [], quizAttempts: [], mockTestHistory: [], recallHistory: [],
   aiChatHistory: [], lessonChatHistory: [], voiceTranscript: [],
   musicTrackIndex: 0, musicVolume: 70, musicPlaying: false,
+  calendarEvents: [],
+  playlists: [],
 };
 let state;
 function loadState() {
@@ -653,6 +655,263 @@ function renderRecallHistory() {
     d.innerHTML = `<strong>${escapeHtml(r.topic)}</strong> — Score: ${r.score}% <span class="badge">${formatDate(r.date)}</span>`;
     el.appendChild(d);
   });
+}
+
+// ===== CALENDAR =====
+let calDate = new Date();
+function setupCalendar() {
+  $('calPrevBtn').addEventListener('click', () => { calDate.setMonth(calDate.getMonth() - 1); renderCalendar(); });
+  $('calNextBtn').addEventListener('click', () => { calDate.setMonth(calDate.getMonth() + 1); renderCalendar(); });
+  $('calEventForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const title = $('calEventTitle').value.trim();
+    const date = $('calEventDate').value;
+    const time = $('calEventTime').value;
+    const desc = $('calEventDesc').value.trim();
+    if (!title || !date) return;
+    state.calendarEvents.push({ id: uid(), title, date, time, desc, createdAt: new Date().toISOString() });
+    saveState();
+    e.target.reset();
+    renderCalendar();
+    renderCalendarEvents();
+    showToast('Event added');
+  });
+  $('calIcalImportBtn').addEventListener('click', importCalIcal);
+  setupCalPdfUpload();
+  renderCalendar();
+  renderCalendarEvents();
+}
+function renderCalendar() {
+  $('calMonthLabel').textContent = calDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const grid = $('calGrid');
+  grid.innerHTML = '';
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  days.forEach(d => { const h = document.createElement('div'); h.className = 'cal-header'; h.textContent = d; grid.appendChild(h); });
+  const first = new Date(calDate.getFullYear(), calDate.getMonth(), 1);
+  const last = new Date(calDate.getFullYear(), calDate.getMonth() + 1, 0);
+  const startDay = first.getDay();
+  for (let i = 0; i < startDay; i++) { const e = document.createElement('div'); e.className = 'cal-day other-month'; grid.appendChild(e); }
+  const today = todayStr();
+  for (let d = 1; d <= last.getDate(); d++) {
+    const dateStr = `${calDate.getFullYear()}-${String(calDate.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const el = document.createElement('div');
+    el.className = 'cal-day';
+    if (dateStr === today) el.classList.add('today');
+    if (state.calendarEvents.some(e => e.date === dateStr)) el.classList.add('has-event');
+    el.textContent = d;
+    el.addEventListener('click', () => { $('calEventDate').value = dateStr; });
+    grid.appendChild(el);
+  }
+}
+function renderCalendarEvents() {
+  const el = $('calEventList');
+  el.innerHTML = '';
+  const sorted = [...state.calendarEvents].sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''));
+  if (sorted.length === 0) { el.innerHTML = '<p class="subtle">No events yet.</p>'; return; }
+  sorted.slice(0, 20).forEach(e => {
+    const d = document.createElement('div');
+    d.className = 'item cal-event-item';
+    d.innerHTML = `<span><strong>${escapeHtml(e.title)}</strong><br><span class="small">${formatDate(e.date)}${e.time ? ' · ' + e.time : ''}${e.desc ? ' · ' + escapeHtml(e.desc) : ''}</span></span>
+      <button class="ghost delete-cal-event" data-id="${e.id}">✕</button>`;
+    d.querySelector('.delete-cal-event').addEventListener('click', () => {
+      state.calendarEvents = state.calendarEvents.filter(x => x.id !== e.id);
+      saveState(); renderCalendar(); renderCalendarEvents(); showToast('Event deleted');
+    });
+    el.appendChild(d);
+  });
+}
+async function importCalIcal() {
+  const url = $('calIcalUrl').value.trim();
+  if (!url) { showToast('Enter an iCal URL'); return; }
+  try {
+    const res = await fetch(url);
+    const text = await res.text();
+    const events = text.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) || [];
+    let count = 0;
+    events.forEach(ev => {
+      const title = ev.match(/SUMMARY:(.+)/)?.[1] || 'Untitled';
+      const dtStart = ev.match(/DTSTART(?:;VALUE=DATE)?:?(\d{8})/)?.[1];
+      if (dtStart) {
+        const dateStr = `${dtStart.slice(0,4)}-${dtStart.slice(4,6)}-${dtStart.slice(6,8)}`;
+        if (!state.calendarEvents.some(e => e.title === title && e.date === dateStr)) {
+          state.calendarEvents.push({ id: uid(), title, date: dateStr, time: '', desc: '', createdAt: new Date().toISOString() });
+          count++;
+        }
+      }
+    });
+    saveState(); renderCalendar(); renderCalendarEvents();
+    $('calImportStatus').textContent = `Imported ${count} events.`;
+    showToast(`Imported ${count} events`);
+  } catch (e) { $('calImportStatus').textContent = 'Import failed.'; showToast('Import failed'); }
+}
+function setupCalPdfUpload() {
+  const zone = $('calPdfZone');
+  const input = $('calPdfInput');
+  if (!zone || !input) return;
+  zone.addEventListener('click', () => input.click());
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    if (!file) return;
+    $('calImportStatus').textContent = 'Reading PDF...';
+    try {
+      const buf = await file.arrayBuffer();
+      if (typeof pdfjsLib !== 'undefined') {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+        let fullText = '';
+        for (let i = 1; i <= Math.min(pdf.numPages, 5); i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          fullText += content.items.map(x => x.str).join(' ') + '\n';
+        }
+        const dateMatches = fullText.match(/\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2}|[A-Z][a-z]+ \d{1,2},? \d{4}/g);
+        if (dateMatches) {
+          dateMatches.forEach(dt => {
+            let parsed = new Date(dt);
+            if (isNaN(parsed.getTime())) parsed = new Date(dt.replace(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/, '$3-$1-$2'));
+            if (!isNaN(parsed.getTime())) {
+              const ds = parsed.toISOString().split('T')[0];
+              if (!state.calendarEvents.some(e => e.date === ds && e.title.startsWith('PDF:'))) {
+                state.calendarEvents.push({ id: uid(), title: `PDF: Schedule ${ds}`, date: ds, time: '', desc: 'Imported from PDF', createdAt: new Date().toISOString() });
+              }
+            }
+          });
+        }
+        saveState(); renderCalendar(); renderCalendarEvents();
+        $('calImportStatus').textContent = 'Extracted events from PDF.';
+        showToast('PDF schedule imported');
+      } else { $('calImportStatus').textContent = 'PDF.js not loaded.'; }
+    } catch (e) { $('calImportStatus').textContent = 'Failed to read PDF.'; }
+  });
+}
+
+// ===== SOCIAL MEDIA =====
+function setupSocial() {
+  $('feedbackForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = $('feedbackName').value.trim() || 'Anonymous';
+    const email = $('feedbackEmail').value.trim() || 'Not provided';
+    const type = $('feedbackType').value;
+    const msg = $('feedbackMessage').value.trim();
+    if (!msg) { showToast('Please write a message'); return; }
+    window.location.href = `mailto:30dimrekatai@student.aisb.hu?subject=${encodeURIComponent('Study Hub Feedback: ' + type)}&body=${encodeURIComponent('From: ' + name + ' (' + email + ')\nType: ' + type + '\n\n' + msg)}`;
+    e.target.reset();
+    showToast('Feedback form opened in email');
+  });
+}
+
+// ===== GRADE ANALYSIS =====
+function renderGradeAnalysis() {
+  const el = $('gradeAnalysisContainer');
+  if (!el) return;
+  const graded = state.assignments.filter(a => a.earned !== null);
+  if (graded.length === 0) { el.innerHTML = '<p class="subtle">Grade assignments in Assignments tab to see analysis.</p>'; return; }
+  const subjects = {};
+  graded.forEach(a => {
+    if (!subjects[a.subject]) subjects[a.subject] = { totalWeight: 0, weightedScore: 0, count: 0 };
+    subjects[a.subject].totalWeight += a.weight;
+    subjects[a.subject].weightedScore += (a.earned / a.max) * a.weight;
+    subjects[a.subject].count++;
+  });
+  const totalWeight = graded.reduce((s, a) => s + a.weight, 0);
+  const overall = totalWeight > 0 ? (graded.reduce((s, a) => s + (a.earned / a.max) * a.weight, 0) / totalWeight * 100) : 0;
+  let html = `<div class="item"><strong>Overall: ${overall.toFixed(1)}%</strong> (${graded.length} graded)</div><div class="top-gap">`;
+  Object.entries(subjects).sort((a, b) => {
+    const sa = a[1].totalWeight > 0 ? a[1].weightedScore / a[1].totalWeight * 100 : 0;
+    const sb = b[1].totalWeight > 0 ? b[1].weightedScore / b[1].totalWeight * 100 : 0;
+    return sb - sa;
+  }).forEach(([subject, data]) => {
+    const pct = data.totalWeight > 0 ? (data.weightedScore / data.totalWeight * 100) : 0;
+    const c = pct >= 90 ? '#237a57' : pct >= 70 ? '#ca8a04' : '#b42318';
+    html += `<div class="grade-subject-row"><span class="grade-subject-name">${escapeHtml(subject)}</span><span class="grade-subject-score" style="color:${c}">${pct.toFixed(1)}%</span></div>
+      <div class="grade-mini-chart"><span style="width:${pct}%;background:${c}"></span></div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+// ===== PLAYLIST =====
+function setupPlaylists() {
+  $('createPlaylistBtn').addEventListener('click', createPlaylist);
+  $('playlistNameInput').addEventListener('keydown', e => { if (e.key === 'Enter') createPlaylist(); });
+  $('musicPlaylistBtn').addEventListener('click', () => { $('playlistPanel').classList.toggle('hidden'); renderPlaylists(); });
+  renderPlaylists();
+}
+function createPlaylist() {
+  const name = $('playlistNameInput').value.trim();
+  if (!name) { showToast('Enter a playlist name'); return; }
+  state.playlists.push({ id: uid(), name, tracks: [] });
+  saveState();
+  $('playlistNameInput').value = '';
+  renderPlaylists();
+  showToast(`Playlist "${name}" created`);
+}
+function renderPlaylists() {
+  const el = $('playlistList');
+  el.innerHTML = '';
+  if (state.playlists.length === 0) { el.innerHTML = '<p class="subtle" style="padding:8px;">No playlists yet.</p>'; return; }
+  state.playlists.forEach((p, idx) => {
+    const d = document.createElement('div');
+    d.className = 'playlist-item';
+    d.innerHTML = `<span>🎵 ${escapeHtml(p.name)}</span><span class="small">${p.tracks.length} tracks</span>`;
+    d.addEventListener('click', () => { renderPlaylistTracks(idx); qsa('.playlist-item').forEach(x => x.classList.remove('active')); d.classList.add('active'); });
+    el.appendChild(d);
+  });
+  if (state.playlists.length > 0) renderPlaylistTracks(0);
+}
+function renderPlaylistTracks(idx) {
+  const playlist = state.playlists[idx];
+  if (!playlist) return;
+  const container = $('playlistTrackList');
+  container.classList.remove('hidden');
+  $('playlistTrackListLabel').textContent = `${escapeHtml(playlist.name)} Tracks`;
+  const el = $('playlistTracksContainer');
+  el.innerHTML = '';
+  if (playlist.tracks.length === 0) { el.innerHTML = '<p class="subtle">Empty playlist. Add tracks from the list.</p>'; return; }
+  playlist.tracks.forEach((t, i) => {
+    const d = document.createElement('div');
+    d.className = 'playlist-track-item';
+    d.innerHTML = `<span>${escapeHtml(t.title)} — ${escapeHtml(t.artist)}</span><button class="ghost remove-pt" data-idx="${i}">✕</button>`;
+    d.addEventListener('click', (e) => {
+      if (e.target.tagName === 'BUTTON') return;
+      const ti = MUSIC_TRACKS.findIndex(mt => mt.file === t.file);
+      if (ti >= 0) { state.musicTrackIndex = ti; loadMusicTrack(); if (!state.musicPlaying) toggleMusicPlay(); }
+    });
+    d.querySelector('.remove-pt').addEventListener('click', () => {
+      playlist.tracks.splice(i, 1); saveState(); renderPlaylistTracks(idx); showToast('Track removed');
+    });
+    el.appendChild(d);
+  });
+}
+function enhanceMusicTrackList() {
+  const orig = renderMusicTrackList;
+  renderMusicTrackList = function() {
+    orig();
+    MUSIC_TRACKS.forEach((t, i) => {
+      const items = qsa('.music-track-item');
+      if (items[i]) {
+        const btn = document.createElement('button');
+        btn.className = 'ghost'; btn.textContent = '+'; btn.title = 'Add to playlist';
+        btn.style.cssText = 'padding:2px 6px;font-size:0.7rem;';
+        btn.addEventListener('click', (e) => { e.stopPropagation(); addTrackToPlaylist(i); });
+        items[i].querySelector('.track-name')?.after(btn);
+      }
+    });
+  };
+}
+function addTrackToPlaylist(trackIdx) {
+  const track = MUSIC_TRACKS[trackIdx];
+  if (!track) return;
+  if (state.playlists.length === 0) { showToast('Create a playlist first'); return; }
+  const names = state.playlists.map((p, i) => `${i + 1}. ${p.name}`).join('\n');
+  const choice = prompt(`Add "${track.title}" to which playlist?\n${names}\nEnter number:`);
+  if (!choice) return;
+  const idx = parseInt(choice) - 1;
+  if (idx < 0 || idx >= state.playlists.length) { showToast('Invalid choice'); return; }
+  if (state.playlists[idx].tracks.some(t => t.file === track.file)) { showToast('Track already in playlist'); return; }
+  state.playlists[idx].tracks.push({ file: track.file, title: track.title, artist: track.artist });
+  saveState(); renderPlaylists();
+  showToast(`Added to "${state.playlists[idx].name}"`);
 }
 
 // ===== NOTES (6 METHODS) =====
@@ -1371,6 +1630,7 @@ function setupAnalytics() {
   renderCharts();
   renderSubjectMastery();
   renderHeatmap();
+  renderGradeAnalysis();
 }
 function renderCharts() {
   if (charts.studyChart) { charts.studyChart.destroy(); charts.studyChart = null; }
@@ -1709,6 +1969,10 @@ function init() {
   setupAnalytics();
   setupSettings();
   setupMusicPlayer();
+  setupPlaylists();
+  enhanceMusicTrackList();
+  setupCalendar();
+  setupSocial();
   setupLearningTools();
   setupGlobalShortcuts();
   $('quickFocusBtn').addEventListener('click', () => {
