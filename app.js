@@ -1,7 +1,7 @@
 // ===== STATE MANAGEMENT =====
 const STORAGE_KEY = 'studyhub_state';
 const DEFAULT_STATE = {
-  profile: { name: 'Scholar', major: 'General Studies', weeklyTargetHours: 20, targetGpa: 3.8 },
+  profile: { name: 'Scholar', major: 'General Studies', weeklyTargetHours: 20, targetGpa: 3.8, setupComplete: false },
   settings: { darkMode: false, theme: 'teal', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true },
   goals: [], tasks: [], sessions: [], flashcards: [], notes: [], assignments: [],
   reflections: [], quizAttempts: [], mockTestHistory: [], recallHistory: [],
@@ -836,6 +836,17 @@ function setupPlaylists() {
   $('playlistNameInput').addEventListener('keydown', e => { if (e.key === 'Enter') createPlaylist(); });
   $('musicPlaylistBtn').addEventListener('click', () => { $('playlistPanel').classList.toggle('hidden'); renderPlaylists(); });
   renderPlaylists();
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('delete-playlist')) {
+      var idx = parseInt(e.target.dataset.pidx);
+      if (confirm('Delete playlist "' + state.playlists[idx].name + '"?')) {
+        state.playlists.splice(idx, 1);
+        saveState();
+        renderPlaylists();
+        showToast('Playlist deleted');
+      }
+    }
+  });
 }
 function createPlaylist() {
   const name = $('playlistNameInput').value.trim();
@@ -853,8 +864,8 @@ function renderPlaylists() {
   state.playlists.forEach((p, idx) => {
     const d = document.createElement('div');
     d.className = 'playlist-item';
-    d.innerHTML = `<span>🎵 ${escapeHtml(p.name)}</span><span class="small">${p.tracks.length} tracks</span>`;
-    d.addEventListener('click', () => { renderPlaylistTracks(idx); qsa('.playlist-item').forEach(x => x.classList.remove('active')); d.classList.add('active'); });
+    d.innerHTML = `<span>🎵 ${escapeHtml(p.name)}</span><span class="small">${p.tracks.length} tracks <button class="ghost delete-playlist" data-pidx="${idx}" style="padding:2px 6px;font-size:0.7rem;color:var(--danger);margin-left:4px;">✕</button></span>`;
+    d.addEventListener('click', (e) => { if (e.target.classList.contains('delete-playlist')) return; renderPlaylistTracks(idx); qsa('.playlist-item').forEach(x => x.classList.remove('active')); d.classList.add('active'); });
     el.appendChild(d);
   });
   if (state.playlists.length > 0) renderPlaylistTracks(0);
@@ -1947,12 +1958,527 @@ function seedDemoData() {
   init();
 }
 
+
+
+
+// ===== SUBJECTS TAB =====
+let calcExpr = "";
+function setupSubjects() {
+  qsa(".sub-nav-btn").forEach(b => b.addEventListener("click", () => {
+    qsa(".sub-nav-btn").forEach(x => x.classList.remove("active"));
+    b.classList.add("active");
+    qsa(".subject-panel").forEach(p => p.classList.add("hidden"));
+    const panel = document.getElementById("subject-" + b.dataset.subject);
+    if (panel) panel.classList.remove("hidden");
+  }));
+
+  // ---- Math Calculator ----
+  qsa(".calc-btn").forEach(b => {
+    b.addEventListener("click", () => {
+      const v = b.dataset.v;
+      if (v === "C") { calcExpr = ""; updateCalcDisplay(); return; }
+      if (v === "=") {
+        try {
+          let expr = calcExpr.replace(/\u00d7/g, "*").replace(/\u00f7/g, "/").replace(/\u2212/g, "-");
+          expr = expr.replace(/\^/g, "**");
+          expr = expr.replace(/sqrt\(/g, "Math.sqrt(");
+          expr = expr.replace(/sin\(/g, "Math.sin(");
+          expr = expr.replace(/cos\(/g, "Math.cos(");
+          expr = expr.replace(/tan\(/g, "Math.tan(");
+          expr = expr.replace(/log\(/g, "Math.log10(");
+          expr = expr.replace(/pi/g, "Math.PI");
+          const result = Function('"use strict"; return (' + expr + ')')();
+          calcExpr = String(result);
+        } catch (e) { calcExpr = "Error"; }
+        updateCalcDisplay();
+        return;
+      }
+      calcExpr += v;
+      updateCalcDisplay();
+    });
+  });
+  function updateCalcDisplay() {
+    $("calcDisplay").value = calcExpr || "0";
+  }
+
+  // ---- Graph Plotter ----
+  function plotGraph() {
+    const canvas = $("graphCanvas");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const W = canvas.width || canvas.offsetWidth || 500;
+    const H = canvas.height || 280;
+    canvas.width = W * 2; canvas.height = H * 2;
+    canvas.style.width = W + "px"; canvas.style.height = H + "px";
+    ctx.scale(2, 2);
+    ctx.clearRect(0, 0, W, H);
+    const padding = 40;
+    const plotW = W - padding * 2;
+    const plotH = H - padding * 2;
+    const xMin = -10, xMax = 10, yMin = -10, yMax = 10;
+    const xScale = plotW / (xMax - xMin);
+    const yScale = plotH / (yMax - yMin);
+    function toCanvas(x, y) {
+      return [padding + (x - xMin) * xScale, padding + (yMax - y) * yScale];
+    }
+    ctx.strokeStyle = "#e8f0ed";
+    ctx.lineWidth = 1;
+    for (let i = Math.ceil(xMin); i <= Math.floor(xMax); i++) {
+      const [cx] = toCanvas(i, 0);
+      ctx.beginPath(); ctx.moveTo(cx, padding); ctx.lineTo(cx, padding + plotH); ctx.stroke();
+    }
+    for (let i = Math.ceil(yMin); i <= Math.floor(yMax); i++) {
+      const [, cy] = toCanvas(0, i);
+      ctx.beginPath(); ctx.moveTo(padding, cy); ctx.lineTo(padding + plotW, cy); ctx.stroke();
+    }
+    ctx.strokeStyle = "#1f2b2b";
+    ctx.lineWidth = 2;
+    const [x0, y0] = toCanvas(0, 0);
+    ctx.beginPath(); ctx.moveTo(padding, y0); ctx.lineTo(padding + plotW, y0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x0, padding); ctx.lineTo(x0, padding + plotH); ctx.stroke();
+    const fnText = $("graphFunction").value.trim() || "x^2";
+    try {
+      const compiled = new Function("x", "with(Math){return " + fnText.replace(/\^/g, "**") + "}");
+      ctx.strokeStyle = "#0f766e";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      let first = true;
+      for (let px = 0; px <= plotW; px++) {
+        const x = xMin + (px / plotW) * (xMax - xMin);
+        try {
+          const y = compiled(x);
+          if (typeof y !== "number" || !isFinite(y)) { first = true; continue; }
+          const [cx, cy] = toCanvas(x, y);
+          if (cy < padding - 10 || cy > padding + plotH + 10) { first = true; continue; }
+          if (first) { ctx.moveTo(cx, cy); first = false; }
+          else ctx.lineTo(cx, cy);
+        } catch (e) { first = true; }
+      }
+      ctx.stroke();
+    } catch (e) {
+      ctx.fillStyle = "#b42318";
+      ctx.font = "14px Space Grotesk, sans-serif";
+      ctx.fillText("Invalid function", 10, 20);
+    }
+  }
+  $("plotGraphBtn").addEventListener("click", plotGraph);
+  $("graphFunction").addEventListener("keydown", e => { if (e.key === "Enter") plotGraph(); });
+  setTimeout(plotGraph, 100);
+
+  // ---- Math Solver (AI) ----
+  $("mathSolverBtn").addEventListener("click", async () => {
+    const input = $("mathSolverInput").value.trim();
+    if (!input) { showToast("Enter a math problem"); return; }
+    showToast("Solving...");
+    try {
+      const txt = await groqChat([
+        { role: "system", content: "You are a math tutor. Provide step-by-step guidance for the problem. Guide the student to solve it themselves. Never give the final answer directly." },
+        { role: "user", content: input }
+      ], { maxTokens: 1024 });
+      $("mathSolverResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+    } catch (e) { showToast("AI error"); }
+  });
+
+  // ---- Physics ----
+  $("physicsExplainBtn").addEventListener("click", async () => {
+    const topic = $("physicsTopic").value;
+    const labels = { motion: "Motion & Kinematics", forces: "Forces & Newton's Laws", energy: "Energy & Work", waves: "Waves & Sound", electricity: "Electricity & Circuits" };
+    showToast("Explaining...");
+    try {
+      const txt = await groqChat([
+        { role: "system", content: "You are a physics tutor. Explain the concept clearly with examples. Use analogies. Keep it under 200 words." },
+        { role: "user", content: "Explain: " + (labels[topic] || topic) }
+      ], { maxTokens: 1024 });
+      $("physicsResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+    } catch (e) { showToast("AI error"); }
+  });
+
+  // ---- Chemistry ----
+  $("chemistryExplainBtn").addEventListener("click", async () => {
+    const topic = $("chemistryTopic").value;
+    const labels = { atoms: "Atomic Structure", bonds: "Chemical Bonding", reactions: "Chemical Reactions", periodic: "Periodic Table", organic: "Organic Chemistry" };
+    showToast("Explaining...");
+    try {
+      const txt = await groqChat([
+        { role: "system", content: "You are a chemistry tutor. Explain the concept clearly with examples." },
+        { role: "user", content: "Explain: " + (labels[topic] || topic) }
+      ], { maxTokens: 1024 });
+      $("chemistryResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+    } catch (e) { showToast("AI error"); }
+  });
+
+  // ---- Biology ----
+  $("biologyExplainBtn").addEventListener("click", async () => {
+    const topic = $("biologyTopic").value;
+    const labels = { cells: "Cell Biology", genetics: "Genetics & DNA", evolution: "Evolution", ecology: "Ecology", human: "Human Body Systems" };
+    showToast("Explaining...");
+    try {
+      const txt = await groqChat([
+        { role: "system", content: "You are a biology tutor. Explain the concept clearly with examples." },
+        { role: "user", content: "Explain: " + (labels[topic] || topic) }
+      ], { maxTokens: 1024 });
+      $("biologyResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+    } catch (e) { showToast("AI error"); }
+  });
+
+  // ---- Mind Maps ----
+  $("mindmapBtn").addEventListener("click", async () => {
+    const topic = $("mindmapTopic").value;
+    const labels = { photosynthesis: "Photosynthesis", "cell-division": "Cell Division", "chemical-bonds": "Chemical Bonds", "newtons-laws": "Newton's Laws", ecosystems: "Ecosystems" };
+    showToast("Generating mind map...");
+    try {
+      const txt = await groqChat([
+        { role: "system", content: "Generate a text-based mind map for the topic. Use indentation level (no markdown). Return ONLY the mind map text." },
+        { role: "user", content: "Topic: " + (labels[topic] || topic) }
+      ], { maxTokens: 1024 });
+      $("mindmapResult").innerHTML = '<div class="chat-bubble assistant"><pre style="white-space:pre-wrap;font-family:monospace;font-size:0.85rem;">' + escapeHtml(txt) + '</pre></div>';
+    } catch (e) { showToast("AI error"); }
+  });
+
+  // ---- Languages: Speaking ----
+  $("langSpeakingStartBtn").addEventListener("click", async () => {
+    const lang = $("langSpeakingLang").value;
+    const level = $("langSpeakingLevel").value;
+    showToast("Generating speaking exercise...");
+    try {
+      const txt = await groqChat([
+        { role: "system", content: "Generate a speaking exercise for " + lang + " at " + level + " level. Include: topic, key phrases to practice, and a sample dialogue. Format with clear sections." },
+        { role: "user", content: "Create a speaking practice exercise." }
+      ], { maxTokens: 1024 });
+      $("langSpeakingArea").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+      if ("speechSynthesis" in window) {
+        const utter = new SpeechSynthesisUtterance(txt.substring(0, 200));
+        const langMap = { spanish: "es-ES", french: "fr-FR", german: "de-DE", japanese: "ja-JP", mandarin: "zh-CN", italian: "it-IT", portuguese: "pt-BR", arabic: "ar-SA" };
+        utter.lang = langMap[lang] || "en-US";
+        window.speechSynthesis.speak(utter);
+      }
+    } catch (e) { showToast("AI error"); }
+  });
+
+  // ---- Languages: Listening ----
+  $("langListeningGenBtn").addEventListener("click", async () => {
+    const lang = $("langListeningLang").value;
+    const langMap = { spanish: "es-ES", french: "fr-FR", german: "de-DE", japanese: "ja-JP" };
+    showToast("Generating listening exercise...");
+    try {
+      const txt = await groqChat([
+        { role: "system", content: "Generate a short listening passage in " + lang + " (about 80 words) followed by 3 comprehension questions in English." },
+        { role: "user", content: "Create a listening exercise." }
+      ], { maxTokens: 1024 });
+      $("langListeningArea").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+      if ("speechSynthesis" in window) {
+        const firstPart = txt.split("?")[0] || txt.substring(0, 200);
+        const utter = new SpeechSynthesisUtterance(firstPart);
+        utter.lang = langMap[lang] || "en-US";
+        window.speechSynthesis.speak(utter);
+      }
+    } catch (e) { showToast("AI error"); }
+  });
+
+  // ---- Languages: Reading ----
+  $("langReadingGenBtn").addEventListener("click", async () => {
+    const lang = $("langReadingLang").value;
+    const level = $("langReadingLevel").value;
+    showToast("Generating reading exercise...");
+    try {
+      const txt = await groqChat([
+        { role: "system", content: "Generate a reading passage in " + lang + " at " + level + " level (about 100 words) followed by 3 comprehension questions in English with answers." },
+        { role: "user", content: "Create a reading exercise." }
+      ], { maxTokens: 1024 });
+      $("langReadingArea").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+    } catch (e) { showToast("AI error"); }
+  });
+
+  // ---- Languages: Writing ----
+  $("langWritingPromptBtn").addEventListener("click", async () => {
+    const lang = $("langWritingLang").value;
+    showToast("Generating writing prompt...");
+    try {
+      const txt = await groqChat([
+        { role: "system", content: "Generate a writing prompt in " + lang + " with instructions in English. Include: topic, word count, and key vocabulary to use." },
+        { role: "user", content: "Create a writing prompt." }
+      ], { maxTokens: 1024 });
+      $("langWritingArea").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+    } catch (e) { showToast("AI error"); }
+  });
+
+  // ---- Social Studies: Geography ----
+  $("geoExplainBtn").addEventListener("click", async () => {
+    const region = $("geoRegion").value;
+    const labels = { world: "World Geography", europe: "Europe", asia: "Asia", africa: "Africa", americas: "Americas" };
+    showToast("Learning...");
+    try {
+      const txt = await groqChat([
+        { role: "system", content: "You are a geography tutor. Explain key geographical features, countries, and cultural aspects of the region." },
+        { role: "user", content: "Teach me about: " + (labels[region] || region) }
+      ], { maxTokens: 1024 });
+      $("geoResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+    } catch (e) { showToast("AI error"); }
+  });
+
+  // ---- Social Studies: History ----
+  $("historyTimelineBtn").addEventListener("click", async () => {
+    const period = $("historyPeriod").value;
+    const labels = { ancient: "Ancient History", medieval: "Medieval Period", modern: "Modern History", "20th": "20th Century", world: "World History Overview" };
+    showToast("Generating timeline...");
+    try {
+      const txt = await groqChat([
+        { role: "system", content: "Generate a timeline of key events for the historical period. Format as a list with dates and descriptions." },
+        { role: "user", content: "Timeline for: " + (labels[period] || period) }
+      ], { maxTokens: 1024 });
+      $("historyResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+    } catch (e) { showToast("AI error"); }
+  });
+
+  // ---- Social Studies: Economy ----
+  $("economyExplainBtn").addEventListener("click", async () => {
+    const topic = $("economyTopic").value;
+    const labels = { basics: "Basic Economic Principles", "supply-demand": "Supply & Demand", markets: "Market Structures", fiscal: "Fiscal Policy", global: "Global Economy" };
+    showToast("Explaining...");
+    try {
+      const txt = await groqChat([
+        { role: "system", content: "You are an economics tutor. Explain the concept with real-world examples." },
+        { role: "user", content: "Explain: " + (labels[topic] || topic) }
+      ], { maxTokens: 1024 });
+      $("economyResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+    } catch (e) { showToast("AI error"); }
+  });
+
+  // ---- Social Studies: Civics ----
+  $("civicsExplainBtn").addEventListener("click", async () => {
+    const topic = $("civicsTopic").value;
+    const labels = { gov: "Government Systems", rights: "Rights & Responsibilities", society: "Social Structures", culture: "Culture & Society", institutions: "Social Institutions" };
+    showToast("Explaining...");
+    try {
+      const txt = await groqChat([
+        { role: "system", content: "You are a civics and sociology tutor. Explain the concept clearly." },
+        { role: "user", content: "Explain: " + (labels[topic] || topic) }
+      ], { maxTokens: 1024 });
+      $("civicsResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+    } catch (e) { showToast("AI error"); }
+  });
+
+  // ---- English: Text Analyzer ----
+  $("englishAnalyzeBtn").addEventListener("click", async () => {
+    const text = $("englishAnalyzerInput").value.trim();
+    if (!text) { showToast("Paste some text first"); return; }
+    showToast("Analyzing...");
+    try {
+      const txt = await groqChat([
+        { role: "system", content: "Analyze this text for readability, structure, and grammar. Return JSON with {readability:0-100, grammar:string, structure:string, suggestions:string[]}. Return ONLY valid JSON." },
+        { role: "user", content: text }
+      ], { maxTokens: 1024 });
+      try {
+        const r = JSON.parse(txt.replace(/```json|```/g, "").trim());
+        let html = '<div class="item"><strong>Readability:</strong> ' + r.readability + '/100</div>';
+        if (r.grammar) html += '<div class="item"><strong>Grammar:</strong> ' + escapeHtml(r.grammar) + '</div>';
+        if (r.structure) html += '<div class="item"><strong>Structure:</strong> ' + escapeHtml(r.structure) + '</div>';
+        if (r.suggestions) html += '<div class="item"><strong>Suggestions:</strong><ul>' + r.suggestions.map(function(s) { return '<li>' + escapeHtml(s) + '</li>'; }).join("") + '</ul></div>';
+        $("englishAnalysisResult").innerHTML = html;
+      } catch (e) {
+        $("englishAnalysisResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+      }
+    } catch (e) { showToast("AI error"); }
+  });
+
+  // ---- English: Essay Helper ----
+  $("englishEssayHelpBtn").addEventListener("click", async () => {
+    const essay = $("englishEssayInput").value.trim();
+    const prompt = $("englishEssayPrompt").value.trim() || "general feedback";
+    if (!essay) { showToast("Paste your essay first"); return; }
+    showToast("Getting guidance...");
+    try {
+      const txt = await groqChat([
+        { role: "system", content: "You are an English writing tutor. Guide the student to improve their essay. Never write content for them. Focus on: " + prompt },
+        { role: "user", content: "Essay draft:\\n" + essay.substring(0, 3000) }
+      ], { maxTokens: 1024 });
+      $("englishEssayResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+    } catch (e) { showToast("AI error"); }
+  });
+
+  // ---- English: Vocabulary Builder ----
+  $("englishVocabBtn").addEventListener("click", async () => {
+    const topic = $("englishVocabTopic").value.trim() || "general";
+    showToast("Generating vocabulary...");
+    try {
+      const txt = await groqChat([
+        { role: "system", content: "Generate 10 vocabulary words for the topic. Return JSON array with {word, definition, example}. Return ONLY valid JSON." },
+        { role: "user", content: "Topic: " + topic }
+      ], { maxTokens: 1024 });
+      try {
+        const words = JSON.parse(txt.replace(/```json|```/g, "").trim());
+        let html = "";
+        words.forEach(function(w) {
+          html += '<div class="item"><strong>' + escapeHtml(w.word) + '</strong> - ' + escapeHtml(w.definition) + '<br><em>' + escapeHtml(w.example || "") + '</em></div>';
+        });
+        $("englishVocabResult").innerHTML = html;
+      } catch (e) {
+        $("englishVocabResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+      }
+    } catch (e) { showToast("AI error"); }
+  });
+
+  // ---- Health: Exercise ----
+  $("exerciseGuideBtn").addEventListener("click", async () => {
+    const type = $("exerciseType").value;
+    const labels = { cardio: "Cardio", strength: "Strength Training", flexibility: "Flexibility & Stretching", hiit: "HIIT Workouts", yoga: "Yoga & Meditation" };
+    showToast("Generating exercise guide...");
+    try {
+      const txt = await groqChat([
+        { role: "system", content: "You are a fitness coach. Provide a safe, effective exercise guide for the activity. Include warm-up, main exercises, and cool-down. Prioritize safety." },
+        { role: "user", content: "Exercise guide for: " + (labels[type] || type) }
+      ], { maxTokens: 1024 });
+      $("exerciseResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+    } catch (e) { showToast("AI error"); }
+  });
+
+  // ---- Health: Body Systems ----
+  $("bodySystemBtn").addEventListener("click", async () => {
+    const system = $("bodySystem").value;
+    const labels = { skeletal: "Skeletal System", muscular: "Muscular System", circulatory: "Circulatory System", respiratory: "Respiratory System", nervous: "Nervous System", digestive: "Digestive System", immune: "Immune System" };
+    showToast("Explaining...");
+    try {
+      const txt = await groqChat([
+        { role: "system", content: "You are a biology tutor. Explain the body system with key functions and interesting facts." },
+        { role: "user", content: "Explain: " + (labels[system] || system) }
+      ], { maxTokens: 1024 });
+      $("bodySystemResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+    } catch (e) { showToast("AI error"); }
+  });
+
+  // ---- Health: Nutrition ----
+  $("nutritionAskBtn").addEventListener("click", async () => {
+    const q = $("nutritionQuery").value.trim();
+    if (!q) { showToast("Ask a question"); return; }
+    showToast("Asking AI...");
+    try {
+      const txt = await groqChat([
+        { role: "system", content: "You are a nutrition and wellness expert. Provide evidence-based advice. Focus on general wellness, not medical diagnosis." },
+        { role: "user", content: q }
+      ], { maxTokens: 1024 });
+      $("nutritionResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+    } catch (e) { showToast("AI error"); }
+  });
+
+  // ---- Math Formulas ----
+  renderMathFormulas();
+}
+
+function renderMathFormulas() {
+  const el = $("mathFormulas");
+  if (!el) return;
+  const formulas = [
+    { name: "Quadratic Formula", formula: "x = (-b \u00b1 \u221a(b\u00b2 - 4ac)) / 2a", desc: "Solves ax\u00b2 + bx + c = 0" },
+    { name: "Pythagorean Theorem", formula: "a\u00b2 + b\u00b2 = c\u00b2", desc: "Right triangle relationship" },
+    { name: "Area of Circle", formula: "A = \u03c0r\u00b2", desc: "Area with radius r" },
+    { name: "Circumference", formula: "C = 2\u03c0r", desc: "Circle perimeter" },
+    { name: "Area of Triangle", formula: "A = \u00bd \u00d7 b \u00d7 h", desc: "Base times height over 2" },
+    { name: "Volume of Sphere", formula: "V = \u00be\u03c0r\u00b3", desc: "Sphere volume" },
+    { name: "Sine Rule", formula: "sin(A)/a = sin(B)/b = sin(C)/c", desc: "Triangle side-angle relation" },
+    { name: "Cosine Rule", formula: "c\u00b2 = a\u00b2 + b\u00b2 - 2ab\u00b7cos(C)", desc: "General triangle formula" },
+    { name: "Derivative of x\u207f", formula: "d/dx(x\u207f) = nx\u207f\u207b\u00b9", desc: "Power rule" },
+    { name: "Integration", formula: "\u222bx\u207f dx = x\u207f\u207a\u00b9/(n+1) + C", desc: "Power rule for integrals" },
+    { name: "Slope", formula: "m = (y\u2082 - y\u2081)/(x\u2082 - x\u2081)", desc: "Line slope between points" },
+    { name: "Distance Formula", formula: "d = \u221a((x\u2082-x\u2081)\u00b2 + (y\u2082-y\u2081)\u00b2)", desc: "Distance between two points" }
+  ];
+  el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;">' + formulas.map(function(f) {
+    return '<div class="item" style="text-align:center;"><strong>' + escapeHtml(f.name) + '</strong><br><code style="font-size:1rem;background:#f0f7f4;padding:4px 8px;border-radius:6px;display:inline-block;margin:4px 0;">' + escapeHtml(f.formula) + '</code><br><span class="small">' + escapeHtml(f.desc) + '</span></div>';
+  }).join("") + '</div>';
+}
+
+// ===== SETUP WIZARD =====
+let setupState = { step: 0, name: "", major: "", weeklyTarget: 20, targetGpa: 3.8, subjects: [], theme: "teal" };
+
+function showSetupModal() {
+  setupState = { step: 0, name: "", major: "", weeklyTarget: 20, targetGpa: 3.8, subjects: [], theme: state.settings.theme || "teal" };
+  $("setupModal").classList.remove("hidden");
+  renderSetupStep();
+}
+
+function renderSetupStep() {
+  const content = $("setupStepContent");
+  const dots = qsa(".setup-step-dot");
+  dots.forEach(function(d, i) {
+    d.classList.toggle("active", i === setupState.step);
+    d.classList.toggle("done", i < setupState.step);
+  });
+  $("setupBackBtn").style.display = setupState.step > 0 ? "" : "none";
+  $("setupNextBtn").style.display = setupState.step < 2 ? "" : "none";
+  $("setupFinishBtn").style.display = setupState.step === 2 ? "" : "none";
+
+  if (setupState.step === 0) {
+    content.innerHTML = '<h2>Welcome to Study Hub!</h2><p>Let\'s set up your profile.</p>' +
+      '<div class="stack"><input id="setupName" placeholder="Your name" value="' + escapeHtml(setupState.name || state.profile.name) + '" />' +
+      '<input id="setupMajor" placeholder="Program / Major" value="' + escapeHtml(setupState.major || state.profile.major) + '" />' +
+      '<label>Weekly study target (hours)<input id="setupWeekly" type="number" min="1" value="' + (setupState.weeklyTarget || state.profile.weeklyTargetHours) + '" /></label>' +
+      '<label>Target GPA<input id="setupGpa" type="number" min="0" max="4" step="0.1" value="' + (setupState.targetGpa || state.profile.targetGpa) + '" /></label></div>';
+  } else if (setupState.step === 1) {
+    const allSubjects = ["Math", "Science", "Languages", "Social Studies", "English", "Health Studies"];
+    content.innerHTML = '<h2>Choose your subjects</h2><p>Select the subjects you study:</p><div class="setup-subject-grid">' +
+      allSubjects.map(function(s) {
+        return '<div class="setup-subject-option' + (setupState.subjects.includes(s) ? ' selected' : '') + '" data-subj="' + s + '">' + s + '</div>';
+      }).join("") + '</div>';
+    qsa(".setup-subject-option").forEach(function(el) {
+      el.addEventListener("click", function() {
+        var s = this.dataset.subj;
+        var idx = setupState.subjects.indexOf(s);
+        if (idx >= 0) { setupState.subjects.splice(idx, 1); this.classList.remove("selected"); }
+        else { setupState.subjects.push(s); this.classList.add("selected"); }
+      });
+    });
+  } else if (setupState.step === 2) {
+    content.innerHTML = '<h2>Almost done!</h2><p>Choose your theme:</p><div class="theme-grid">' +
+      ["teal","blue","orange","green","purple","red","pink","yellow"].map(function(t) {
+        return '<button class="theme-swatch' + (setupState.theme === t ? ' active' : '') + '" data-theme="' + t + '" style="font-size:0.6rem;">' + t.charAt(0).toUpperCase() + t.slice(1) + '</button>';
+      }).join("") + '</div>';
+    qsa(".theme-swatch").forEach(function(el) {
+      el.addEventListener("click", function() {
+        qsa(".theme-swatch").forEach(function(x) { x.classList.remove("active"); });
+        this.classList.add("active");
+        setupState.theme = this.dataset.theme;
+      });
+    });
+  }
+}
+
+$("setupNextBtn").addEventListener("click", function() {
+  if (setupState.step === 0) {
+    setupState.name = $("setupName").value.trim() || "Scholar";
+    setupState.major = $("setupMajor").value.trim() || "General Studies";
+    setupState.weeklyTarget = +$("setupWeekly").value || 20;
+    setupState.targetGpa = Math.min(4, Math.max(0, +$("setupGpa").value || 3.8));
+  }
+  setupState.step++;
+  renderSetupStep();
+});
+
+$("setupBackBtn").addEventListener("click", function() {
+  if (setupState.step > 0) { setupState.step--; renderSetupStep(); }
+});
+
+$("setupFinishBtn").addEventListener("click", function() {
+  state.profile.name = setupState.name || "Scholar";
+  state.profile.major = setupState.major || "General Studies";
+  state.profile.weeklyTargetHours = setupState.weeklyTarget || 20;
+  state.profile.targetGpa = setupState.targetGpa || 3.8;
+  state.profile.setupComplete = true;
+  state.settings.theme = setupState.theme || "teal";
+  document.documentElement.setAttribute("data-theme", state.settings.theme);
+  saveState();
+  $("setupModal").classList.add("hidden");
+  updateWelcomeTitle();
+  showToast("Profile setup complete! Welcome to Study Hub.");
+});
+
 // ===== INIT =====
 function init() {
   loadState();
   $('headerDate').textContent = formatDate(new Date());
   qsa('.nav-btn').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
   applyTheme();
+  if (!state.profile.setupComplete) {
+    setTimeout(showSetupModal, 300);
+  }
   renderDashboard();
   setupPlanner();
   setupTimer();
@@ -1966,6 +2492,7 @@ function init() {
   setupAITutor();
   setupAiLessons();
   setupVoiceMode();
+  setupSubjects();
   setupAnalytics();
   setupSettings();
   setupMusicPlayer();

@@ -33,6 +33,7 @@
           <button class="nav-btn" data-tab="ai-tutor">AI Tutor</button>
           <button class="nav-btn" data-tab="ai-lessons">AI Lessons</button>
           <button class="nav-btn" data-tab="ai-voice">Voice Mode</button>
+          <button class="nav-btn" data-tab="subjects">Subjects</button>
           <button class="nav-btn" data-tab="calendar">Calendar</button>
           <button class="nav-btn" data-tab="social">Social</button>
           <button class="nav-btn" data-tab="analytics">Analytics</button>
@@ -761,6 +762,364 @@
           </article>
         </section>
 
+        <!-- ===== SUBJECTS TAB ===== -->
+        <section id="subjects" class="tab">
+          <article class="card">
+            <div class="sub-nav">
+              <button class="sub-nav-btn active" data-subject="math">Math</button>
+              <button class="sub-nav-btn" data-subject="science">Science</button>
+              <button class="sub-nav-btn" data-subject="languages">Languages</button>
+              <button class="sub-nav-btn" data-subject="social-studies">Social Studies</button>
+              <button class="sub-nav-btn" data-subject="english">English</button>
+              <button class="sub-nav-btn" data-subject="health">Health</button>
+            </div>
+          </article>
+
+          <!-- MATH -->
+          <div id="subject-math" class="subject-panel">
+            <div class="split-grid">
+              <article class="card">
+                <h3>🧮 Scientific Calculator</h3>
+                <div id="mathCalc" class="math-calc">
+                  <input id="calcDisplay" class="calc-display" readonly />
+                  <div class="calc-buttons">
+                    <button class="calc-btn calc-op" data-v="C">C</button>
+                    <button class="calc-btn calc-op" data-v="(">(</button>
+                    <button class="calc-btn calc-op" data-v=")">)</button>
+                    <button class="calc-btn calc-op" data-v="/">÷</button>
+                    <button class="calc-btn calc-op" data-v="7">7</button>
+                    <button class="calc-btn calc-op" data-v="8">8</button>
+                    <button class="calc-btn calc-op" data-v="9">9</button>
+                    <button class="calc-btn calc-op" data-v="*">×</button>
+                    <button class="calc-btn calc-op" data-v="4">4</button>
+                    <button class="calc-btn calc-op" data-v="5">5</button>
+                    <button class="calc-btn calc-op" data-v="6">6</button>
+                    <button class="calc-btn calc-op" data-v="-">−</button>
+                    <button class="calc-btn calc-op" data-v="1">1</button>
+                    <button class="calc-btn calc-op" data-v="2">2</button>
+                    <button class="calc-btn calc-op" data-v="3">3</button>
+                    <button class="calc-btn calc-op" data-v="+">+</button>
+                    <button class="calc-btn calc-op" data-v="0">0</button>
+                    <button class="calc-btn calc-op" data-v=".">.</button>
+                    <button class="calc-btn calc-op" data-v="^">^</button>
+                    <button class="calc-btn calc-eq" data-v="=">=</button>
+                    <button class="calc-btn calc-op" data-v="sqrt">√</button>
+                    <button class="calc-btn calc-op" data-v="pi">π</button>
+                    <button class="calc-btn calc-op" data-v="sin">sin</button>
+                    <button class="calc-btn calc-op" data-v="cos">cos</button>
+                    <button class="calc-btn calc-op" data-v="tan">tan</button>
+                    <button class="calc-btn calc-op" data-v="log">log</button>
+                  </div>
+                </div>
+              </article>
+              <article class="card">
+                <h3>📈 Graph Plotter</h3>
+                <div class="stack">
+                  <input id="graphFunction" placeholder="f(x) = e.g. x^2, sin(x), 2*x+1" value="x^2" />
+                  <div class="inline">
+                    <button id="plotGraphBtn" class="ghost">Plot</button>
+                    <span class="small">Use x as variable, ^ for power</span>
+                  </div>
+                  <canvas id="graphCanvas" height="280" style="background:#fff;border-radius:12px;border:1px solid #dbe8e4;"></canvas>
+                </div>
+              </article>
+            </div>
+            <article class="card">
+              <h3>🤖 AI Step-by-Step Solver</h3>
+              <p class="subtle">Paste a math problem and get step-by-step guidance (AI helps, never solves directly).</p>
+              <div class="inline top-gap">
+                <input id="mathSolverInput" placeholder="e.g. Solve 3x + 7 = 22, or factor x^2 + 5x + 6" />
+                <button id="mathSolverBtn">Solve</button>
+              </div>
+              <div id="mathSolverResult" class="stack top-gap"></div>
+            </article>
+            <article class="card">
+              <h3>📐 Formula Reference</h3>
+              <div id="mathFormulas" class="stack"></div>
+            </article>
+          </div>
+
+          <!-- SCIENCE -->
+          <div id="subject-science" class="subject-panel hidden">
+            <div class="split-grid">
+              <article class="card">
+                <h3>🔬 Physics</h3>
+                <div class="stack">
+                  <select id="physicsTopic">
+                    <option value="motion">Motion & Kinematics</option>
+                    <option value="forces">Forces & Newton's Laws</option>
+                    <option value="energy">Energy & Work</option>
+                    <option value="waves">Waves & Sound</option>
+                    <option value="electricity">Electricity & Circuits</option>
+                  </select>
+                  <button id="physicsExplainBtn">Explain Concept →</button>
+                  <div id="physicsResult" class="stack top-gap"></div>
+                </div>
+              </article>
+              <article class="card">
+                <h3>🧪 Chemistry</h3>
+                <div class="stack">
+                  <select id="chemistryTopic">
+                    <option value="atoms">Atomic Structure</option>
+                    <option value="bonds">Chemical Bonding</option>
+                    <option value="reactions">Chemical Reactions</option>
+                    <option value="periodic">Periodic Table</option>
+                    <option value="organic">Organic Chemistry</option>
+                  </select>
+                  <button id="chemistryExplainBtn">Explain Concept →</button>
+                  <div id="chemistryResult" class="stack top-gap"></div>
+                </div>
+              </article>
+            </div>
+            <div class="split-grid top-gap">
+              <article class="card">
+                <h3>🧬 Biology</h3>
+                <div class="stack">
+                  <select id="biologyTopic">
+                    <option value="cells">Cell Biology</option>
+                    <option value="genetics">Genetics & DNA</option>
+                    <option value="evolution">Evolution</option>
+                    <option value="ecology">Ecology</option>
+                    <option value="human">Human Body Systems</option>
+                  </select>
+                  <button id="biologyExplainBtn">Explain Concept →</button>
+                  <div id="biologyResult" class="stack top-gap"></div>
+                </div>
+              </article>
+              <article class="card">
+                <h3>🧠 Science Mind Maps</h3>
+                <div class="stack">
+                  <select id="mindmapTopic">
+                    <option value="photosynthesis">Photosynthesis</option>
+                    <option value="cell-division">Cell Division</option>
+                    <option value="chemical-bonds">Chemical Bonds</option>
+                    <option value="newtons-laws">Newton's Laws</option>
+                    <option value="ecosystems">Ecosystems</option>
+                  </select>
+                  <button id="mindmapBtn">Generate Mind Map</button>
+                  <div id="mindmapResult" class="top-gap"></div>
+                </div>
+              </article>
+            </div>
+            <article class="card">
+              <h3>📷 Science Image Gallery</h3>
+              <p class="subtle">Copyright-free educational images for science concepts.</p>
+              <div class="science-image-grid" id="scienceImageGrid">
+                <div class="science-image-card"><div class="science-image-placeholder">🧬 DNA</div><p class="subtle">Double helix structure</p></div>
+                <div class="science-image-card"><div class="science-image-placeholder">⚛️ Atom</div><p class="subtle">Bohr model</p></div>
+                <div class="science-image-card"><div class="science-image-placeholder">🌿 Cell</div><p class="subtle">Plant cell anatomy</p></div>
+                <div class="science-image-card"><div class="science-image-placeholder">🔗 Molecule</div><p class="subtle">H2O water molecule</p></div>
+                <div class="science-image-card"><div class="science-image-placeholder">🌍 Earth</div><p class="subtle">Earth's layers</p></div>
+                <div class="science-image-card"><div class="science-image-placeholder">🧠 Brain</div><p class="subtle">Brain regions</p></div>
+              </div>
+            </article>
+          </div>
+
+          <!-- LANGUAGES -->
+          <div id="subject-languages" class="subject-panel hidden">
+            <div class="split-grid">
+              <article class="card">
+                <h3>🗣️ Speaking Practice</h3>
+                <p class="subtle">Use your microphone to practice pronunciation.</p>
+                <div class="inline top-gap">
+                  <select id="langSpeakingLang">
+                    <option value="spanish">Spanish</option>
+                    <option value="french">French</option>
+                    <option value="german">German</option>
+                    <option value="japanese">Japanese</option>
+                    <option value="mandarin">Mandarin Chinese</option>
+                    <option value="italian">Italian</option>
+                    <option value="portuguese">Portuguese</option>
+                    <option value="arabic">Arabic</option>
+                  </select>
+                  <select id="langSpeakingLevel">
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="advanced">Advanced</option>
+                  </select>
+                </div>
+                <button id="langSpeakingStartBtn" class="top-gap">Start Speaking Exercise →</button>
+                <div id="langSpeakingArea" class="top-gap stack"></div>
+              </article>
+              <article class="card">
+                <h3>👂 Listening Comprehension</h3>
+                <p class="subtle">AI generates audio passages for listening practice.</p>
+                <div class="inline top-gap">
+                  <select id="langListeningLang">
+                    <option value="spanish">Spanish</option>
+                    <option value="french">French</option>
+                    <option value="german">German</option>
+                    <option value="japanese">Japanese</option>
+                  </select>
+                  <button id="langListeningGenBtn">Generate Listening →</button>
+                </div>
+                <div id="langListeningArea" class="stack top-gap"></div>
+              </article>
+            </div>
+            <div class="split-grid top-gap">
+              <article class="card">
+                <h3>📖 Reading Practice</h3>
+                <p class="subtle">AI generates reading passages with comprehension questions.</p>
+                <div class="inline top-gap">
+                  <select id="langReadingLang">
+                    <option value="spanish">Spanish</option>
+                    <option value="french">French</option>
+                    <option value="german">German</option>
+                    <option value="italian">Italian</option>
+                  </select>
+                  <select id="langReadingLevel">
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="advanced">Advanced</option>
+                  </select>
+                  <button id="langReadingGenBtn">Generate Reading →</button>
+                </div>
+                <div id="langReadingArea" class="stack top-gap"></div>
+              </article>
+              <article class="card">
+                <h3>✍️ Writing Prompts</h3>
+                <p class="subtle">AI generates writing prompts and gives feedback on your writing.</p>
+                <div class="inline top-gap">
+                  <select id="langWritingLang">
+                    <option value="spanish">Spanish</option>
+                    <option value="french">French</option>
+                    <option value="german">German</option>
+                    <option value="japanese">Japanese</option>
+                  </select>
+                  <button id="langWritingPromptBtn">Get Prompt →</button>
+                </div>
+                <div id="langWritingArea" class="stack top-gap"></div>
+              </article>
+            </div>
+          </div>
+
+          <!-- SOCIAL STUDIES -->
+          <div id="subject-social-studies" class="subject-panel hidden">
+            <div class="split-grid">
+              <article class="card">
+                <h3>🌍 Geography</h3>
+                <select id="geoRegion">
+                  <option value="world">World Geography</option>
+                  <option value="europe">Europe</option>
+                  <option value="asia">Asia</option>
+                  <option value="africa">Africa</option>
+                  <option value="americas">Americas</option>
+                </select>
+                <button id="geoExplainBtn" class="top-gap">Learn About Region →</button>
+                <div id="geoResult" class="stack top-gap"></div>
+              </article>
+              <article class="card">
+                <h3>📅 History Timeline</h3>
+                <select id="historyPeriod">
+                  <option value="ancient">Ancient History</option>
+                  <option value="medieval">Medieval Period</option>
+                  <option value="modern">Modern History</option>
+                  <option value="20th">20th Century</option>
+                  <option value="world">World History Overview</option>
+                </select>
+                <button id="historyTimelineBtn" class="top-gap">Generate Timeline →</button>
+                <div id="historyResult" class="stack top-gap"></div>
+              </article>
+            </div>
+            <div class="split-grid top-gap">
+              <article class="card">
+                <h3>💰 Economy</h3>
+                <select id="economyTopic">
+                  <option value="basics">Basic Economic Principles</option>
+                  <option value="supply-demand">Supply & Demand</option>
+                  <option value="markets">Market Structures</option>
+                  <option value="fiscal">Fiscal Policy</option>
+                  <option value="global">Global Economy</option>
+                </select>
+                <button id="economyExplainBtn" class="top-gap">Explain →</button>
+                <div id="economyResult" class="stack top-gap"></div>
+              </article>
+              <article class="card">
+                <h3>⚖️ Civics & Sociology</h3>
+                <select id="civicsTopic">
+                  <option value="gov">Government Systems</option>
+                  <option value="rights">Rights & Responsibilities</option>
+                  <option value="society">Social Structures</option>
+                  <option value="culture">Culture & Society</option>
+                  <option value="institutions">Social Institutions</option>
+                </select>
+                <button id="civicsExplainBtn" class="top-gap">Explain →</button>
+                <div id="civicsResult" class="stack top-gap"></div>
+              </article>
+            </div>
+          </div>
+
+          <!-- ENGLISH -->
+          <div id="subject-english" class="subject-panel hidden">
+            <div class="split-grid">
+              <article class="card">
+                <h3>📝 Text Analyzer</h3>
+                <p class="subtle">Analyze your writing for readability, structure, and grammar.</p>
+                <textarea id="englishAnalyzerInput" rows="8" placeholder="Paste your text here for analysis..."></textarea>
+                <button id="englishAnalyzeBtn" class="top-gap">Analyze Text</button>
+                <div id="englishAnalysisResult" class="stack top-gap"></div>
+              </article>
+              <article class="card">
+                <h3>✍️ Essay Helper</h3>
+                <p class="subtle">Get suggestions to improve your essay — the AI guides, never writes for you.</p>
+                <textarea id="englishEssayInput" rows="6" placeholder="Paste your essay draft..."></textarea>
+                <div class="inline top-gap wrap">
+                  <input id="englishEssayPrompt" placeholder="What aspect needs help? (e.g. 'thesis', 'structure', 'conclusion')" style="flex:1;" />
+                  <button id="englishEssayHelpBtn">Get Guidance</button>
+                </div>
+                <div id="englishEssayResult" class="stack top-gap"></div>
+              </article>
+            </div>
+            <article class="card">
+              <h3>📚 Vocabulary Builder</h3>
+              <div class="inline top-gap">
+                <input id="englishVocabTopic" placeholder="Topic (e.g. 'academic writing', 'business')" />
+                <button id="englishVocabBtn">Generate Vocabulary →</button>
+              </div>
+              <div id="englishVocabResult" class="stack top-gap"></div>
+            </article>
+          </div>
+
+          <!-- HEALTH -->
+          <div id="subject-health" class="subject-panel hidden">
+            <div class="split-grid">
+              <article class="card">
+                <h3>🏋️ Exercise Guides</h3>
+                <select id="exerciseType">
+                  <option value="cardio">Cardio</option>
+                  <option value="strength">Strength Training</option>
+                  <option value="flexibility">Flexibility & Stretching</option>
+                  <option value="hiit">HIIT Workouts</option>
+                  <option value="yoga">Yoga & Meditation</option>
+                </select>
+                <button id="exerciseGuideBtn" class="top-gap">Get Exercise Guide →</button>
+                <div id="exerciseResult" class="stack top-gap"></div>
+              </article>
+              <article class="card">
+                <h3>🫀 Body Systems</h3>
+                <select id="bodySystem">
+                  <option value="skeletal">Skeletal System</option>
+                  <option value="muscular">Muscular System</option>
+                  <option value="circulatory">Circulatory System</option>
+                  <option value="respiratory">Respiratory System</option>
+                  <option value="nervous">Nervous System</option>
+                  <option value="digestive">Digestive System</option>
+                  <option value="immune">Immune System</option>
+                </select>
+                <button id="bodySystemBtn" class="top-gap">Explain System →</button>
+                <div id="bodySystemResult" class="stack top-gap"></div>
+              </article>
+            </div>
+            <article class="card">
+              <h3>🥗 Nutrition & Wellness</h3>
+              <div class="inline top-gap">
+                <input id="nutritionQuery" placeholder="Ask about nutrition, diet, or wellness..." style="flex:1;" />
+                <button id="nutritionAskBtn">Ask AI</button>
+              </div>
+              <div id="nutritionResult" class="stack top-gap"></div>
+            </article>
+          </div>
+        </section>
         <!-- ===== CALENDAR ===== -->
         <section id="calendar" class="tab">
           <div class="split-grid">
@@ -983,5 +1342,22 @@
 
     <script src="cloud-core.js"></script>
     <script src="app.js"></script>
-  </body>
+  <!-- ===== SETUP MODAL ===== -->
+<div id="setupModal" class="setup-overlay hidden">
+  <div class="setup-modal">
+    <div class="setup-steps" id="setupSteps">
+      <span class="setup-step-dot active" data-step="0"></span>
+      <span class="setup-step-dot" data-step="1"></span>
+      <span class="setup-step-dot" data-step="2"></span>
+    </div>
+    <div id="setupStepContent"></div>
+    <div class="inline top-gap" style="justify-content:space-between;">
+      <button id="setupBackBtn" class="ghost" style="display:none;">Back</button>
+      <span></span>
+      <button id="setupNextBtn">Next</button>
+      <button id="setupFinishBtn" style="display:none;">Finish Setup</button>
+    </div>
+  </div>
+</div>
+</body>
 </html>

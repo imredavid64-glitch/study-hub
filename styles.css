@@ -1500,6 +1500,35 @@ canvas {
   to { opacity: 1; transform: translateY(0); }
 }
 
+
+/* ===== SUBJECTS TAB ===== */
+.subject-panel { display: grid; gap: 12px; }
+.subject-panel.hidden { display: none; }
+.math-calc { max-width: 360px; margin: 0 auto; }
+.calc-display { width: 100%; padding: 16px; font-size: 1.5rem; text-align: right; border: 2px solid var(--accent-soft); border-radius: 12px; background: #fff; margin-bottom: 8px; font-family: monospace; }
+.calc-buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.calc-btn { padding: 14px 8px; border-radius: 8px; border: 1px solid #dbe8e4; background: #fff; color: var(--ink); font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.1s; }
+.calc-btn:hover { background: var(--accent-soft); }
+.calc-eq { background: var(--accent); color: #fff; border-color: var(--accent); grid-column: span 2; }
+.calc-eq:hover { filter: brightness(1.1); }
+.science-image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 8px; }
+.science-image-card { text-align: center; }
+.science-image-placeholder { width: 100%; aspect-ratio: 1; background: linear-gradient(135deg, var(--accent-soft), #fff); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; border: 2px solid var(--accent-soft); }
+
+/* ===== SETUP MODAL ===== */
+.setup-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+.setup-overlay.hidden { display: none; }
+.setup-modal { background: var(--panel); border-radius: 24px; padding: 32px; max-width: 480px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 60px rgba(0,0,0,0.3); }
+.setup-modal h2 { margin-top: 0; }
+.setup-steps { display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; }
+.setup-step-dot { width: 10px; height: 10px; border-radius: 50%; background: #ddd; transition: background 0.3s; }
+.setup-step-dot.active { background: var(--accent); }
+.setup-step-dot.done { background: var(--success); }
+.setup-subject-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.setup-subject-option { padding: 12px; border: 2px solid #dbe8e4; border-radius: 12px; cursor: pointer; text-align: center; transition: all 0.2s; background: #fff; }
+.setup-subject-option:hover { border-color: var(--accent); }
+.setup-subject-option.selected { border-color: var(--accent); background: var(--accent-soft); }
+
 @media (max-width: 1120px) {
   .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .kanban { grid-template-columns: 1fr; }
