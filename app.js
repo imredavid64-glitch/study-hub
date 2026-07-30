@@ -1,14 +1,188 @@
 // ===== STATE MANAGEMENT =====
 const STORAGE_KEY = 'studyhub_state';
+
+// ===== I18N — UI Language System =====
+const LOCALES = {
+  en: {
+    appName: 'Study Hub', tabDashboard: 'Dashboard', tabPlanner: 'Planner', tabSessions: 'Sessions',
+    tabFlashcards: 'Flashcards', tabQuizzes: 'Quizzes', tabNotes: 'Notes', tabAssignments: 'Assignments',
+    tabCoach: 'Coach', tabVoice: 'Voice', tabSubjects: 'Subjects', tabAnalytics: 'Analytics',
+    tabSettings: 'Settings', tabRecalls: 'Recalls', tabCalendar: 'Calendar', tabSocial: 'Social',
+    tabAI: 'AI Tutor', tabSmartAI: 'Smart AI', tabLessons: 'AI Lessons',
+    tabWarmup: 'Warm Up', tabStudyGuide: 'Study Guide',
+    tabCalculator: 'Calculator', tabTutorial: 'Tutorial', tabAutism: 'Autism Support',
+    settingsTitle: 'Settings', profileLabel: 'Profile', themeLabel: 'Theme', langLabel: 'App Language',
+    darkMode: 'Dark Mode', lightMode: 'Light Mode', exportBtn: 'Export JSON', importBtn: 'Import JSON',
+    resetBtn: 'Reset All Data', healthCheck: 'Run Health Check', saveProfile: 'Save Profile',
+    namePlaceholder: 'Name', majorPlaceholder: 'Program / Major',
+    weeklyTarget: 'Weekly Target (hours)', targetGpa: 'Target GPA',
+    voiceTitle: 'AI Voice Mode', voiceStart: 'Start', voiceStop: 'Stop', voiceClear: 'Clear',
+    voiceTranscript: 'Transcript', voiceLanguage: 'Language', voiceTopic: 'Topic',
+    voiceCallEnd: 'End Call', voiceAnalysis: 'Conversation Analysis',
+    lectureRecord: 'Record Lecture', lectureConsent: 'Teacher Consent', lectureStart: 'Start Recording',
+    lectureStop: 'Stop Recording', lectureSaved: 'Saved Lectures', lectureGenerate: 'Generate Exercises',
+    googleConnect: 'Connect Google', googleClassroom: 'Google Classroom', googleCalendar: 'Google Calendar',
+    googleOAuth: 'OAuth Setup', googleConnected: 'Connected', googleDisconnect: 'Disconnect',
+    recording: 'Recording...', paused: 'Paused',
+    searchPlaceholder: 'Search...', noData: 'No data yet.', loading: 'Loading...',
+    saveSuccess: 'Saved successfully', errorGeneric: 'Something went wrong',
+    confirmReset: 'Are you sure you want to erase ALL your data? This cannot be undone.',
+    hungarian: 'Hungarian', english: 'English',
+    // Dashboard
+    welcomeScholar: 'Welcome, Scholar',
+    startSprint: 'Start 25m Sprint',
+    loadDemo: 'Load Demo Data',
+    studyHours7d: 'Study Hours (7d)',
+    taskCompletion: 'Task Completion',
+    studyStreak: 'Study Streak',
+    academicMomentum: 'Academic Momentum',
+    dailyMission: 'Daily Mission',
+    todayAgenda: 'Today Agenda',
+    achievements: 'Achievements',
+    nothingScheduled: 'Nothing scheduled for today.',
+    keepGoing: 'Keep going — achievements unlock as you study!',
+    addFirstGoal: 'Add your first study goal to begin.',
+    // Planner
+    addGoal: 'Add Goal', addTask: 'Add Task', autoStudyPlan: 'Auto Study Plan',
+    highPriority: 'High Priority', mediumPriority: 'Medium Priority', lowPriority: 'Low Priority',
+    createGoal: 'Create Goal', goalTitle: 'Goal Title', goalSubject: 'Subject', goalDeadline: 'Deadline',
+    goalPriority: 'Priority', goalHours: 'Hours planned',
+    taskTitle: 'Task Title', taskSubject: 'Subject', taskDue: 'Due Date', taskEffort: 'Effort (1-5)',
+    generate: 'Generate', studyPlan: 'Study Plan',
+    toDo: 'To Do', inProgress: 'In Progress', done: 'Done',
+    move: 'Move →', reactivate: 'Reactivate',
+    noGoals: 'No goals yet.',
+    // Sessions
+    focusTimer: 'Focus Timer', focus: 'FOCUS', start: 'Start', reset: 'Reset', skip: 'Skip',
+    focusMin: 'Focus (min)', breakMin: 'Break (min)', save: 'Save',
+    enableNotifications: 'Enable notifications',
+    logStudySession: 'Log Study Session', subject: 'Subject', duration: 'Duration (min)',
+    sessionType: 'Type', deepWork: 'Deep work session', saveSession: 'Save Session',
+    sessionHistory: 'Session History',
+    // Flashcards
+    createFlashcard: 'Create Flashcard', question: 'Question', answer: 'Answer',
+    addFlashcard: 'Add Flashcard', generateAIFlashcards: 'Generate AI Flashcards',
+    aiWordFinder: 'AI Word Finder', askAI: 'Ask AI', addAIWords: 'Add AI Words as Flashcards',
+    studyMode: 'Study Mode', due: 'Due', new: 'New', total: 'Total',
+    noCardsDue: 'No cards due. Add cards or generate with AI.',
+    allFlashcards: 'All Flashcards',
+    again: 'Again', hard: 'Hard', good: 'Good', easy: 'Easy',
+    // Quizzes
+    aiQuizGenerator: 'AI Quiz Generator', quizArena: 'Quiz Arena', timedMockTest: 'AI Timed Mock Test',
+    createQuiz: 'Create Quiz', next: 'Next', submitQuiz: 'Submit Quiz',
+    previous: 'Previous', markForReview: 'Mark For Review', submitMockTest: 'Submit Mock Test',
+    quizAttempts: 'Quiz Attempts', mockTestHistory: 'Mock Test History',
+    topic: 'Topic', difficulty: 'Difficulty', type: 'Type',
+    easy: 'Easy', medium: 'Medium', hard: 'Hard',
+    // Subjects
+    subjects: 'Subjects',
+    // Google voice
+    startCall: 'Start Call',
+    // Coach
+    coach: 'Coach', performanceCoach: 'Performance Coach',
+    // General
+    search: 'Search', cancel: 'Cancel', confirm: 'Confirm', delete: 'Delete',
+    comingSoon: 'Coming soon',
+  },
+  hu: {
+    appName: 'Tanulási Központ', tabDashboard: 'Irányítópult', tabPlanner: 'Tervező',
+    tabSessions: 'Ülések', tabFlashcards: 'Tanulókártyák', tabQuizzes: 'Kvízek',
+    tabNotes: 'Jegyzetek', tabAssignments: 'Feladatok', tabCoach: 'Edző',
+    tabVoice: 'Hang', tabSubjects: 'Tárgyak', tabAnalytics: 'Elemzés',
+    tabSettings: 'Beállítások', tabRecalls: 'Felidézés', tabCalendar: 'Naptár',
+    tabSocial: 'Közösség', tabAI: 'AI Tanár', tabSmartAI: 'Okos AI', tabLessons: 'AI Leckék',
+    settingsTitle: 'Beállítások', profileLabel: 'Profil', themeLabel: 'Téma',
+    langLabel: 'Alkalmazás nyelve',
+    darkMode: 'Sötét mód', lightMode: 'Világos mód',
+    exportBtn: 'Exportálás JSON', importBtn: 'Importálás JSON',
+    resetBtn: 'Összes adat törlése', healthCheck: 'Rendszerellenőrzés',
+    saveProfile: 'Profil mentése', namePlaceholder: 'Név', majorPlaceholder: 'Szak / Program',
+    weeklyTarget: 'Heti cél (órák)', targetGpa: 'Cél GPA',
+    voiceTitle: 'AI Hang mód', voiceStart: 'Indítás', voiceStop: 'Leállítás', voiceClear: 'Törlés',
+    voiceTranscript: 'Átirat', voiceLanguage: 'Nyelv', voiceTopic: 'Téma',
+    voiceCallEnd: 'Hívás vége', voiceAnalysis: 'Beszélgetés elemzése',
+    lectureRecord: 'Előadás rögzítése', lectureConsent: 'Tanári hozzájárulás',
+    lectureStart: 'Rögzítés indítása', lectureStop: 'Rögzítés leállítása',
+    lectureSaved: 'Mentett előadások', lectureGenerate: 'Feladatok generálása',
+    googleConnect: 'Google kapcsolat', googleClassroom: 'Google Classroom',
+    googleCalendar: 'Google Naptár', googleOAuth: 'OAuth beállítás',
+    googleConnected: 'Csatlakoztatva', googleDisconnect: 'Lecsatlakozás',
+    recording: 'Rögzítés...', paused: 'Szünet',
+    searchPlaceholder: 'Keresés...', noData: 'Még nincs adat.',
+    loading: 'Betöltés...', saveSuccess: 'Sikeresen mentve',
+    errorGeneric: 'Valami hiba történt',
+    confirmReset: 'Biztosan törölni szeretnéd az ÖSSZES adatot? Ez a művelet nem visszavonható.',
+    hungarian: 'Magyar', english: 'Angol',
+    // Dashboard
+    welcomeScholar: 'Üdvözöllek, Tanuló',
+    startSprint: '25 perces sprint',
+    loadDemo: 'Bemutató adatok',
+    studyHours7d: 'Tanulási órák (7 nap)',
+    taskCompletion: 'Feladatok teljesítése',
+    studyStreak: 'Tanulási sorozat',
+    academicMomentum: 'Akadémiai lendület',
+    dailyMission: 'Napi küldetés',
+    todayAgenda: 'Mai napirend',
+    achievements: 'Eredmények',
+    nothingScheduled: 'Nincs semmi ütemezve mára.',
+    keepGoing: 'Folytasd — az eredmények feloldódnak, ahogy tanulsz!',
+    addFirstGoal: 'Add hozzá az első tanulási célodat a kezdéshez.',
+    // Planner
+    addGoal: 'Cél hozzáadása', addTask: 'Feladat hozzáadása', autoStudyPlan: 'Automatikus tanulási terv',
+    highPriority: 'Magas prioritás', mediumPriority: 'Közepes prioritás', lowPriority: 'Alacsony prioritás',
+    createGoal: 'Cél létrehozása', goalTitle: 'Cél címe', goalSubject: 'Tárgy', goalDeadline: 'Határidő',
+    goalPriority: 'Prioritás', goalHours: 'Tervezett órák',
+    taskTitle: 'Feladat címe', taskSubject: 'Tárgy', taskDue: 'Határidő', taskEffort: 'Erőfeszítés (1-5)',
+    generate: 'Generálás', studyPlan: 'Tanulási terv',
+    toDo: 'Teendők', inProgress: 'Folyamatban', done: 'Kész',
+    move: 'Mozgatás →', reactivate: 'Újraaktiválás',
+    noGoals: 'Még nincsenek célok.',
+    // Sessions
+    focusTimer: 'Fókusz időzítő', focus: 'FÓKUSZ', start: 'Indítás', reset: 'Visszaállítás', skip: 'Kihagyás',
+    focusMin: 'Fókusz (perc)', breakMin: 'Szünet (perc)', save: 'Mentés',
+    enableNotifications: 'Értesítések engedélyezése',
+    logStudySession: 'Tanulási alkalom rögzítése', subject: 'Tárgy', duration: 'Időtartam (perc)',
+    sessionType: 'Típus', deepWork: 'Mély koncentráció', saveSession: 'Alkalom mentése',
+    sessionHistory: 'Alkalmak előzményei',
+    // Flashcards
+    createFlashcard: 'Tanulókártya létrehozása', question: 'Kérdés', answer: 'Válasz',
+    addFlashcard: 'Tanulókártya hozzáadása', generateAIFlashcards: 'AI tanulókártyák generálása',
+    aiWordFinder: 'AI szókereső', askAI: 'Kérdezd AI-t', addAIWords: 'AI szavak hozzáadása kártyaként',
+    studyMode: 'Tanulási mód', due: 'Esedékes', new: 'Új', total: 'Összesen',
+    noCardsDue: 'Nincs esedékes kártya. Adj hozzá vagy generálj AI segítségével.',
+    allFlashcards: 'Összes tanulókártya',
+    again: 'Újra', hard: 'Nehéz', good: 'Jó', easy: 'Könnyű',
+    // Quizzes
+    aiQuizGenerator: 'AI kvíz generátor', quizArena: 'Kvíz aréna', timedMockTest: 'AI időzített próbateszt',
+    createQuiz: 'Kvíz létrehozása', next: 'Következő', submitQuiz: 'Kvíz beküldése',
+    previous: 'Előző', markForReview: 'Megjelölés áttekintésre', submitMockTest: 'Próbateszt beküldése',
+    quizAttempts: 'Kvíz kísérletek', mockTestHistory: 'Próbateszt előzmények',
+    topic: 'Téma', difficulty: 'Nehézség', type: 'Típus',
+    easy: 'Könnyű', medium: 'Közepes', hard: 'Nehéz',
+    // Subjects
+    subjects: 'Tárgyak',
+    // Google voice
+    startCall: 'Hívás indítása',
+    // Coach
+    coach: 'Edző', performanceCoach: 'Teljesítmény edző',
+    // General
+    search: 'Keresés', cancel: 'Mégse', confirm: 'Megerősítés', delete: 'Törlés',
+    comingSoon: 'Hamarosan',
+  }
+};
+const _lang = () => state?.settings?.appLanguage || 'en';
+function __(key) { const l = _lang(); return LOCALES[l]?.[key] || LOCALES.en[key] || key; }
+
 const DEFAULT_STATE = {
-  profile: { name: 'Scholar', major: 'General Studies', weeklyTargetHours: 20, targetGpa: 3.8, setupComplete: false },
-  settings: { darkMode: false, theme: 'teal', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true },
+  profile: { name: 'Scholar', major: 'General Studies', weeklyTargetHours: 20, targetGpa: 3.8, setupComplete: false, subjects: [] },
+   settings: { darkMode: false, theme: 'teal', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, peerMethod: 'same-age', warmupStats: { bestStreak: 0, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', _ach: { goalsCompleted: 0, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
   goals: [], tasks: [], sessions: [], flashcards: [], notes: [], assignments: [],
   reflections: [], quizAttempts: [], mockTestHistory: [], recallHistory: [],
   aiChatHistory: [], lessonChatHistory: [], voiceTranscript: [],
   musicTrackIndex: 0, musicVolume: 70, musicPlaying: false,
   calendarEvents: [],
   playlists: [],
+  lectureRecordings: [],
 };
 let state;
 function loadState() {
@@ -98,7 +272,39 @@ function escapeHtml(t) {
   d.textContent = t;
   return d.innerHTML;
 }
-function $(id) { return document.getElementById(id); }
+
+function renderMarkdown(t) {
+  var text = escapeHtml(t);
+  text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+  text = text.replace(/^#### (.+)$/gm, '<h5>$1</h5>');
+  text = text.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+  text = text.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+  text = text.replace(/^# (.+)$/gm, '<h2>$1</h2>');
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+  text = text.replace(/^> (.+)$/gm, '<blockquote><p>$1</p></blockquote>');
+  text = text.replace(/^- (.+)$/gm, '<li>$1</li>');
+  text = text.replace(/^\d+\.\s(.+)$/gm, '<li>$1</li>');
+  text = text.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+  var parts = text.split(/\n\n+/);
+  var wrapped = [];
+  for (var i = 0; i < parts.length; i++) {
+    var p = parts[i].trim();
+    if (!p) continue;
+    if (/^<(h[2345]|pre|blockquote|ul|ol|li)/.test(p)) { wrapped.push(p); }
+    else { wrapped.push('<p>' + p.replace(/\n/g, '<br>') + '</p>'); }
+  }
+  return wrapped.join('\n');
+}
+function $(id) {
+  var el = document.getElementById(id);
+  if (!el && typeof console !== 'undefined') console.warn('$("' + id + '") not found');
+  return el;
+}
+function safeCall(fn) {
+  try { return fn(); } catch(e) { if (typeof console !== 'undefined') console.warn(fn.name || 'fn', e); }
+}
 function qs(s, c) { return (c || document).querySelector(s); }
 function qsa(s, c) { return (c || document).querySelectorAll(s); }
 
@@ -111,6 +317,7 @@ function showTab(tabId) {
   const btn = qs(`.nav-btn[data-tab="${tabId}"]`);
   if (btn) btn.classList.add('active');
   updateWelcomeTitle();
+  if (typeof Mobile !== 'undefined' && Mobile.syncMobileNav) Mobile.syncMobileNav(tabId);
 }
 function updateWelcomeTitle() {
   const at = qs('.tab.active');
@@ -121,11 +328,12 @@ function updateWelcomeTitle() {
 
 // ===== DASHBOARD =====
 function renderDashboard() {
+  try {
   const weekMins = state.sessions.filter(s => new Date(s.date) >= new Date(Date.now() - 7 * 86400000)).reduce((s, x) => s + (x.minutes || 0), 0);
-  $('metricHours').textContent = `${Math.round(weekMins / 60 * 10) / 10}h`;
+  var el = $('metricHours'); if (el) el.textContent = `${Math.round(weekMins / 60 * 10) / 10}h`;
   const total = state.tasks.length;
   const done = state.tasks.filter(t => t.status === 'done').length;
-  $('metricCompletion').textContent = `${total > 0 ? Math.round(done / total * 100) : 0}%`;
+  el = $('metricCompletion'); if (el) el.textContent = `${total > 0 ? Math.round(done / total * 100) : 0}%`;
   const dates = [...new Set(state.sessions.map(s => s.date.split('T')[0]))].sort().reverse();
   let streak = 0;
   let cd = new Date();
@@ -141,11 +349,11 @@ function renderDashboard() {
   else if (state.goals.length > 0) {
     const g = state.goals.sort((a, b) => new Date(a.deadline) - new Date(b.deadline))[0];
     $('missionText').textContent = `Work toward "${g.title}" (due ${formatDate(g.deadline)})`;
-  } else $('missionText').textContent = 'Add your first study goal to begin.';
+  } else $('missionText').textContent = __('addFirstGoal');
   const agenda = $('todayAgendaList');
   agenda.innerHTML = '';
   const items = [...state.tasks.filter(t => t.due === todayStr()), ...state.goals.filter(g => g.deadline === todayStr()).map(g => ({ title: 'Goal due: ' + g.title }))];
-  if (items.length === 0) agenda.innerHTML = '<li style="opacity:0.6">Nothing scheduled for today.</li>';
+  if (items.length === 0) agenda.innerHTML = `<li style="opacity:0.6">${__('nothingScheduled')}</li>`;
   else items.forEach(i => { const li = document.createElement('li'); li.className = 'item'; li.textContent = i.title; agenda.appendChild(li); });
   const prevWeekMins = state.sessions.filter(s => {
     const d = new Date(s.date);
@@ -161,19 +369,52 @@ function renderDashboard() {
   $('metricHours').parentElement.appendChild(trendEl);
   const ach = $('achievementList');
   ach.innerHTML = '';
-  const a = [];
-  if (streak >= 3) a.push('🔥 3-Day Streak');
-  if (streak >= 7) a.push('⚡ Week Warrior');
-  if (streak >= 30) a.push('🏆 Monthly Master');
-  if (total >= 10) a.push('✅ Task Master');
-  if (weekMins >= 300) a.push('⏰ 5-Hour Week');
-  if (state.sessions.length >= 5) a.push('📚 Consistent Learner');
-  if (state.quizAttempts.length >= 3) a.push('🧠 Quiz Explorer');
-  if (state.flashcards.length >= 20) a.push('🗂️ Flashcard Collector');
-  if (state.notes.length >= 5) a.push('📝 Note Taker');
-  if (state.goals.length >= 3) a.push('🎯 Goal Setter');
-  if (a.length === 0) a.push('Keep going — achievements unlock as you study!');
-  a.forEach(x => { const c = document.createElement('span'); c.className = 'chip'; c.textContent = x; ach.appendChild(c); });
+  var streakCache = streak;
+
+  function achIcon(id) {
+    var icons = { fire:'icon-timer', star:'icon-star', target:'icon-target', brain:'icon-brain', card:'icon-card', note:'icon-note', quiz:'icon-quiz', check:'icon-check', chart:'icon-chart', book:'icon-book', ai:'icon-ai', voice:'icon-voice' };
+    return '<span class="icon icon-sm ' + (icons[id] || 'icon-star') + '"></span>';
+  }
+
+  var achDefs = [
+    { id:'firstTask',    title:'First Task',       desc:'Complete your first task',                         icon:'check', check:function(s){return s.tasks.filter(function(t){return t.status==='done'}).length>=1} },
+    { id:'taskTen',      title:'Task Crusher',     desc:'Complete 10 tasks',                                icon:'target', check:function(s){return s.tasks.filter(function(t){return t.status==='done'}).length>=10} },
+    { id:'goalOne',      title:'Goal Down',        desc:'Complete your first goal',                         icon:'target', check:function(s){return ((s.settings._ach||{}).goalsCompleted||0)>=1} },
+    { id:'goalThree',    title:'Goal Crusher',     desc:'Complete 3 goals',                                 icon:'target', check:function(s){return ((s.settings._ach||{}).goalsCompleted||0)>=3} },
+    { id:'perfectQuiz',  title:'Perfect Score',    desc:'Get 100% on a quiz',                               icon:'star',   check:function(s){return s.quizAttempts.some(function(a){return a.score===a.total})} },
+    { id:'streakThree',  title:'On Fire',          desc:'Study 3 days in a row',                            icon:'timer',  check:function(s){return streakCache>=3} },
+    { id:'streakSeven',  title:'Week Warrior',     desc:'Study 7 days in a row',                            icon:'fire',   check:function(s){return streakCache>=7} },
+    { id:'flashcardsTen',title:'Flashcard Fan',    desc:'Create 10 flashcards',                             icon:'card',   check:function(s){return s.flashcards.length>=10} },
+    { id:'notesThree',   title:'Note Taker',       desc:'Create 3 notes',                                   icon:'note',   check:function(s){return s.notes.length>=3} },
+    { id:'quizThree',    title:'Quiz Explorer',    desc:'Take 3 quizzes',                                   icon:'quiz',   check:function(s){return s.quizAttempts.length>=3} },
+    { id:'sessionFirst', title:'First Session',    desc:'Log your first study session',                     icon:'timer',  check:function(s){return s.sessions.length>=1} },
+    { id:'centuryMin',   title:'Century Mark',     desc:'Study 100+ total minutes',                         icon:'chart',  check:function(s){return s.sessions.reduce(function(t,x){return t+(x.minutes||0)},0)>=100} },
+    { id:'aiChatter',    title:'AI Explorer',      desc:'Chat with AI Tutor 5 times',                       icon:'ai',     check:function(s){return s.aiChatHistory.length>=5} },
+    { id:'reflections',  title:'Self Reflector',   desc:'Log 5 daily reflections',                          icon:'note',   check:function(s){return ((s.settings._ach||{}).reflectionsCount||0)>=5} },
+    { id:'planned',      title:'Planned Ahead',    desc:'Generate a study plan',                            icon:'book',   check:function(s){return ((s.settings._ach||{}).studyPlansGenerated||0)>=1} },
+    { id:'earlyBird',    title:'Early Bird',       desc:'Finish a task before its due date',                icon:'check',  check:function(s){return ((s.settings._ach||{}).earlyTasks||0)>=1} },
+    { id:'flashcardRate',title:'Card Shark',       desc:'Rate 10 flashcards after review',                  icon:'card',   check:function(s){return s.flashcards.filter(function(f){return f.interval>1}).length>=10} },
+    { id:'wellRounded',  title:'Well Rounded',     desc:'Use 4 different study tools',                      icon:'star',   check:function(s){var c=0;if(s.flashcards.length>=3)c++;if(s.quizAttempts.length>=3)c++;if(s.notes.length>=3)c++;if(s.sessions.length>=5)c++;if(s.flashcards.length>=3)c++;return c>=4} },
+    { id:'mockMaster',   title:'Mock Master',      desc:'Complete a mock test',                             icon:'quiz',   check:function(s){return s.mockTestHistory.length>=1} },
+    { id:'socialStart',  title:'Social Start',     desc:'Connect with the community tab',                   icon:'voice',  check:function(s){return true} },
+  ];
+
+  var earned = achDefs.filter(function(a){return a.check(state)});
+  var achTotal = achDefs.length;
+  var pct = Math.round(earned.length / achTotal * 100);
+
+  var achHtml = '<div class="ach-header"><span class="ach-count">' + earned.length + '/' + achTotal + '</span><div class="ach-bar"><div class="ach-bar-fill" style="width:' + pct + '%"></div></div><span class="ach-pct">' + pct + '%</span></div><div class="ach-grid">';
+  achDefs.forEach(function(a) {
+    var earnedFlag = earned.indexOf(a) >= 0;
+    achHtml += '<div class="ach-card' + (earnedFlag ? '' : ' ach-locked') + '">' +
+      '<div class="ach-card-icon">' + achIcon(a.icon) + '</div>' +
+      '<div class="ach-card-body"><strong>' + a.title + '</strong><p>' + a.desc + '</p></div>' +
+      '<div class="ach-card-status">' + (earnedFlag ? '<span class="ach-badge ach-earned"></span>' : '<span class="ach-badge ach-unlocked">Locked</span>') + '</div>' +
+    '</div>';
+  });
+  achHtml += '</div>';
+  ach.innerHTML = achHtml;
+  } catch(e) { if (typeof console !== 'undefined') console.warn('renderDashboard:', e); }
 }
 
 // ===== PLANNER =====
@@ -199,8 +440,18 @@ function renderGoals() {
     const d = document.createElement('div'); d.className = 'item';
     const dd = daysUntil(g.deadline);
     d.innerHTML = `<strong>${escapeHtml(g.title)}</strong> <span class="subtle">${escapeHtml(g.subject)} — ${dd >= 0 ? dd + 'd left' : 'Overdue'}</span> <span class="badge">${g.priority}</span>
-    <p class="small">${g.hours}h planned</p>`;
+    <p class="small">${g.hours}h planned</p>
+    <button class="ghost small" data-complete-goal="${g.id}" style="color:var(--success);font-size:0.75rem">Complete</button>`;
     el.appendChild(d);
+  });
+  qsa('[data-complete-goal]').forEach(function(b) {
+    b.addEventListener('click', function() {
+      var gid = this.dataset.completeGoal;
+      state.goals = state.goals.filter(function(g) { return g.id !== gid; });
+      state.settings._ach = state.settings._ach || { goalsCompleted:0, earlyTasks:0, studyPlansGenerated:0, reflectionsCount:0 };
+      state.settings._ach.goalsCompleted = (state.settings._ach.goalsCompleted||0) + 1;
+      saveState(); renderGoals(); renderDashboard(); showToast('Goal completed!');
+    });
   });
 }
 function renderKanban() {
@@ -211,7 +462,7 @@ function renderKanban() {
       const d = document.createElement('div'); d.className = 'task-card';
       d.innerHTML = `<strong>${escapeHtml(t.title)}</strong><span class="small">${escapeHtml(t.subject)} — due ${formatDate(t.due)}</span>
       <div class="inline wrap"><button class="ghost" data-move-task='${t.id}' data-to='${st === 'todo' ? 'doing' : st === 'doing' ? 'done' : 'doing'}'>${st === 'done' ? 'Reactivate' : 'Move →'}</button>
-      <button class="ghost" data-del-task='${t.id}' style="color:var(--danger)">🗑</button></div>`;
+      <button class="ghost" data-del-task='${t.id}' style="color:var(--danger)">X</button></div>`;
       el.appendChild(d);
     });
   });
@@ -326,9 +577,11 @@ function setupFlashcards() {
   $('fcNextBtn').addEventListener('click', () => { if (fcState.index < fcState.cards.length - 1) { fcState.index++; fcState.flipped = false; $('fcFlipCard').classList.remove('flipped'); showCurrentFlashcard(); } });
   qsa('.fc-rate-btn').forEach(b => b.addEventListener('click', () => { const r = +b.dataset.rating; if (fcState.cards.length > 0) rateCurrentFlashcard(r); }));
   document.addEventListener('keydown', e => {
-    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); $('fcFlipCard').click(); }
-    if (e.key === 'ArrowLeft') $('fcPrevBtn').click();
-    if (e.key === 'ArrowRight') $('fcNextBtn').click();
+    var tag = e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); var fc = $('fcFlipCard'); if (fc) fc.click(); }
+    if (e.key === 'ArrowLeft') { var p = $('fcPrevBtn'); if (p) p.click(); }
+    if (e.key === 'ArrowRight') { var n = $('fcNextBtn'); if (n) n.click(); }
     if (e.key === '1') rateCurrentFlashcard(1);
     if (e.key === '3') rateCurrentFlashcard(3);
     if (e.key === '4') rateCurrentFlashcard(4);
@@ -864,7 +1117,7 @@ function renderPlaylists() {
   state.playlists.forEach((p, idx) => {
     const d = document.createElement('div');
     d.className = 'playlist-item';
-    d.innerHTML = `<span>🎵 ${escapeHtml(p.name)}</span><span class="small">${p.tracks.length} tracks <button class="ghost delete-playlist" data-pidx="${idx}" style="padding:2px 6px;font-size:0.7rem;color:var(--danger);margin-left:4px;">✕</button></span>`;
+    d.innerHTML = `<span class="icon icon-sm icon-music" style="display:inline-flex;vertical-align:middle;margin-right:4px"></span> ${escapeHtml(p.name)}</span><span class="small">${p.tracks.length} tracks <button class="ghost delete-playlist" data-pidx="${idx}" style="padding:2px 6px;font-size:0.7rem;color:var(--danger);margin-left:4px;">X</button></span>`;
     d.addEventListener('click', (e) => { if (e.target.classList.contains('delete-playlist')) return; renderPlaylistTracks(idx); qsa('.playlist-item').forEach(x => x.classList.remove('active')); d.classList.add('active'); });
     el.appendChild(d);
   });
@@ -1045,7 +1298,7 @@ function renderNoteList() {
   if (notes.length === 0) { el.innerHTML = '<p class="subtle">No notes found.</p>'; return; }
   notes.slice().reverse().forEach(n => {
     const d = document.createElement('div'); d.className = 'item';
-    d.innerHTML = `<strong>${escapeHtml(n.title)}</strong> <span class="badge">${n.style}</span> <span class="subtle">${escapeHtml(n.subject)}</span><div class="inline wrap"><button class="ghost" data-open-note='${n.id}'>Open</button><button class="ghost" data-del-note='${n.id}' style="color:var(--danger)">🗑</button></div>`;
+    d.innerHTML = `<strong>${escapeHtml(n.title)}</strong> <span class="badge">${n.style}</span> <span class="subtle">${escapeHtml(n.subject)}</span><div class="inline wrap"><button class="ghost" data-open-note='${n.id}'>Open</button><button class="ghost" data-del-note='${n.id}' style="color:var(--danger)">X</button></div>`;
     el.appendChild(d);
   });
   qsa('[data-open-note]').forEach(b => b.addEventListener('click', () => {
@@ -1171,7 +1424,9 @@ function setupCoach() {
   $('reflectionForm').addEventListener('submit', e => {
     e.preventDefault();
     state.reflections.push({ id: uid(), date: todayStr(), mood: +$('refMood').value, energy: +$('refEnergy').value, stress: +$('refStress').value, sleep: +$('refSleep').value, wins: $('refWins').value, blockers: $('refBlockers').value });
-    saveState(); renderReflections(); updateCoachInsights(); $('reflectionForm').reset(); showToast('Reflection logged');
+    state.settings._ach = state.settings._ach || { goalsCompleted:0, earlyTasks:0, studyPlansGenerated:0, reflectionsCount:0 };
+    state.settings._ach.reflectionsCount = (state.settings._ach.reflectionsCount||0) + 1;
+    saveState(); renderReflections(); updateCoachInsights(); renderDashboard(); $('reflectionForm').reset(); showToast('Reflection logged');
   });
   $('analyzeEssayBtn').addEventListener('click', analyzeEssay);
   setupPdfUpload();
@@ -1228,7 +1483,7 @@ async function askPdfQuestion() {
   chat.innerHTML += `<div class="chat-bubble user">${escapeHtml(q)}</div>`;
   try {
     const txt = await groqChat([{ role: 'system', content: 'Answer questions about the PDF content provided.' }, { role: 'user', content: `PDF Content: ${window._pdfContent}\n\nQuestion: ${q}` }], { maxTokens: 1024 });
-    chat.innerHTML += `<div class="chat-bubble assistant">${escapeHtml(txt)}</div>`;
+    chat.innerHTML += `<div class="chat-bubble assistant">${renderMarkdown(txt)}</div>`;
     chat.scrollTop = chat.scrollHeight;
   } catch (e) { chat.innerHTML += `<div class="chat-bubble assistant">AI error. Try again.</div>`; }
 }
@@ -1348,12 +1603,14 @@ async function sendAiChat() {
     const recentMessages = state.aiChatHistory.slice(-8);
     const recentContext = recentMessages.map(m => `${m.role}: ${m.content.substring(0, 200)}`).join('\n');
     const subjects = [...new Set(state.sessions.map(s => s.subject))].slice(0, 3).join(', ') || 'General';
-    const systemPrompt = `You are an AI tutor for ${state.profile.name} (${state.profile.major}). Response style: ${style}. Study mode: ${mode}. Guide the student's thinking, ask probing questions, use analogies and real-world examples. Never give direct answers. Encourage critical thinking and active learning. Context: recent subjects include ${subjects}.`;
+    const peerPrompt = getPeerTutoringPrompt();
+    const adhdNote = state.settings.adhdMode ? ' Keep responses VERY short and concise — 2-3 sentences max. The student has ADHD and needs brief, focused answers.' : '';
+    const systemPrompt = `You are an AI tutor for ${state.profile.name} (${state.profile.major}). Response style: ${style}. Study mode: ${mode}. ${peerPrompt}${adhdNote} Guide the student's thinking, ask probing questions, use analogies and real-world examples. Never give direct answers. Encourage critical thinking and active learning. Context: recent subjects include ${subjects}.`;
     const txt = await groqChat([
       { role: 'system', content: systemPrompt },
       { role: 'user', content: recentContext ? `Previous discussion:\n${recentContext}\n\nStudent's new question: ${q}` : q }
     ], { maxTokens: 1024 });
-    convHistory.innerHTML += `<div class="chat-bubble assistant">${escapeHtml(txt)}</div>`;
+    convHistory.innerHTML += `<div class="chat-bubble assistant">${renderMarkdown(txt)}</div>`;
     state.aiChatHistory.push({ role: 'user', content: q, timestamp: new Date().toISOString() });
     state.aiChatHistory.push({ role: 'assistant', content: txt, timestamp: new Date().toISOString() });
     if (state.aiChatHistory.length > 200) state.aiChatHistory = state.aiChatHistory.slice(-200);
@@ -1446,7 +1703,7 @@ function showLessonStep() {
 }
 function nextLessonStep() {
   if (lessonState.currentStep < lessonState.steps.length - 1) { lessonState.currentStep++; showLessonStep(); }
-  else { showToast('Lesson complete!'); $('lessonContent').innerHTML = '<h3>🎉 Lesson Complete!</h3><p>Excellent work! You can start another lesson.</p>'; $('lessonNextBtn').classList.add('hidden'); $('lessonAskBtn').classList.add('hidden'); }
+  else { showToast('Lesson complete!'); $('lessonContent').innerHTML = '<h3>Lesson Complete!</h3><p>Excellent work! You can start another lesson.</p>'; $('lessonNextBtn').classList.add('hidden'); $('lessonAskBtn').classList.add('hidden'); }
 }
 function pauseForQuestion() {
   lessonState.paused = true;
@@ -1472,7 +1729,7 @@ async function sendLessonChat() {
   try {
     const context = `Lesson topic: ${lessonState.topic}. Current step ${lessonState.currentStep + 1}: ${lessonState.steps[lessonState.currentStep]?.title || ''}. Lesson content: ${lessonState.steps[lessonState.currentStep]?.concept || ''}`;
     const txt = await groqChat([{ role: 'system', content: 'You are a lesson assistant. Answer student questions about the current lesson step.' }, { role: 'user', content: `${context}\n\nStudent question: ${q}` }], { maxTokens: 1024 });
-    hist.innerHTML += `<div class="chat-bubble assistant">${escapeHtml(txt)}</div>`;
+    hist.innerHTML += `<div class="chat-bubble assistant">${renderMarkdown(txt)}</div>`;
     state.lessonChatHistory.push({ role: 'user', content: q, step: lessonState.currentStep });
     state.lessonChatHistory.push({ role: 'assistant', content: txt, step: lessonState.currentStep });
     hist.scrollTop = hist.scrollHeight;
@@ -1623,7 +1880,7 @@ async function handleVoiceInput(text) {
   };
   try {
     const txt = await groqChat([{ role: 'system', content: systemPrompts[voiceState.mode] || systemPrompts.language }, { role: 'user', content: text }], { maxTokens: 1024 });
-    transcript.innerHTML += `<div><strong>AI:</strong> ${escapeHtml(txt)}</div>`;
+    transcript.innerHTML += `<div class="call-bubble ai"><strong>AI:</strong> ${renderMarkdown(txt)}</div>`;
     state.voiceTranscript.push({ role: 'assistant', content: txt, timestamp: new Date().toISOString() });
     if ('speechSynthesis' in window) {
       const utter = new SpeechSynthesisUtterance(txt);
@@ -1748,6 +2005,15 @@ function setupSettings() {
     saveState(); applyTheme();
     showToast(state.settings.darkMode ? 'Dark mode enabled' : 'Light mode enabled');
   });
+  var adhdToggle = $('adhdModeToggle');
+  if (adhdToggle) {
+    adhdToggle.checked = !!state.settings.adhdMode;
+    adhdToggle.addEventListener('change', function() {
+      state.settings.adhdMode = this.checked;
+      saveState();
+      showToast(this.checked ? 'ADHD mode enabled — shorter AI responses' : 'ADHD mode disabled');
+    });
+  }
   $('exportDataBtn').addEventListener('click', () => {
     const exportState = cloneObj(state);
     exportState._exportedAt = new Date().toISOString();
@@ -1786,30 +2052,69 @@ function setupSettings() {
       showToast('All data has been reset to defaults');
     }
   });
+  var rerunBtn = $('rerunOnboardingBtn');
+  if (rerunBtn) rerunBtn.addEventListener('click', function() {
+    state.profile.setupComplete = false;
+    saveState();
+    showSetupModal();
+    showToast('Onboarding restarted');
+  });
   $('runHealthCheckBtn').addEventListener('click', runHealthCheck);
   runHealthCheck();
+  const dbgBtn = $('showDebugLogsBtn');
+  if (dbgBtn) {
+    dbgBtn.addEventListener('click', () => {
+      try {
+        const errors = JSON.parse(localStorage.getItem('_js_errors') || '[]');
+        const el = $('debugLogs');
+        if (!el) return;
+        if (errors.length === 0) { el.innerHTML = '<em>No errors captured</em>'; return; }
+        el.innerHTML = errors.map(e => `<div style="padding:4px 8px;border-bottom:1px solid var(--border);font-size:12px;font-family:monospace"><strong>${e.time.slice(11,19)}</strong> ${e.msg}</div>`).join('');
+      } catch (_) { showToast('Debug: no errors recorded'); }
+    });
+  }
   $('profileName').value = state.profile.name;
   $('profileMajor').value = state.profile.major;
   $('profileWeeklyTarget').value = state.profile.weeklyTargetHours;
   $('profileTargetGpa').value = state.profile.targetGpa;
+
+  // App language selector
+  const langSelect = $('appLanguageSelect');
+  if (langSelect) {
+    langSelect.value = state.settings.appLanguage || 'en';
+    langSelect.addEventListener('change', () => {
+      state.settings.appLanguage = langSelect.value;
+      saveState();
+      applyLanguage();
+      renderDashboard();
+      showToast('Language changed to ' + (langSelect.value === 'hu' ? 'Magyar' : 'English'));
+    });
+  }
+
+  // Google OAuth client ID
+  const gClientId = $('googleClientId');
+  if (gClientId) {
+    gClientId.value = state.settings.googleClientId || '';
+    gClientId.addEventListener('change', () => {
+      state.settings.googleClientId = gClientId.value;
+      saveState();
+    });
+  }
+  updateGoogleUI();
 }
 function applyTheme() {
   document.documentElement.setAttribute('data-theme', state.settings.theme || 'teal');
   if (state.settings.darkMode) {
-    document.documentElement.style.setProperty('--bg', '#1a2b2b');
-    document.documentElement.style.setProperty('--ink', '#e8efe8');
-    document.documentElement.style.setProperty('--panel', '#243836');
-    document.documentElement.style.setProperty('--muted', '#9aaba8');
-    $('themeToggleBtn').textContent = '☀️';
+    document.documentElement.setAttribute('data-dark', 'true');
+    var btn = $('themeToggleBtn');
+    if (btn) btn.innerHTML = '<span class="icon icon-sm icon-timer"></span>';
   } else {
-    document.documentElement.style.removeProperty('--bg');
-    document.documentElement.style.removeProperty('--ink');
-    document.documentElement.style.removeProperty('--panel');
-    document.documentElement.style.removeProperty('--muted');
-    $('themeToggleBtn').textContent = '🌙';
+    document.documentElement.removeAttribute('data-dark');
+    var btn = $('themeToggleBtn');
+    if (btn) btn.innerHTML = '<span class="icon icon-sm icon-star"></span>';
   }
   const active = qs(`.theme-swatch[data-theme="${state.settings.theme}"]`);
-  if (active) { qsa('.theme-swatch').forEach(x => x.classList.remove('active')); active.classList.add('active'); }
+  if (active) { qsa('.theme-swatch').forEach(function(x) { x.classList.remove('active'); }); active.classList.add('active'); }
 }
 async function runHealthCheck() {
   const results = [];
@@ -1972,98 +2277,71 @@ function setupSubjects() {
     if (panel) panel.classList.remove("hidden");
   }));
 
-  // ---- Math Calculator ----
-  qsa(".calc-btn").forEach(b => {
-    b.addEventListener("click", () => {
-      const v = b.dataset.v;
-      if (v === "C") { calcExpr = ""; updateCalcDisplay(); return; }
-      if (v === "=") {
-        try {
-          let expr = calcExpr.replace(/\u00d7/g, "*").replace(/\u00f7/g, "/").replace(/\u2212/g, "-");
-          expr = expr.replace(/\^/g, "**");
-          expr = expr.replace(/sqrt\(/g, "Math.sqrt(");
-          expr = expr.replace(/sin\(/g, "Math.sin(");
-          expr = expr.replace(/cos\(/g, "Math.cos(");
-          expr = expr.replace(/tan\(/g, "Math.tan(");
-          expr = expr.replace(/log\(/g, "Math.log10(");
-          expr = expr.replace(/pi/g, "Math.PI");
-          const result = Function('"use strict"; return (' + expr + ')')();
-          calcExpr = String(result);
-        } catch (e) { calcExpr = "Error"; }
-        updateCalcDisplay();
-        return;
-      }
-      calcExpr += v;
-      updateCalcDisplay();
+  // ---- Math Calculator (scoped to subject-math only) ----
+  var mathPanel = document.getElementById('subject-math');
+  if (mathPanel) {
+    qsa(".calc-btn", mathPanel).forEach(b => {
+      b.addEventListener("click", () => {
+        const v = b.dataset.v;
+        if (v === "C") { calcExpr = ""; updateCalcDisplay(); return; }
+        if (v === "=") {
+          try {
+            let expr = calcExpr.replace(/\u00d7/g, "*").replace(/\u00f7/g, "/").replace(/\u2212/g, "-");
+            expr = expr.replace(/\^/g, "**"); expr = expr.replace(/sqrt\(/g, "Math.sqrt(");
+            expr = expr.replace(/sin\(/g, "Math.sin("); expr = expr.replace(/cos\(/g, "Math.cos(");
+            expr = expr.replace(/tan\(/g, "Math.tan("); expr = expr.replace(/log\(/g, "Math.log10(");
+            expr = expr.replace(/pi/g, "Math.PI");
+            const result = Function('"use strict"; return (' + expr + ')')();
+            calcExpr = String(result);
+          } catch (e) { calcExpr = "Error"; }
+          updateCalcDisplay(); return;
+        }
+        calcExpr += v; updateCalcDisplay();
+      });
     });
-  });
-  function updateCalcDisplay() {
-    $("calcDisplay").value = calcExpr || "0";
-  }
-
-  // ---- Graph Plotter ----
-  function plotGraph() {
-    const canvas = $("graphCanvas");
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    const W = canvas.width || canvas.offsetWidth || 500;
-    const H = canvas.height || 280;
-    canvas.width = W * 2; canvas.height = H * 2;
-    canvas.style.width = W + "px"; canvas.style.height = H + "px";
-    ctx.scale(2, 2);
-    ctx.clearRect(0, 0, W, H);
-    const padding = 40;
-    const plotW = W - padding * 2;
-    const plotH = H - padding * 2;
-    const xMin = -10, xMax = 10, yMin = -10, yMax = 10;
-    const xScale = plotW / (xMax - xMin);
-    const yScale = plotH / (yMax - yMin);
-    function toCanvas(x, y) {
-      return [padding + (x - xMin) * xScale, padding + (yMax - y) * yScale];
+    function updateCalcDisplay() {
+      var d = mathPanel.querySelector('#calcDisplay');
+      if (d) d.value = calcExpr || "0";
     }
-    ctx.strokeStyle = "#e8f0ed";
-    ctx.lineWidth = 1;
-    for (let i = Math.ceil(xMin); i <= Math.floor(xMax); i++) {
-      const [cx] = toCanvas(i, 0);
-      ctx.beginPath(); ctx.moveTo(cx, padding); ctx.lineTo(cx, padding + plotH); ctx.stroke();
-    }
-    for (let i = Math.ceil(yMin); i <= Math.floor(yMax); i++) {
-      const [, cy] = toCanvas(0, i);
-      ctx.beginPath(); ctx.moveTo(padding, cy); ctx.lineTo(padding + plotW, cy); ctx.stroke();
-    }
-    ctx.strokeStyle = "#1f2b2b";
-    ctx.lineWidth = 2;
-    const [x0, y0] = toCanvas(0, 0);
-    ctx.beginPath(); ctx.moveTo(padding, y0); ctx.lineTo(padding + plotW, y0); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(x0, padding); ctx.lineTo(x0, padding + plotH); ctx.stroke();
-    const fnText = $("graphFunction").value.trim() || "x^2";
-    try {
-      const compiled = new Function("x", "with(Math){return " + fnText.replace(/\^/g, "**") + "}");
-      ctx.strokeStyle = "#0f766e";
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      let first = true;
-      for (let px = 0; px <= plotW; px++) {
-        const x = xMin + (px / plotW) * (xMax - xMin);
+    // ---- Graph Plotter (scoped to subject-math) ----
+    (function() {
+      var oldGraphBtn = mathPanel.querySelector('#plotGraphBtn');
+      if (!oldGraphBtn) return;
+      function plotGraph() {
+        var canvas = mathPanel.querySelector('#graphCanvas');
+        if (!canvas) return;
+        var ctx = canvas.getContext("2d");
+        var W = 500, H = 280;
+        canvas.width = W * 2; canvas.height = H * 2; canvas.style.width = W + "px"; canvas.style.height = H + "px";
+        ctx.scale(2, 2); ctx.clearRect(0, 0, W, H); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+        var padding = 40, plotW = W - padding * 2, plotH = H - padding * 2;
+        var xMin = -10, xMax = 10, yMin = -10, yMax = 10;
+        var xScale = plotW / (xMax - xMin), yScale = plotH / (yMax - yMin);
+        function tc(x, y) { return [padding + (x - xMin) * xScale, padding + (yMax - y) * yScale]; }
+        ctx.strokeStyle = "#e8f0ed"; ctx.lineWidth = 1;
+        for (var i = Math.ceil(xMin); i <= Math.floor(xMax); i++) { var cx2 = tc(i,0)[0]; ctx.beginPath(); ctx.moveTo(cx2, padding); ctx.lineTo(cx2, padding + plotH); ctx.stroke(); }
+        for (var j = Math.ceil(yMin); j <= Math.floor(yMax); j++) { var cy2 = tc(0,j)[1]; ctx.beginPath(); ctx.moveTo(padding, cy2); ctx.lineTo(padding + plotW, cy2); ctx.stroke(); }
+        ctx.strokeStyle = "#1f2b2b"; ctx.lineWidth = 2;
+        var x0 = tc(0,0)[0], y0 = tc(0,0)[1];
+        ctx.beginPath(); ctx.moveTo(padding, y0); ctx.lineTo(padding + plotW, y0); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x0, padding); ctx.lineTo(x0, padding + plotH); ctx.stroke();
+        var fnText = (mathPanel.querySelector('#graphFunction') || {}).value || "x^2";
         try {
-          const y = compiled(x);
-          if (typeof y !== "number" || !isFinite(y)) { first = true; continue; }
-          const [cx, cy] = toCanvas(x, y);
-          if (cy < padding - 10 || cy > padding + plotH + 10) { first = true; continue; }
-          if (first) { ctx.moveTo(cx, cy); first = false; }
-          else ctx.lineTo(cx, cy);
-        } catch (e) { first = true; }
+          var compiled = new Function("x", "with(Math){return " + fnText.replace(/\^/g, "**") + "}");
+          ctx.strokeStyle = "#0f766e"; ctx.lineWidth = 2.5; ctx.beginPath(); var first = true;
+          for (var px = 0; px <= plotW; px++) {
+            var x = xMin + (px / plotW) * (xMax - xMin);
+            try { var y = compiled(x); if (typeof y !== "number" || !isFinite(y)) { first = true; continue; } var cp = tc(x, y); if (cp[1] < padding - 10 || cp[1] > padding + plotH + 10) { first = true; continue; } if (first) { ctx.moveTo(cp[0], cp[1]); first = false; } else ctx.lineTo(cp[0], cp[1]); } catch(e) { first = true; }
+          }
+          ctx.stroke();
+        } catch(e) { ctx.fillStyle = "#b42318"; ctx.font = "14px sans-serif"; ctx.fillText("Invalid function", 10, 20); }
       }
-      ctx.stroke();
-    } catch (e) {
-      ctx.fillStyle = "#b42318";
-      ctx.font = "14px Space Grotesk, sans-serif";
-      ctx.fillText("Invalid function", 10, 20);
-    }
+      oldGraphBtn.addEventListener("click", plotGraph);
+      var oldGraphInput = mathPanel.querySelector('#graphFunction');
+      if (oldGraphInput) oldGraphInput.addEventListener("keydown", function(e) { if (e.key === "Enter") plotGraph(); });
+      setTimeout(plotGraph, 100);
+    })();
   }
-  $("plotGraphBtn").addEventListener("click", plotGraph);
-  $("graphFunction").addEventListener("keydown", e => { if (e.key === "Enter") plotGraph(); });
-  setTimeout(plotGraph, 100);
 
   // ---- Math Solver (AI) ----
   $("mathSolverBtn").addEventListener("click", async () => {
@@ -2075,7 +2353,7 @@ function setupSubjects() {
         { role: "system", content: "You are a math tutor. Provide step-by-step guidance for the problem. Guide the student to solve it themselves. Never give the final answer directly." },
         { role: "user", content: input }
       ], { maxTokens: 1024 });
-      $("mathSolverResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+      $("mathSolverResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
     } catch (e) { showToast("AI error"); }
   });
 
@@ -2089,7 +2367,7 @@ function setupSubjects() {
         { role: "system", content: "You are a physics tutor. Explain the concept clearly with examples. Use analogies. Keep it under 200 words." },
         { role: "user", content: "Explain: " + (labels[topic] || topic) }
       ], { maxTokens: 1024 });
-      $("physicsResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+      $("physicsResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
     } catch (e) { showToast("AI error"); }
   });
 
@@ -2103,7 +2381,7 @@ function setupSubjects() {
         { role: "system", content: "You are a chemistry tutor. Explain the concept clearly with examples." },
         { role: "user", content: "Explain: " + (labels[topic] || topic) }
       ], { maxTokens: 1024 });
-      $("chemistryResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+      $("chemistryResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
     } catch (e) { showToast("AI error"); }
   });
 
@@ -2117,7 +2395,7 @@ function setupSubjects() {
         { role: "system", content: "You are a biology tutor. Explain the concept clearly with examples." },
         { role: "user", content: "Explain: " + (labels[topic] || topic) }
       ], { maxTokens: 1024 });
-      $("biologyResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+      $("biologyResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
     } catch (e) { showToast("AI error"); }
   });
 
@@ -2131,7 +2409,7 @@ function setupSubjects() {
         { role: "system", content: "Generate a text-based mind map for the topic. Use indentation level (no markdown). Return ONLY the mind map text." },
         { role: "user", content: "Topic: " + (labels[topic] || topic) }
       ], { maxTokens: 1024 });
-      $("mindmapResult").innerHTML = '<div class="chat-bubble assistant"><pre style="white-space:pre-wrap;font-family:monospace;font-size:0.85rem;">' + escapeHtml(txt) + '</pre></div>';
+      $("mindmapResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
     } catch (e) { showToast("AI error"); }
   });
 
@@ -2145,7 +2423,7 @@ function setupSubjects() {
         { role: "system", content: "Generate a speaking exercise for " + lang + " at " + level + " level. Include: topic, key phrases to practice, and a sample dialogue. Format with clear sections." },
         { role: "user", content: "Create a speaking practice exercise." }
       ], { maxTokens: 1024 });
-      $("langSpeakingArea").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+      $("langSpeakingArea").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
       if ("speechSynthesis" in window) {
         const utter = new SpeechSynthesisUtterance(txt.substring(0, 200));
         const langMap = { spanish: "es-ES", french: "fr-FR", german: "de-DE", japanese: "ja-JP", mandarin: "zh-CN", italian: "it-IT", portuguese: "pt-BR", arabic: "ar-SA" };
@@ -2165,7 +2443,7 @@ function setupSubjects() {
         { role: "system", content: "Generate a short listening passage in " + lang + " (about 80 words) followed by 3 comprehension questions in English." },
         { role: "user", content: "Create a listening exercise." }
       ], { maxTokens: 1024 });
-      $("langListeningArea").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+      $("langListeningArea").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
       if ("speechSynthesis" in window) {
         const firstPart = txt.split("?")[0] || txt.substring(0, 200);
         const utter = new SpeechSynthesisUtterance(firstPart);
@@ -2185,7 +2463,7 @@ function setupSubjects() {
         { role: "system", content: "Generate a reading passage in " + lang + " at " + level + " level (about 100 words) followed by 3 comprehension questions in English with answers." },
         { role: "user", content: "Create a reading exercise." }
       ], { maxTokens: 1024 });
-      $("langReadingArea").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+      $("langReadingArea").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
     } catch (e) { showToast("AI error"); }
   });
 
@@ -2198,7 +2476,7 @@ function setupSubjects() {
         { role: "system", content: "Generate a writing prompt in " + lang + " with instructions in English. Include: topic, word count, and key vocabulary to use." },
         { role: "user", content: "Create a writing prompt." }
       ], { maxTokens: 1024 });
-      $("langWritingArea").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+      $("langWritingArea").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
     } catch (e) { showToast("AI error"); }
   });
 
@@ -2212,7 +2490,7 @@ function setupSubjects() {
         { role: "system", content: "You are a geography tutor. Explain key geographical features, countries, and cultural aspects of the region." },
         { role: "user", content: "Teach me about: " + (labels[region] || region) }
       ], { maxTokens: 1024 });
-      $("geoResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+      $("geoResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
     } catch (e) { showToast("AI error"); }
   });
 
@@ -2226,7 +2504,7 @@ function setupSubjects() {
         { role: "system", content: "Generate a timeline of key events for the historical period. Format as a list with dates and descriptions." },
         { role: "user", content: "Timeline for: " + (labels[period] || period) }
       ], { maxTokens: 1024 });
-      $("historyResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+      $("historyResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
     } catch (e) { showToast("AI error"); }
   });
 
@@ -2240,7 +2518,7 @@ function setupSubjects() {
         { role: "system", content: "You are an economics tutor. Explain the concept with real-world examples." },
         { role: "user", content: "Explain: " + (labels[topic] || topic) }
       ], { maxTokens: 1024 });
-      $("economyResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+      $("economyResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
     } catch (e) { showToast("AI error"); }
   });
 
@@ -2254,7 +2532,7 @@ function setupSubjects() {
         { role: "system", content: "You are a civics and sociology tutor. Explain the concept clearly." },
         { role: "user", content: "Explain: " + (labels[topic] || topic) }
       ], { maxTokens: 1024 });
-      $("civicsResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+      $("civicsResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
     } catch (e) { showToast("AI error"); }
   });
 
@@ -2276,7 +2554,7 @@ function setupSubjects() {
         if (r.suggestions) html += '<div class="item"><strong>Suggestions:</strong><ul>' + r.suggestions.map(function(s) { return '<li>' + escapeHtml(s) + '</li>'; }).join("") + '</ul></div>';
         $("englishAnalysisResult").innerHTML = html;
       } catch (e) {
-        $("englishAnalysisResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+        $("englishAnalysisResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
       }
     } catch (e) { showToast("AI error"); }
   });
@@ -2292,7 +2570,7 @@ function setupSubjects() {
         { role: "system", content: "You are an English writing tutor. Guide the student to improve their essay. Never write content for them. Focus on: " + prompt },
         { role: "user", content: "Essay draft:\\n" + essay.substring(0, 3000) }
       ], { maxTokens: 1024 });
-      $("englishEssayResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+      $("englishEssayResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
     } catch (e) { showToast("AI error"); }
   });
 
@@ -2313,7 +2591,7 @@ function setupSubjects() {
         });
         $("englishVocabResult").innerHTML = html;
       } catch (e) {
-        $("englishVocabResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+        $("englishVocabResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
       }
     } catch (e) { showToast("AI error"); }
   });
@@ -2328,7 +2606,7 @@ function setupSubjects() {
         { role: "system", content: "You are a fitness coach. Provide a safe, effective exercise guide for the activity. Include warm-up, main exercises, and cool-down. Prioritize safety." },
         { role: "user", content: "Exercise guide for: " + (labels[type] || type) }
       ], { maxTokens: 1024 });
-      $("exerciseResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+      $("exerciseResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
     } catch (e) { showToast("AI error"); }
   });
 
@@ -2342,7 +2620,7 @@ function setupSubjects() {
         { role: "system", content: "You are a biology tutor. Explain the body system with key functions and interesting facts." },
         { role: "user", content: "Explain: " + (labels[system] || system) }
       ], { maxTokens: 1024 });
-      $("bodySystemResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+      $("bodySystemResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
     } catch (e) { showToast("AI error"); }
   });
 
@@ -2356,7 +2634,7 @@ function setupSubjects() {
         { role: "system", content: "You are a nutrition and wellness expert. Provide evidence-based advice. Focus on general wellness, not medical diagnosis." },
         { role: "user", content: q }
       ], { maxTokens: 1024 });
-      $("nutritionResult").innerHTML = '<div class="chat-bubble assistant">' + escapeHtml(txt) + '</div>';
+      $("nutritionResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
     } catch (e) { showToast("AI error"); }
   });
 
@@ -2386,132 +2664,1597 @@ function renderMathFormulas() {
   }).join("") + '</div>';
 }
 
-// ===== SETUP WIZARD =====
-let setupState = { step: 0, name: "", major: "", weeklyTarget: 20, targetGpa: 3.8, subjects: [], theme: "teal" };
+// ===== ONBOARDING WIZARD =====
+var FEATURES = [
+  { icon: '<span class="icon icon-sm icon-timer"></span>', title: 'Pomodoro Timer', desc: 'Focus with timed study sessions and breaks. Track your total study hours and build streaks.' },
+  { icon: '<span class="icon icon-sm icon-card"></span>', title: 'Smart Flashcards', desc: 'Create decks with spaced repetition (SM-2). Flip, rate, and watch your retention grow.' },
+  { icon: '<span class="icon icon-sm icon-ai"></span>', title: 'AI Tutor & Coach', desc: 'Chat with AI about any subject. Get instant explanations, practice problems, and study tips.' },
+  { icon: '<span class="icon icon-sm icon-quiz"></span>', title: 'Multiple Quiz Types', desc: 'Multiple choice, fill-in, true/false, matching, and mock tests — all generated by AI.' },
+  { icon: '<span class="icon icon-sm icon-note"></span>', title: '6 Note Methods', desc: 'Cornell, outline, mind map, charting, sentence, and blurting — pick your style.' },
+  { icon: '<span class="icon icon-sm icon-target"></span>', title: 'Goal & Task Planner', desc: 'Set weekly goals, manage tasks with a Kanban board, and track your progress over time.' },
+  { icon: '<span class="icon icon-sm icon-cal"></span>', title: 'Smart Calendar', desc: 'Import iCal/PDF schedules, add Google Calendar events, and visualize your study plan.' },
+  { icon: '<span class="icon icon-sm icon-voice"></span>', title: 'Voice Conversation', desc: 'Practice speaking with AI in 10 languages. Get pronunciation feedback and grammar corrections.' },
+  { icon: '<span class="icon icon-sm icon-chart"></span>', title: 'Analytics Dashboard', desc: 'See your study metrics, completion rates, GPA trends, and heatmaps at a glance.' },
+  { icon: '<span class="icon icon-sm icon-music"></span>', title: 'Music Player', desc: 'Built-in lofi player with playlists. Study with ambient focus music.' },
+  { icon: '<span class="icon icon-sm icon-voice"></span>', title: 'Lecture Recording', desc: 'Record lectures with consent, get AI-generated summaries and practice exercises.' },
+  { icon: '<span class="icon icon-sm icon-star"></span>', title: '8 Custom Themes', desc: 'Choose from teal, blue, purple, green, orange, red, pink, or yellow. Dark mode included.' }
+];
+
+var setupState = { step: 0, name: '', major: '', weeklyTarget: 20, targetGpa: 3.8, subjects: [], theme: 'teal' };
 
 function showSetupModal() {
-  setupState = { step: 0, name: "", major: "", weeklyTarget: 20, targetGpa: 3.8, subjects: [], theme: state.settings.theme || "teal" };
-  $("setupModal").classList.remove("hidden");
+  setupState = { step: 0, name: '', major: '', weeklyTarget: 20, targetGpa: 3.8, subjects: [], theme: state.settings.theme || 'teal' };
+  var modal = $('setupModal');
+  if (modal) modal.classList.remove('hidden');
   renderSetupStep();
+  var nextBtn = $('setupNextBtn'), backBtn = $('setupBackBtn'), finishBtn = $('setupFinishBtn');
+  if (nextBtn && backBtn && finishBtn) {
+    var newNext = nextBtn.cloneNode(true), newBack = backBtn.cloneNode(true), newFinish = finishBtn.cloneNode(true);
+    nextBtn.parentNode.replaceChild(newNext, nextBtn);
+    backBtn.parentNode.replaceChild(newBack, backBtn);
+    finishBtn.parentNode.replaceChild(newFinish, finishBtn);
+    newNext.addEventListener('click', function() {
+      if (setupState.step === 1) {
+        var name = $('setupName');
+        if (name) setupState.name = name.value.trim() || 'Scholar';
+        var major = $('setupMajor');
+        if (major) setupState.major = major.value.trim() || 'General Studies';
+        var weekly = $('setupWeekly');
+        if (weekly) setupState.weeklyTarget = +weekly.value || 20;
+        var gpa = $('setupGpa');
+        if (gpa) setupState.targetGpa = Math.min(4, Math.max(0, +gpa.value || 3.8));
+      }
+      if (setupState.step >= 1 && setupState.step < 4) {
+        setupState.step++;
+        renderSetupStep();
+      }
+    });
+    newBack.addEventListener('click', function() {
+      if (setupState.step > 1) { setupState.step--; renderSetupStep(); }
+    });
+    newFinish.addEventListener('click', function() {
+      state.profile.name = setupState.name || 'Scholar';
+      state.profile.major = setupState.major || 'General Studies';
+      state.profile.weeklyTargetHours = setupState.weeklyTarget || 20;
+      state.profile.targetGpa = setupState.targetGpa || 3.8;
+      state.profile.subjects = setupState.subjects;
+      state.profile.setupComplete = true;
+      state.settings.theme = setupState.theme || 'teal';
+      document.documentElement.setAttribute('data-theme', state.settings.theme);
+      saveState();
+      $('setupModal').classList.add('hidden');
+      updateWelcomeTitle();
+      showToast('Welcome to Study Hub, ' + state.profile.name + '!');
+    });
+  }
 }
 
 function renderSetupStep() {
-  const content = $("setupStepContent");
-  const dots = qsa(".setup-step-dot");
-  dots.forEach(function(d, i) {
-    d.classList.toggle("active", i === setupState.step);
-    d.classList.toggle("done", i < setupState.step);
-  });
-  $("setupBackBtn").style.display = setupState.step > 0 ? "" : "none";
-  $("setupNextBtn").style.display = setupState.step < 2 ? "" : "none";
-  $("setupFinishBtn").style.display = setupState.step === 2 ? "" : "none";
+  var content = $('setupStepContent');
+  var footer = $('onbFooter');
+  if (!content) return;
+  var backBtn = $('setupBackBtn'), nextBtn = $('setupNextBtn'), finishBtn = $('setupFinishBtn');
 
   if (setupState.step === 0) {
-    content.innerHTML = '<h2>Welcome to Study Hub!</h2><p>Let\'s set up your profile.</p>' +
-      '<div class="stack"><input id="setupName" placeholder="Your name" value="' + escapeHtml(setupState.name || state.profile.name) + '" />' +
-      '<input id="setupMajor" placeholder="Program / Major" value="' + escapeHtml(setupState.major || state.profile.major) + '" />' +
-      '<label>Weekly study target (hours)<input id="setupWeekly" type="number" min="1" value="' + (setupState.weeklyTarget || state.profile.weeklyTargetHours) + '" /></label>' +
-      '<label>Target GPA<input id="setupGpa" type="number" min="0" max="4" step="0.1" value="' + (setupState.targetGpa || state.profile.targetGpa) + '" /></label></div>';
-  } else if (setupState.step === 1) {
-    const allSubjects = ["Math", "Science", "Languages", "Social Studies", "English", "Health Studies"];
-    content.innerHTML = '<h2>Choose your subjects</h2><p>Select the subjects you study:</p><div class="setup-subject-grid">' +
-      allSubjects.map(function(s) {
-        return '<div class="setup-subject-option' + (setupState.subjects.includes(s) ? ' selected' : '') + '" data-subj="' + s + '">' + s + '</div>';
-      }).join("") + '</div>';
-    qsa(".setup-subject-option").forEach(function(el) {
-      el.addEventListener("click", function() {
-        var s = this.dataset.subj;
-        var idx = setupState.subjects.indexOf(s);
-        if (idx >= 0) { setupState.subjects.splice(idx, 1); this.classList.remove("selected"); }
-        else { setupState.subjects.push(s); this.classList.add("selected"); }
+    backBtn.style.display = 'none'; nextBtn.style.display = 'none'; finishBtn.style.display = 'none';
+    if (footer) footer.style.display = 'none';
+    content.innerHTML =
+      '<div class="lp">' +
+        '<div class="lp-hero">' +
+          '<nav class="lp-nav"><div class="lp-logo"><span class="icon icon-sm icon-book"></span> Study Hub</div><div class="lp-nav-links"><a href="#features">Features</a><a href="#how">How It Works</a><button class="lp-cta-sm" id="onbGetStartedNav">Get Started</button></div></nav>' +
+          '<div class="lp-hero-inner">' +
+            '<div class="lp-badge"><span class="icon icon-sm icon-star"></span> Free · No sign-up required</div>' +
+            '<h1 class="lp-title">Your All-in-One<br><span class="lp-gradient">Academic Command Center</span></h1>' +
+            '<p class="lp-subtitle">Plan your study sessions, practice with AI-powered flashcards and quizzes, track your progress, and improve every day — all in one place.</p>' +
+            '<div class="lp-hero-btns">' +
+              '<button class="lp-cta" id="onbGetStarted1">Get Started Free →</button>' +
+              '<button class="lp-cta-secondary" onclick="document.getElementById(\'features\').scrollIntoView({behavior:\'smooth\'})">Explore Features</button>' +
+            '</div>' +
+            '<div class="lp-stats">' +
+              '<div class="lp-stat"><span class="lp-stat-num">12+</span><span class="lp-stat-label">Study Tools</span></div>' +
+              '<div class="lp-stat"><span class="lp-stat-num">AI</span><span class="lp-stat-label">Powered Tutor</span></div>' +
+              '<div class="lp-stat"><span class="lp-stat-num">100%</span><span class="lp-stat-label">Free & Offline</span></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="lp-section" id="how">' +
+          '<h2 class="lp-section-title">How It Works</h2>' +
+          '<p class="lp-section-sub">Three simple steps to supercharge your studying.</p>' +
+          '<div class="lp-steps">' +
+            '<div class="lp-step"><div class="lp-step-num">1</div><div class="lp-step-icon"><span class="icon icon-sm icon-note"></span></div><h3>Set Up Your Profile</h3><p>Tell us your name, major, and study goals — we\'ll personalize everything.</p></div>' +
+            '<div class="lp-step"><div class="lp-step-num">2</div><div class="lp-step-icon"><span class="icon icon-sm icon-book"></span></div><h3>Choose Your Tools</h3><p>Pick from 12+ study tools: Pomodoro timer, flashcards, AI tutor, quizzes, notes, and more.</p></div>' +
+            '<div class="lp-step"><div class="lp-step-num">3</div><div class="lp-step-icon"><span class="icon icon-sm icon-target"></span></div><h3>Start Studying</h3><p>Track sessions, review with spaced repetition, and watch your grades improve.</p></div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="lp-section lp-features" id="features">' +
+          '<h2 class="lp-section-title">Everything You Need to Study Better</h2>' +
+          '<p class="lp-section-sub">12 powerful tools designed to work together seamlessly.</p>' +
+          '<div class="lp-feature-grid">' +
+            FEATURES.map(function(f) {
+              return '<div class="lp-feature-card">' +
+                '<div class="lp-feature-icon">' + f.icon + '</div>' +
+                '<h3>' + f.title + '</h3>' +
+                '<p>' + f.desc + '</p>' +
+              '</div>';
+            }).join('') +
+          '</div>' +
+        '</div>' +
+
+        '<div class="lp-section lp-why">' +
+          '<h2 class="lp-section-title">Why Students Love Study Hub</h2>' +
+          '<div class="lp-testimonials">' +
+            '<div class="lp-testimonial"><div class="lp-test-text">"The AI tutor helped me understand calculus in minutes. The Pomodoro timer keeps me focused for hours."</div><div class="lp-test-author">— Alex, Computer Science</div></div>' +
+            '<div class="lp-testimonial"><div class="lp-test-text">"I went from a 3.0 to a 3.8 GPA using the spaced repetition flashcards. This app is incredible."</div><div class="lp-test-author">— Sarah, Biology</div></div>' +
+            '<div class="lp-testimonial"><div class="lp-test-text">"The fact that everything is free and works offline is amazing. I use it every single day."</div><div class="lp-test-author">— Marcus, Engineering</div></div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="lp-cta-section">' +
+          '<h2>Ready to Transform Your Study Habits?</h2>' +
+          '<p>Join thousands of students using Study Hub to study smarter, not harder.</p>' +
+          '<button class="lp-cta" id="onbGetStarted2">Set Up Your Profile →</button>' +
+          '<p class="lp-hint">No account needed. Your data is stored locally on your device.</p>' +
+        '</div>' +
+
+        '<footer class="lp-footer">' +
+          '<p>Study Hub — Built for students who want to study smarter.</p>' +
+        '</footer>' +
+      '</div>';
+    var gsNav = $('onbGetStartedNav');
+    var gs1 = $('onbGetStarted1');
+    var gs2 = $('onbGetStarted2');
+    function goToSetup() { setupState.step = 1; renderSetupStep(); }
+    if (gsNav) gsNav.addEventListener('click', goToSetup);
+    if (gs1) gs1.addEventListener('click', goToSetup);
+    if (gs2) gs2.addEventListener('click', goToSetup);
+  } else {
+    if (footer) footer.style.display = 'flex';
+    backBtn.style.display = setupState.step > 1 ? '' : 'none';
+    nextBtn.style.display = setupState.step < 4 ? '' : 'none';
+    finishBtn.style.display = setupState.step === 4 ? '' : 'none';
+    content.className = 'onboarding-content setup-mode';
+
+    if (setupState.step === 1) {
+      content.innerHTML =
+        '<div class="onb-step-inner">' +
+          '<div class="onb-step-icon"><span class="icon icon-lg icon-note"></span></div>' +
+          '<h2>Create Your Profile</h2>' +
+          '<p class="onb-desc">Tell us about yourself so we can personalize your experience.</p>' +
+          '<div class="onb-field">' +
+            '<label>Your Name</label>' +
+            '<input id="setupName" placeholder="e.g. Alex" value="' + escapeHtml(setupState.name || state.profile.name) + '" />' +
+          '</div>' +
+          '<div class="onb-field">' +
+            '<label>Program / Major</label>' +
+            '<input id="setupMajor" placeholder="e.g. Computer Science" value="' + escapeHtml(setupState.major || state.profile.major) + '" />' +
+          '</div>' +
+          '<div class="onb-field-row">' +
+            '<div class="onb-field half">' +
+              '<label>Weekly Study Target</label>' +
+              '<input id="setupWeekly" type="number" min="1" value="' + (setupState.weeklyTarget || state.profile.weeklyTargetHours) + '" />' +
+            '</div>' +
+            '<div class="onb-field half">' +
+              '<label>Target GPA</label>' +
+              '<input id="setupGpa" type="number" min="0" max="4" step="0.1" value="' + (setupState.targetGpa || state.profile.targetGpa) + '" />' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+    } else if (setupState.step === 2) {
+      var allSubjects = ['Math', 'Science', 'Languages', 'Social Studies', 'English', 'Health Studies'];
+      content.innerHTML =
+        '<div class="onb-step-inner">' +
+          '<div class="onb-step-icon"><span class="icon icon-lg icon-book"></span></div>' +
+          '<h2>Choose Your Subjects</h2>' +
+          '<p class="onb-desc">Pick the subjects you\'re currently studying.</p>' +
+          '<div class="setup-subject-grid">' +
+            allSubjects.map(function(s) {
+              var icon = ({'Math':'<span class="icon icon-sm icon-timer"></span>','Science':'<span class="icon icon-sm icon-target"></span>','Languages':'<span class="icon icon-sm icon-voice"></span>','Social Studies':'<span class="icon icon-sm icon-book"></span>','English':'<span class="icon icon-sm icon-note"></span>','Health Studies':'<span class="icon icon-sm icon-brain"></span>'})[s] || '<span class="icon icon-sm icon-book"></span>';
+              return '<div class="setup-subject-option' + (setupState.subjects.includes(s) ? ' selected' : '') + '" data-subj="' + s + '">' +
+                '<span class="subj-icon">' + icon + '</span><span class="subj-name">' + s + '</span></div>';
+            }).join('') +
+          '</div>' +
+        '</div>';
+      qsa('.setup-subject-option').forEach(function(el) {
+        el.addEventListener('click', function() {
+          var s = this.dataset.subj;
+          var idx = setupState.subjects.indexOf(s);
+          if (idx >= 0) { setupState.subjects.splice(idx, 1); this.classList.remove('selected'); }
+          else { setupState.subjects.push(s); this.classList.add('selected'); }
+        });
       });
+    } else if (setupState.step === 3) {
+      content.innerHTML =
+        '<div class="onb-step-inner">' +
+          '<div class="onb-step-icon"><span class="icon icon-lg icon-star"></span></div>' +
+          '<h2>Pick Your Theme</h2>' +
+          '<p class="onb-desc">Choose a color that matches your style.</p>' +
+          '<div class="theme-grid">' +
+            ['teal','blue','orange','green','purple','red','pink','yellow'].map(function(t) {
+              var names = {'teal':'Teal','blue':'Blue','orange':'Orange','green':'Green','purple':'Purple','red':'Red','pink':'Pink','yellow':'Yellow'};
+              return '<button class="theme-swatch' + (setupState.theme === t ? ' active' : '') + '" data-theme="' + t + '" title="' + names[t] + '"></button>';
+            }).join('') +
+          '</div>' +
+        '</div>';
+      qsa('.theme-swatch').forEach(function(el) {
+        el.addEventListener('click', function() {
+          qsa('.theme-swatch').forEach(function(x) { x.classList.remove('active'); });
+          this.classList.add('active');
+          setupState.theme = this.dataset.theme;
+        });
+      });
+    } else if (setupState.step === 4) {
+      content.innerHTML =
+        '<div class="onb-step-inner onb-ready">' +
+          '<div class="onb-ready-icon"><span class="icon icon-xl icon-target"></span></div>' +
+          '<h2>You\'re All Set!</h2>' +
+          '<p class="onb-desc">Your profile is ready. Let\'s start studying!</p>' +
+          '<div class="onb-ready-list">' +
+            '<div class="onb-ready-item"><span class="icon icon-sm icon-chart"></span> Track your study sessions</div>' +
+            '<div class="onb-ready-item"><span class="icon icon-sm icon-card"></span> Create flashcards</div>' +
+            '<div class="onb-ready-item"><span class="icon icon-sm icon-ai"></span> Chat with AI Tutor</div>' +
+            '<div class="onb-ready-item"><span class="icon icon-sm icon-cal"></span> Plan your calendar</div>' +
+            '<div class="onb-ready-item"><span class="icon icon-sm icon-target"></span> Set goals and track progress</div>' +
+          '</div>' +
+        '</div>';
+    }
+  }
+}
+
+
+
+// ===== APP LANGUAGE SYSTEM =====
+function applyLanguage() {
+  try {
+  const lang = _lang();
+  document.documentElement.lang = lang;
+  document.title = __('appName');
+  const nav = qs('.nav');
+  if (nav) {
+    qsa('.nav-btn', nav).forEach(b => {
+      const key = 'tab' + b.dataset.tab.charAt(0).toUpperCase() + b.dataset.tab.slice(1);
+      const t = __(key);
+      if (t !== key) b.textContent = t;
     });
-  } else if (setupState.step === 2) {
-    content.innerHTML = '<h2>Almost done!</h2><p>Choose your theme:</p><div class="theme-grid">' +
-      ["teal","blue","orange","green","purple","red","pink","yellow"].map(function(t) {
-        return '<button class="theme-swatch' + (setupState.theme === t ? ' active' : '') + '" data-theme="' + t + '" style="font-size:0.6rem;">' + t.charAt(0).toUpperCase() + t.slice(1) + '</button>';
-      }).join("") + '</div>';
-    qsa(".theme-swatch").forEach(function(el) {
-      el.addEventListener("click", function() {
-        qsa(".theme-swatch").forEach(function(x) { x.classList.remove("active"); });
-        this.classList.add("active");
-        setupState.theme = this.dataset.theme;
-      });
+  }
+  // Translate Settings labels (textContent for label/span elements)
+  const labelEls = {
+    settingsTitle: 'settingsTitle',
+    profileLabel: 'profileLabel',
+    themeLabel: 'themeLabel',
+    langLabel: 'langLabel',
+    exportBtn: 'exportBtn',
+    importBtn: 'importBtn',
+    resetBtn: 'resetBtn',
+    healthCheck: 'healthCheck',
+    saveProfile: 'saveProfile',
+    weeklyTarget: 'weeklyTarget',
+    targetGpa: 'targetGpa',
+    googleConnect: 'googleConnect',
+    googleClassroom: 'googleClassroom',
+    googleCalendar: 'googleCalendar',
+    googleOAuth: 'googleOAuth',
+    googleConnected: 'googleConnected',
+    googleDisconnect: 'googleDisconnect',
+    lectureGenerate: 'lectureGenerate',
+    voiceTitle: 'voiceTitle',
+    startCall: 'startCall',
+    voiceCallEnd: 'voiceCallEnd',
+    voiceAnalysis: 'voiceAnalysis',
+    recording: 'recording',
+    paused: 'paused',
+  };
+  Object.entries(labelEls).forEach(([id, key]) => {
+    const el = $(id);
+    if (el) el.textContent = __(key);
+  });
+  // Translate the language selector
+  const langSelect = $('appLanguageSelect');
+  if (langSelect) {
+    qsa('option', langSelect).forEach(o => {
+      if (o.value === 'en') o.textContent = __('english');
+      if (o.value === 'hu') o.textContent = __('hungarian');
+    });
+  }
+  } catch(e) { console.warn('applyLanguage error:', e); }
+}
+
+// ===== LIVE AI VOICE CONVERSATION =====
+let voiceConversation = { active: false, history: [], currentAnalysis: null, exercises: [], retestQueue: [] };
+const VOICE_LANGUAGES = [
+  { code: 'en-US', label: 'English', nativeLabel: 'English', groqLang: 'English' },
+  { code: 'hu-HU', label: 'Hungarian', nativeLabel: 'Magyar', groqLang: 'Hungarian (Magyar)' },
+  { code: 'es-ES', label: 'Spanish', nativeLabel: 'Español', groqLang: 'Spanish' },
+  { code: 'fr-FR', label: 'French', nativeLabel: 'Français', groqLang: 'French' },
+  { code: 'de-DE', label: 'German', nativeLabel: 'Deutsch', groqLang: 'German' },
+  { code: 'it-IT', label: 'Italian', nativeLabel: 'Italiano', groqLang: 'Italian' },
+  { code: 'pt-BR', label: 'Portuguese', nativeLabel: 'Português', groqLang: 'Portuguese' },
+  { code: 'ja-JP', label: 'Japanese', nativeLabel: '日本語', groqLang: 'Japanese' },
+  { code: 'zh-CN', label: 'Mandarin', nativeLabel: '普通话', groqLang: 'Mandarin Chinese' },
+  { code: 'ar-SA', label: 'Arabic', nativeLabel: 'العربية', groqLang: 'Arabic' },
+];
+
+function setupVoiceConversation() {
+  const startBtn = $('voiceConvStart');
+  const endBtn = $('voiceConvEnd');
+  const langSelect = $('voiceConvLang');
+  const transcript = $('voiceConvTranscript');
+  const statusEl = $('voiceConvStatus');
+  const analysisEl = $('voiceConvAnalysis');
+  const exercisesEl = $('voiceConvExercises');
+
+  if (!startBtn) return;
+
+  // Populate language options
+  if (langSelect) {
+    langSelect.innerHTML = VOICE_LANGUAGES.map(l =>
+      `<option value="${l.code}" data-groqlang="${l.groqLang}">${l.nativeLabel} (${l.label})</option>`
+    ).join('');
+  }
+
+  // Populate TTS voice selector
+  var voiceSelect = $('voiceConvVoice');
+  function populateVoices() {
+    if (!voiceSelect) return;
+    var voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+    var currentLang = langSelect ? langSelect.value : 'en-US';
+    var selectedVoice = voiceSelect.value;
+    voiceSelect.innerHTML = '<option value="">AI Voice (auto)</option>';
+    var filtered = voices.filter(function(v) { return v.lang.startsWith(currentLang.split('-')[0]); });
+    // Also add a few default voices per language
+    filtered.forEach(function(v) {
+      var opt = document.createElement('option');
+      opt.value = v.name;
+      opt.textContent = v.name + ' (' + v.lang + ')' + (v.default ? ' ★' : '');
+      voiceSelect.appendChild(opt);
+    });
+    if (selectedVoice) voiceSelect.value = selectedVoice;
+  }
+  if (window.speechSynthesis) {
+    window.speechSynthesis.addEventListener('voiceschanged', populateVoices);
+    setTimeout(populateVoices, 500);
+  }
+  // Re-populate when language changes
+  if (langSelect && voiceSelect) {
+    langSelect.addEventListener('change', function() {
+      setTimeout(populateVoices, 200);
+    });
+  }
+
+  // Speech recognition setup
+  let recognition = null;
+  const hasSpeech = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+  if (hasSpeech) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SR();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.onresult = e => {
+      let final = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) final += e.results[i][0].transcript;
+      }
+      if (final && voiceConversation.active) {
+        handleVoiceConversationInput(final);
+      }
+    };
+    recognition.onerror = e => {
+      if (e.error !== 'no-speech' && voiceConversation.active) {
+        showToast('Voice error: ' + e.error);
+      }
+    };
+  } else {
+    if (startBtn) startBtn.style.opacity = '0.5';
+    if (statusEl) statusEl.textContent = 'Speech recognition not available';
+  }
+
+  startBtn.addEventListener('click', async () => {
+    if (voiceConversation.active) return;
+    const lang = langSelect ? langSelect.value : 'en-US';
+    const groqLang = langSelect ? langSelect.options[langSelect.selectedIndex].dataset.groqlang : 'English';
+    voiceConversation.active = true;
+    voiceConversation.history = [];
+    if (analysisEl) analysisEl.innerHTML = '';
+    if (exercisesEl) exercisesEl.innerHTML = '';
+    if (transcript) transcript.innerHTML = `<div class="call-bubble ai">AI: Hello! I'm your ${groqLang} conversation partner. Start speaking, and I'll respond naturally.</div>`;
+    if (statusEl) { statusEl.textContent = 'Live — speaking...'; statusEl.className = 'call-status live'; }
+    if (endBtn) endBtn.style.display = '';
+    if (startBtn) startBtn.style.display = 'none';
+    if (langSelect) langSelect.disabled = true;
+    if (recognition) {
+      try {
+        recognition.lang = lang;
+        recognition.start();
+      } catch (e) { showToast('Failed to start voice recognition'); }
+    }
+    voiceConversation.history.push({ role: 'assistant', content: `Hello! I'm your ${groqLang} conversation partner.` });
+  });
+
+  endBtn.addEventListener('click', async () => {
+    voiceConversation.active = false;
+    if (recognition) try { recognition.stop(); } catch (e) {}
+    if (statusEl) { statusEl.textContent = 'Analyzing conversation...'; statusEl.className = 'call-status analyzing'; }
+    if (startBtn) startBtn.style.display = '';
+    if (endBtn) endBtn.style.display = 'none';
+    if (langSelect) langSelect.disabled = false;
+    await analyzeVoiceConversation(groqLang || 'English', transcript, analysisEl, exercisesEl);
+  });
+}
+
+async function handleVoiceConversationInput(text) {
+  const transcript = $('voiceConvTranscript');
+  if (!transcript) return;
+  const langSelect = $('voiceConvLang');
+  const groqLang = langSelect ? langSelect.options[langSelect.selectedIndex].dataset.groqlang : 'English';
+  transcript.innerHTML += `<div class="call-bubble user">You: ${escapeHtml(text)}</div>`;
+  transcript.scrollTop = transcript.scrollHeight;
+  voiceConversation.history.push({ role: 'user', content: text });
+  try {
+    const systemPrompt = `You are a ${groqLang} language conversation partner. Respond naturally in ${groqLang}. Keep responses conversational (2-4 sentences). After your response, add "---CORRECTIONS---" then list any grammar/vocabulary corrections if needed, or "---NONE---" if everything was correct.`;
+    const resp = await groqChat([{ role: 'system', content: systemPrompt }, ...voiceConversation.history.slice(-6)], { maxTokens: 512 });
+    const parts = resp.split('---CORRECTIONS---');
+    const reply = parts[0].trim();
+    const corrections = parts[1] ? parts[1].trim() : '';
+    transcript.innerHTML += `<div class="call-bubble ai">AI: ${escapeHtml(reply)}</div>`;
+    if (corrections && corrections !== '---NONE---') {
+      transcript.innerHTML += `<div class="call-correction">${escapeHtml(corrections)}</div>`;
+    }
+    transcript.scrollTop = transcript.scrollHeight;
+    voiceConversation.history.push({ role: 'assistant', content: reply });
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(reply);
+      utter.lang = lang;
+      utter.rate = 1.0;
+      var vs = $('voiceConvVoice');
+      if (vs && vs.value) {
+        var voices = window.speechSynthesis.getVoices();
+        var found = voices.filter(function(v) { return v.name === vs.value; });
+        if (found.length > 0) utter.voice = found[0];
+      }
+      window.speechSynthesis.speak(utter);
+    }
+  } catch (e) {
+    transcript.innerHTML += `<div class="call-bubble ai">AI: (error generating response)</div>`;
+  }
+}
+
+async function analyzeVoiceConversation(targetLang, transcriptEl, analysisEl, exercisesEl) {
+  if (!voiceConversation.history.length) {
+    if (analysisEl) analysisEl.innerHTML = '<p class="subtle">No conversation to analyze.</p>';
+    return;
+  }
+  try {
+    const userMessages = voiceConversation.history.filter(m => m.role === 'user').map(m => m.content).join('\n');
+    const prompt = `Analyze this ${targetLang} language practice conversation. Provide:
+1. GRAMMAR: List grammar mistakes with corrections
+2. VOCABULARY: Suggest better word choices
+3. STRENGTHS: What the learner did well
+4. STUDY_FOCUS: 3 specific topics the learner should practice
+5. EXERCISES: Create 5 practice exercises targeting the weaknesses found
+
+User's messages:
+${userMessages}
+
+Format: Use clear sections with headers. Be encouraging but specific.`;
+    const analysis = await groqChat([{ role: 'system', content: 'You are a language tutor providing detailed post-conversation analysis.' }, { role: 'user', content: prompt }], { maxTokens: 2048 });
+    if (analysisEl) {
+      analysisEl.innerHTML = `<h4><span class="icon icon-sm icon-chart"></span> Conversation Analysis</h4><div class="analysis-content">${escapeHtml(analysis).replace(/\n/g, '<br>')}</div>`;
+    }
+    voiceConversation.currentAnalysis = analysis;
+    // Generate exercises from analysis
+    const exercisePrompt = `Based on this analysis of a ${targetLang} language learner, create 5 practice exercises:
+${analysis}
+
+For each exercise: give the question, expected answer, and which skill it targets.
+Format each as: EXERCISE: [question] | ANSWER: [answer] | SKILL: [skill]`;
+    const exercises = await groqChat([{ role: 'system', content: 'You create targeted language exercises.' }, { role: 'user', content: exercisePrompt }], { maxTokens: 1536 });
+    if (exercisesEl) {
+      const items = exercises.split('\n').filter(l => l.startsWith('EXERCISE:')).map(e => {
+        const parts = e.split('|');
+        return `<div class="exercise-item"><p><strong>${escapeHtml(parts[0].replace('EXERCISE:','').trim())}</strong></p>${parts[1] ? `<p class="subtle">${escapeHtml(parts[1].replace('ANSWER:','').trim())}</p>` : ''}${parts[2] ? `<span class="badge">${escapeHtml(parts[2].replace('SKILL:','').trim())}</span>` : ''}</div>`;
+      }).join('');
+      exercisesEl.innerHTML = `<h4><span class="icon icon-sm icon-note"></span> Practice Exercises</h4>${items || '<p class="subtle">Could not generate exercises.</p>'}`;
+    }
+    voiceConversation.exercises = exercises;
+    saveState();
+  } catch (e) {
+    if (analysisEl) analysisEl.innerHTML = '<p class="subtle">Analysis generation failed. Try again.</p>';
+  }
+  const statusEl = $('voiceConvStatus');
+    if (statusEl) { statusEl.textContent = 'Call ended — analysis complete'; statusEl.className = 'call-status ended'; }
+}
+
+// ===== LECTURE RECORDING =====
+let lectureRecorder = { mediaRecorder: null, chunks: [], recordings: [], stream: null, consented: false };
+
+function setupLectureRecording() {
+  const consentCheck = $('lectureConsentCheck');
+  const consentBtn = $('lectureConsentBtn');
+  const recordBtn = $('lectureRecordBtn');
+  const stopBtn = $('lectureStopBtn');
+  const saveList = $('lectureSavedList');
+  const generateBtn = $('lectureGenerateBtn');
+
+  if (!recordBtn) return;
+
+  // Load saved recordings from state
+  lectureRecorder.recordings = state.lectureRecordings || [];
+  renderSavedLectures();
+
+  // Consent flow
+  if (consentBtn) {
+    consentBtn.addEventListener('click', () => {
+      if (consentCheck && !consentCheck.checked) {
+        showToast('Please check the consent box first');
+        return;
+      }
+      lectureRecorder.consented = true;
+      consentBtn.disabled = true;
+      if (consentBtn) consentBtn.textContent = '✅ Consent Given';
+      recordBtn.disabled = false;
+      showToast('Teacher consent recorded — you may now record');
+    });
+  }
+
+  recordBtn.addEventListener('click', async () => {
+    if (!lectureRecorder.consented) { showToast('Teacher consent required first'); return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      lectureRecorder.stream = stream;
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
+        : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4'
+        : 'audio/mpeg';
+      const mr = new MediaRecorder(stream, { mimeType });
+      lectureRecorder.mediaRecorder = mr;
+      lectureRecorder.chunks = [];
+      mr.ondataavailable = e => { if (e.data.size > 0) lectureRecorder.chunks.push(e.data); };
+      mr.onstop = async () => {
+        const blob = new Blob(lectureRecorder.chunks, { type: mimeType });
+        const id = uid();
+        // Convert blob to base64 data URL for persistence
+        const dataUrl = await new Promise(resolve => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result);
+          r.readAsDataURL(blob);
+        });
+        const recording = { id, title: `Lecture ${lectureRecorder.recordings.length + 1}`, date: todayStr(), dataUrl, blobSize: blob.size, mimeType, transcriptGenerated: false, exercisesGenerated: false };
+        lectureRecorder.recordings.push(recording);
+        state.lectureRecordings = lectureRecorder.recordings;
+        saveState();
+        renderSavedLectures();
+        showToast('Lecture recorded and saved');
+        if (lectureRecorder.stream) { lectureRecorder.stream.getTracks().forEach(t => t.stop()); }
+      };
+      mr.start();
+      recordBtn.style.display = 'none';
+      stopBtn.style.display = '';
+      showToast('Recording lecture...');
+    } catch (e) {
+      showToast('Microphone access denied');
+    }
+  });
+
+  stopBtn.addEventListener('click', () => {
+    if (lectureRecorder.mediaRecorder && lectureRecorder.mediaRecorder.state !== 'inactive') {
+      lectureRecorder.mediaRecorder.stop();
+    }
+    recordBtn.style.display = '';
+    stopBtn.style.display = 'none';
+  });
+
+  if (generateBtn) {
+    generateBtn.addEventListener('click', async () => {
+      const lastRec = lectureRecorder.recordings[lectureRecorder.recordings.length - 1];
+      if (!lastRec) { showToast('No recordings to generate from'); return; }
+      if (lastRec.exercisesGenerated) { showToast('Exercises already generated for this lecture'); return; }
+      showToast('Generating exercises from lecture recording...');
+      // Use Groq to generate exercises based on the lecture title/date (audio transcription would need Whisper API)
+      const prompt = `Create 10 practice exercises based on a lecture titled "${lastRec.title}" recorded on ${lastRec.date}. Include: 5 recall questions, 3 application questions, 2 analysis questions. Provide answers for each.`;
+      try {
+        const result = await groqChat([{ role: 'system', content: 'You create educational exercises from lecture content.' }, { role: 'user', content: prompt }], { maxTokens: 2048 });
+        lastRec.exercisesGenerated = true;
+        lastRec.exercises = result;
+        state.lectureRecordings = lectureRecorder.recordings;
+        saveState();
+        renderSavedLectures();
+        showToast('Exercises generated! Check the lecture details.');
+      } catch (e) { showToast('Failed to generate exercises'); }
     });
   }
 }
 
-$("setupNextBtn").addEventListener("click", function() {
-  if (setupState.step === 0) {
-    setupState.name = $("setupName").value.trim() || "Scholar";
-    setupState.major = $("setupMajor").value.trim() || "General Studies";
-    setupState.weeklyTarget = +$("setupWeekly").value || 20;
-    setupState.targetGpa = Math.min(4, Math.max(0, +$("setupGpa").value || 3.8));
-  }
-  setupState.step++;
-  renderSetupStep();
-});
-
-$("setupBackBtn").addEventListener("click", function() {
-  if (setupState.step > 0) { setupState.step--; renderSetupStep(); }
-});
-
-$("setupFinishBtn").addEventListener("click", function() {
-  state.profile.name = setupState.name || "Scholar";
-  state.profile.major = setupState.major || "General Studies";
-  state.profile.weeklyTargetHours = setupState.weeklyTarget || 20;
-  state.profile.targetGpa = setupState.targetGpa || 3.8;
-  state.profile.setupComplete = true;
-  state.settings.theme = setupState.theme || "teal";
-  document.documentElement.setAttribute("data-theme", state.settings.theme);
+function renderSavedLectures() {
+  const el = $('lectureSavedList');
+  if (!el) return;
+  el.innerHTML = '';
+  if (!lectureRecorder.recordings.length) { el.innerHTML = '<p class="subtle">No recorded lectures yet.</p>'; return; }
+  lectureRecorder.recordings.slice().reverse().forEach(r => {
+    const d = document.createElement('div');
+    d.className = 'lecture-item';
+    const srcUrl = r.dataUrl || r.blobUrl || '';
+    const exercisesHtml = r.exercises
+      ? escapeHtml(r.exercises).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')
+      : '';
+    d.innerHTML = `
+      <div class="lecture-header"><strong>${escapeHtml(r.title)}</strong> <span class="badge">${r.date}</span></div>
+      <div class="lecture-actions">
+        ${srcUrl ? `<audio controls src="${srcUrl}" style="width:100%;height:36px"></audio>` : '<p class="subtle">Audio unavailable</p>'}
+        <div class="inline wrap top-gap">
+          ${r.exercises ? `<button class="ghost small" onclick="alert('Exercises:\\n\\n' + \`${exercisesHtml.replace(/`/g, '\\`')}\`)"><span class="icon icon-sm icon-note"></span> View Exercises</button>` : '<span class="subtle">No exercises yet</span>'}
+          <button class="ghost small danger" onclick="deleteLecture('${r.id}')">Delete</button>
+        </div>
+      </div>
+    `;
+    el.appendChild(d);
+  });
+}
+function deleteLecture(id) {
+  lectureRecorder.recordings = lectureRecorder.recordings.filter(r => r.id !== id);
+  state.lectureRecordings = lectureRecorder.recordings;
   saveState();
-  $("setupModal").classList.add("hidden");
-  updateWelcomeTitle();
-  showToast("Profile setup complete! Welcome to Study Hub.");
-});
+  renderSavedLectures();
+}
+
+// ===== GOOGLE APPS CONNECTION =====
+let googleAuth = { connected: false, accessToken: null, scope: '' };
+
+function setupGoogleConnection() {
+  const connectBtn = $('googleConnectBtn');
+  const disconnectBtn = $('googleDisconnectBtn');
+  const statusEl = $('googleStatus');
+  const scopeChecks = qsa('input[name="google-scope"]');
+
+  if (!connectBtn) return;
+
+  connectBtn.addEventListener('click', () => {
+    // Build scope from checked checkboxes
+    const scopes = [];
+    scopeChecks.forEach(c => { if (c.checked) scopes.push(c.value); });
+    if (!scopes.length) { showToast('Select at least one service'); return; }
+    googleAuth.scope = scopes.join(' ');
+    // Open Google OAuth URL (user must set up their own Client ID in Settings)
+    const clientId = state.settings.googleClientId || '';
+    if (!clientId) {
+      showToast('Set your Google OAuth Client ID in the settings first');
+      return;
+    }
+    const redirectUri = window.location.origin + '/oauth2callback.html';
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(googleAuth.scope)}&prompt=consent`;
+    window.open(authUrl, 'google-oauth', 'width=600,height=700');
+    showToast('OAuth window opened');
+  });
+
+  disconnectBtn.addEventListener('click', () => {
+    googleAuth.connected = false;
+    googleAuth.accessToken = null;
+    googleAuth.scope = '';
+    updateGoogleUI();
+    showToast('Google disconnected');
+  });
+
+  // Listen for OAuth response via postMessage from the callback page
+  window.addEventListener('message', e => {
+    if (e.origin !== window.location.origin) return;
+    if (e.data && e.data.type === 'google-oauth' && e.data.accessToken) {
+      googleAuth.accessToken = e.data.accessToken;
+      googleAuth.connected = true;
+      updateGoogleUI();
+      showToast('Google connected successfully!');
+    }
+  });
+}
+
+function updateGoogleUI() {
+  const connectBtn = $('googleConnectBtn');
+  const disconnectBtn = $('googleDisconnectBtn');
+  const statusEl = $('googleStatus');
+  if (connectBtn) connectBtn.style.display = googleAuth.connected ? 'none' : '';
+  if (disconnectBtn) disconnectBtn.style.display = googleAuth.connected ? '' : 'none';
+  if (statusEl) {
+    if (googleAuth.connected) {
+      statusEl.innerHTML = `<span class="badge" style="background:#065f46">✅ Connected</span> Scopes: ${googleAuth.scope}`;
+    } else {
+      statusEl.innerHTML = `<span class="badge">Not connected</span>`;
+    }
+  }
+}
+
+async function fetchGoogleClassroom() {
+  if (!googleAuth.connected || !googleAuth.accessToken) { showToast('Connect Google first'); return; }
+  try {
+    const res = await fetch('https://classroom.googleapis.com/v1/courses', {
+      headers: { 'Authorization': `Bearer ${googleAuth.accessToken}` }
+    });
+    const data = await res.json();
+    if (data.courses) {
+      data.courses.forEach(c => {
+        state.assignments.push({ id: uid(), title: c.name, subject: 'Classroom', due: todayStr(), weight: 5, earned: null, max: 100, createdAt: todayStr(), source: 'google-classroom' });
+      });
+      saveState();
+      renderAssignments();
+      showToast(`Imported ${data.courses.length} courses from Google Classroom`);
+    }
+  } catch (e) { showToast('Failed to fetch Google Classroom data'); }
+}
+
+async function fetchGoogleCalendar() {
+  if (!googleAuth.connected || !googleAuth.accessToken) { showToast('Connect Google first'); return; }
+  try {
+    const now = new Date();
+    const min = now.toISOString();
+    const max = new Date(now.getTime() + 90 * 86400000).toISOString();
+    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${min}&timeMax=${max}&orderBy=startTime&singleEvents=true`, {
+      headers: { 'Authorization': `Bearer ${googleAuth.accessToken}` }
+    });
+    const data = await res.json();
+    if (data.items) {
+      data.items.forEach(e => {
+        if (e.summary && e.start?.date) {
+          state.calendarEvents.push({ id: uid(), title: e.summary, date: e.start.date, source: 'google-calendar', description: e.description || '' });
+        }
+      });
+      saveState();
+      if (typeof renderCalendar === 'function') renderCalendar();
+      showToast(`Imported ${data.items.length} events from Google Calendar`);
+    }
+  } catch (e) { showToast('Failed to fetch Google Calendar data'); }
+}
 
 // ===== INIT =====
 function init() {
+  try {
   loadState();
-  $('headerDate').textContent = formatDate(new Date());
+  applyLanguage();
+  if (typeof Mobile !== 'undefined') {
+    Mobile.init().then(() => {
+      try { Mobile.addMobileStyles(); } catch(_) {}
+      try { Mobile.createMobileNav(); } catch(_) {}
+    });
+  }
+  var hd = $('headerDate');
+  if (hd) hd.textContent = formatDate(new Date());
   qsa('.nav-btn').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
   applyTheme();
   if (!state.profile.setupComplete) {
     setTimeout(showSetupModal, 300);
   }
-  renderDashboard();
-  setupPlanner();
-  setupTimer();
-  setupFlashcards();
-  setupQuizzes();
-  setupRecalls();
-  setupNotes();
-  setupAssignments();
-  setupCoach();
-  setupSmartAI();
-  setupAITutor();
-  setupAiLessons();
-  setupVoiceMode();
-  setupSubjects();
-  setupAnalytics();
-  setupSettings();
-  setupMusicPlayer();
-  setupPlaylists();
-  enhanceMusicTrackList();
-  setupCalendar();
-  setupSocial();
-  setupLearningTools();
-  setupGlobalShortcuts();
-  $('quickFocusBtn').addEventListener('click', () => {
+  safeCall(renderDashboard);
+  safeCall(setupPlanner);
+  safeCall(setupTimer);
+  safeCall(setupFlashcards);
+  safeCall(setupQuizzes);
+  safeCall(setupRecalls);
+  safeCall(setupNotes);
+  safeCall(setupAssignments);
+  safeCall(setupCoach);
+  safeCall(setupSmartAI);
+  safeCall(setupAITutor);
+  safeCall(setupAiLessons);
+  safeCall(setupSubjects);
+  safeCall(setupAnalytics);
+  safeCall(setupSettings);
+  safeCall(setupMusicPlayer);
+  safeCall(setupPlaylists);
+  safeCall(enhanceMusicTrackList);
+  safeCall(setupCalendar);
+  safeCall(setupSocial);
+  safeCall(setupLearningTools);
+  safeCall(setupVoiceConversation);
+  safeCall(setupLectureRecording);
+  safeCall(setupGoogleConnection);
+  safeCall(setupGlobalShortcuts);
+  safeCall(setupWarmup);
+  safeCall(setupStudyGuide);
+  safeCall(setupExpandChat);
+  safeCall(setupCalculator);
+  safeCall(setupTutorial);
+  safeCall(setupAutismSupport);
+  safeCall(setupPeerTutoring);
+  var qf = $('quickFocusBtn');
+  if (qf) qf.addEventListener('click', () => {
     showTab('sessions');
-    $('focusMinutes').value = 25;
-    $('startPauseTimerBtn').click();
+    var fm = $('focusMinutes');
+    if (fm) fm.value = 25;
+    var sp = $('startPauseTimerBtn');
+    if (sp) sp.click();
   });
-  $('seedDataBtn').addEventListener('click', seedDemoData);
+  var sd = $('seedDataBtn');
+  if (sd) sd.addEventListener('click', seedDemoData);
   showTab('dashboard');
   if (typeof initializeCloudSystem === 'function') {
     initializeCloudSystem().catch(() => {});
   }
+  } catch(e) {
+    if (typeof console !== 'undefined') console.error('init() error:', e);
+  }
 }
 
-document.addEventListener('DOMContentLoaded', init);
+// ===== EXPANDABLE CHAT =====
+function setupExpandChat() {
+  qsa('.expand-chat-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var chat = this.closest('.card') || this.parentElement.nextElementSibling;
+      if (chat) {
+        if (chat.classList.contains('chat-history')) {
+          chat.classList.toggle('expanded');
+          this.textContent = chat.classList.contains('expanded') ? '-' : '+';
+        } else {
+          var history = chat.querySelector('.chat-history');
+          if (history) { history.classList.toggle('expanded'); this.textContent = history.classList.contains('expanded') ? '-' : '+'; }
+        }
+      }
+    });
+  });
+}
+
+// ===== WARM UP — BRAIN TRAINING =====
+var warmupState = { game: 'math', score: 0, streak: 0, totalTime: 0, problems: [], current: 0, startTime: 0 };
+
+function setupWarmup() {
+  var tab = $('warmup');
+  if (!tab) return;
+
+  warmupState.score = 0; warmupState.streak = 0; warmupState.totalTime = 0; warmupState.current = 0; warmupState.problems = []; warmupState.startTime = 0;
+
+  qsa('.warmup-tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      qsa('.warmup-tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      this.classList.add('active');
+      warmupState.game = this.dataset.game;
+      warmupState.score = 0; warmupState.streak = 0; warmupState.totalTime = 0;
+      warmupState.current = 0; warmupState.problems = [];
+      updateWarmupStats();
+      startWarmupGame();
+    });
+  });
+  startWarmupGame();
+}
+
+function startWarmupGame() {
+  var area = $('warmupContent');
+  var result = $('warmupResult');
+  if (!area) return;
+  if (result) { result.classList.add('hidden'); result.className = 'warmup-result hidden'; }
+  warmupState.current = 0;
+  warmupState.problems = [];
+  warmupState.startTime = Date.now();
+
+  var game = warmupState.game;
+  if (game === 'math') generateMathProblems();
+  else if (game === 'memory') generateMemorySequence();
+  else if (game === 'speed') generateSpeedRead();
+  showWarmupCurrent();
+}
+
+function generateMathProblems() {
+  warmupState.problems = [];
+  for (var i = 0; i < 10; i++) {
+    var a = Math.floor(Math.random() * 50) + 10;
+    var b = Math.floor(Math.random() * 40) + 5;
+    var op = ['+', '-'][Math.floor(Math.random() * 2)];
+    if (op === '-' && a < b) { var t = a; a = b; b = t; }
+    var ans = op === '+' ? a + b : a - b;
+    warmupState.problems.push({ a: a, b: b, op: op, answer: ans });
+  }
+}
+
+function generateMemorySequence() {
+  warmupState.problems = [];
+  var len = Math.min(4 + Math.floor(warmupState.streak / 3), 8);
+  for (var i = 0; i < 5; i++) {
+    var seq = [];
+    for (var j = 0; j < len; j++) seq.push(Math.floor(Math.random() * 10));
+    warmupState.problems.push({ sequence: seq, answer: seq.join('') });
+  }
+}
+
+function generateSpeedRead() {
+  warmupState.problems = [
+    { text: 'The human brain processes visual information 60,000 times faster than text. Reading aloud uses different neural pathways than silent reading, engaging both the Broca\'s area and Wernicke\'s area simultaneously.', question: 'How much faster does the brain process visual information compared to text?', answer: '60000' },
+    { text: 'The Pomodoro Technique was developed by Francesco Cirillo in the late 1980s. The technique uses a timer to break work into intervals, traditionally 25 minutes in length, separated by short breaks of 5 minutes.', question: 'Who developed the Pomodoro Technique?', answer: 'Francesco Cirillo' },
+    { text: 'Spaced repetition is a learning technique that incorporates increasing intervals of time between subsequent reviews of previously learned material. It exploits the psychological spacing effect to improve long-term memory retention.', question: 'What psychological effect does spaced repetition exploit?', answer: 'spacing effect' },
+    { text: 'The hippocampus is critical for memory formation. During sleep, the hippocampus replays the day\'s experiences, transferring them to the neocortex for long-term storage. This is why sleep is essential for learning.', question: 'Where does the hippocampus transfer memories during sleep?', answer: 'neocortex' }
+  ];
+}
+
+function showWarmupCurrent() {
+  var area = $('warmupContent');
+  if (!area) return;
+  var p = warmupState.problems[warmupState.current];
+  if (!p) { finishWarmup(); return; }
+  var game = warmupState.game;
+
+  if (game === 'math') {
+    area.innerHTML =
+      '<h3>Math Sprint</h3>' +
+      '<p class="subtle">Problem ' + (warmupState.current + 1) + ' of ' + warmupState.problems.length + '</p>' +
+      '<div class="warmup-problem">' + p.a + ' ' + p.op + ' ' + p.b + ' = ?</div>' +
+      '<input type="number" id="warmupAnswer" placeholder="?" autofocus />';
+    var inp = $('warmupAnswer');
+    if (inp) {
+      inp.focus();
+      inp.addEventListener('keydown', function handler(e) {
+        if (e.key === 'Enter') {
+          checkWarmupAnswer(+this.value, p.answer);
+          this.removeEventListener('keydown', handler);
+        }
+      });
+    }
+  } else if (game === 'memory') {
+    var seq = p.sequence.join(' ');
+    area.innerHTML =
+      '<h3>Memory Sprint</h3>' +
+      '<p class="subtle">Remember this sequence:</p>' +
+      '<div class="warmup-seq-display" id="seqDisplay">' + seq + '</div>' +
+      '<p class="subtle" id="seqTimer"></p>';
+      setTimeout(function() {
+        var d2 = $('seqDisplay');
+        if (d2) d2.innerHTML = '<span class="icon icon-sm icon-gear"></span>';
+        area.innerHTML +=
+          '<p class="subtle" style="margin-top:8px">Now enter the sequence:</p>' +
+          '<input class="warmup-seq-input" id="warmupSeqAnswer" placeholder="e.g. 1234" autofocus />';
+        var inp2 = $('warmupSeqAnswer');
+        if (inp2) {
+          inp2.focus();
+          inp2.addEventListener('keydown', function handler2(e) {
+            if (e.key === 'Enter') { checkWarmupAnswer(this.value, p.answer); this.removeEventListener('keydown', handler2); }
+          });
+        }
+      }, 2000);
+  } else if (game === 'speed') {
+    area.innerHTML =
+      '<h3>Speed Reader</h3>' +
+      '<p class="subtle">Read this passage carefully, then answer a question.</p>' +
+      '<div class="warmup-text">' + p.text + '</div>' +
+      '<button class="warmup-done-btn" id="warmupDoneRead">I\'m done reading →</button>';
+    var doneBtn = $('warmupDoneRead');
+    if (doneBtn) {
+      doneBtn.addEventListener('click', function() {
+        area.innerHTML =
+          '<h3>Quick Check</h3>' +
+          '<p class="subtle">' + p.question + '</p>' +
+          '<input id="warmupSpeedAnswer" placeholder="Your answer..." autofocus />';
+        var inp3 = $('warmupSpeedAnswer');
+        if (inp3) {
+          inp3.focus();
+          inp3.addEventListener('keydown', function handler3(e) {
+            if (e.key === 'Enter') { checkWarmupAnswer(this.value.toLowerCase().trim(), p.answer.toLowerCase()); this.removeEventListener('keydown', handler3); }
+          });
+        }
+      });
+    }
+  }
+}
+
+function checkWarmupAnswer(userAns, correctAns) {
+  var result = $('warmupResult');
+  if (!result) return;
+  result.classList.remove('hidden');
+  var isCorrect = String(userAns).trim() === String(correctAns).trim();
+  var elapsed = (Date.now() - warmupState.startTime) / 1000;
+
+  if (isCorrect) {
+    result.className = 'warmup-result correct';
+    result.textContent = '✓ Correct! (' + elapsed.toFixed(1) + 's)';
+    warmupState.score++;
+    warmupState.streak++;
+  } else {
+    result.className = 'warmup-result wrong';
+    result.textContent = '✗ Oops! The answer was ' + correctAns;
+    warmupState.streak = 0;
+  }
+  warmupState.totalTime += elapsed;
+  updateWarmupStats();
+
+  warmupState.current++;
+  if (warmupState.current >= warmupState.problems.length) {
+    setTimeout(finishWarmup, 800);
+  } else {
+    warmupState.startTime = Date.now();
+    setTimeout(showWarmupCurrent, 800);
+  }
+}
+
+function finishWarmup() {
+  var area = $('warmupContent');
+  var result = $('warmupResult');
+  if (!area) return;
+  var total = warmupState.problems.length;
+  var pct = total > 0 ? Math.round(warmupState.score / total * 100) : 0;
+  var avgTime = warmupState.score > 0 ? (warmupState.totalTime / warmupState.score) : 0;
+  var grade = pct >= 80 ? 'Outstanding!' : pct >= 60 ? 'Good effort!' : pct >= 40 ? 'Keep practicing!' : 'Try again!';
+
+  area.innerHTML =
+    '<h3>Session Complete!</h3>' +
+    '<div class="warmup-result done">' + grade + '</div>' +
+    '<div style="margin-top:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center">' +
+      '<div><div style="font-size:2rem;font-weight:800">' + warmupState.score + '/' + total + '</div><span class="subtle">Correct</span></div>' +
+      '<div><div style="font-size:2rem;font-weight:800">' + pct + '%</div><span class="subtle">Accuracy</span></div>' +
+      '<div><div style="font-size:2rem;font-weight:800">' + avgTime.toFixed(1) + 's</div><span class="subtle">Avg Time</span></div>' +
+    '</div>' +
+    '<button class="top-gap" id="warmupPlayAgain">Play Again</button>';
+  var playBtn = $('warmupPlayAgain');
+  if (playBtn) playBtn.addEventListener('click', function() {
+    warmupState.score = 0; warmupState.streak = 0; warmupState.totalTime = 0;
+    warmupState.current = 0; warmupState.problems = [];
+    updateWarmupStats();
+    startWarmupGame();
+  });
+  if (result) result.classList.add('hidden');
+
+  // Update stats persistence
+  var ws = state.settings.warmupStats || { bestStreak: 0, totalGames: 0, totalCorrect: 0 };
+  ws.totalGames = (ws.totalGames || 0) + 1;
+  ws.totalCorrect = (ws.totalCorrect || 0) + warmupState.score;
+  if (warmupState.streak > (ws.bestStreak || 0)) ws.bestStreak = warmupState.streak;
+  state.settings.warmupStats = ws;
+  saveState();
+}
+
+function updateWarmupStats() {
+  var sEl = $('warmupScore'); if (sEl) sEl.textContent = warmupState.score;
+  var stEl = $('warmupStreak'); if (stEl) stEl.textContent = warmupState.streak;
+  var avgEl = $('warmupAvg');
+  if (avgEl) avgEl.textContent = warmupState.score > 0 ? (warmupState.totalTime / warmupState.score).toFixed(0) + 's' : '0s';
+}
+
+// ===== STUDY GUIDE & PLANNER GENERATOR =====
+function setupStudyGuide() {
+  var sgForm = $('studyGuideForm');
+  var spForm = $('studyPlannerForm');
+  if (sgForm) sgForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    generateStudyGuide();
+  });
+  if (spForm) spForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    generateStudyPlan();
+  });
+}
+
+function generateStudyGuide() {
+  var topic = $('sgTopic'); var depth = $('sgDepth'); var subject = $('sgSubject');
+  var loading = $('sgLoading'); var output = $('sgOutput');
+  if (!topic || !loading || !output) return;
+  var t = topic.value.trim(); var d = depth ? depth.value : 'standard';
+  var sub = subject ? subject.value : '';
+  if (!t) { showToast('Please enter a topic'); return; }
+
+  loading.classList.remove('hidden');
+  output.classList.add('hidden');
+  output.innerHTML = '';
+
+  var depthDesc = d === 'quick' ? 'a quick overview' : d === 'deep' ? 'a comprehensive deep dive' : 'a standard study guide';
+  var subHint = sub ? ' in ' + sub : '';
+  var prompt = 'Create ' + depthDesc + ' for the topic "' + t + '"' + subHint + '. Format it nicely with:\n' +
+    '- A brief overview paragraph\n' +
+    '- 4-6 key concepts (each with a keyword styled with **bold** and a short explanation)\n' +
+    '- A detailed explanation section with subsections\n' +
+    '- Important formulas, dates, or vocabulary (if relevant)\n' +
+    '- 3-5 practice questions with answers\n' +
+    '- Study tips for this topic\n' +
+    'Use markdown formatting. Keep it educational and well-structured.';
+
+  callGroq(prompt).then(function(text) {
+    loading.classList.add('hidden');
+    output.classList.remove('hidden');
+    output.innerHTML = formatStudyGuide(text, topic.value);
+  }).catch(function(err) {
+    loading.classList.add('hidden');
+    output.classList.remove('hidden');
+    output.innerHTML = '<p class="subtle">Failed to generate. Check your API key and try again.</p><p style="color:var(--danger)">' + escapeHtml(String(err)) + '</p>';
+  });
+}
+
+function generateStudyPlan() {
+  var subject = $('spSubject'); var topic = $('spTopic'); var days = $('spDays'); var hours = $('spHours'); var intensity = $('spIntensity');
+  var loading = $('spLoading'); var output = $('spOutput');
+  if (!subject || !loading || !output) return;
+  var s = subject.value.trim(); var t = topic ? topic.value.trim() : '';
+  var d = days ? parseInt(days.value) || 7 : 7;
+  var h = hours ? parseFloat(hours.value) || 1 : 1;
+  var i = intensity ? intensity.value : 'moderate';
+  if (!s) { showToast('Please enter a subject or exam'); return; }
+  state.settings._ach = state.settings._ach || { goalsCompleted:0, earlyTasks:0, studyPlansGenerated:0, reflectionsCount:0 };
+  state.settings._ach.studyPlansGenerated = (state.settings._ach.studyPlansGenerated||0) + 1;
+
+  loading.classList.remove('hidden');
+  output.classList.add('hidden');
+  output.innerHTML = '';
+
+  var intensityDesc = i === 'light' ? 'light (flexible schedule, 60% review / 40% new material)' : i === 'intense' ? 'intense and rigorous' : 'moderate (balanced review and new material)';
+  var topicHint = t ? ' covering topics: ' + t : '';
+  var prompt = 'Create a ' + d + '-day study plan for "' + s + '"' + topicHint + '. Each day should have approx ' + h + ' hour(s) of study. Intensity: ' + intensityDesc + '.\n\n' +
+    'Format as:\n' +
+    '**Day 1: [title]**\n' +
+    '- Focus area / topics to cover\n' +
+    '- Specific activities (reading, practice problems, review, flashcards)\n' +
+    '- Estimated time breakdown\n\n' +
+    'Continue for all ' + d + ' days. Also include a final summary with tips for success.\n' +
+    'Make it specific and actionable. Use markdown.';
+
+  callGroq(prompt).then(function(text) {
+    loading.classList.add('hidden');
+    output.classList.remove('hidden');
+    output.innerHTML = formatStudyPlan(text, s, d);
+  }).catch(function(err) {
+    loading.classList.add('hidden');
+    output.classList.remove('hidden');
+    output.innerHTML = '<p class="subtle">Failed to generate. Check your API key and try again.</p><p style="color:var(--danger)">' + escapeHtml(String(err)) + '</p>';
+  });
+}
+
+function formatStudyGuide(text, topic) {
+  var lines = text.split('\n');
+  var html = '<h3><span class="icon icon-sm icon-note"></span> Study Guide: ' + escapeHtml(topic) + '</h3>';
+  var inSection = false;
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    if (!line.trim()) { if (inSection) { html += '</div>'; inSection = false; } html += '<br>'; continue; }
+
+    // Headers
+    if (line.startsWith('### ')) {
+      if (inSection) { html += '</div>'; inSection = false; }
+      html += '<h4>' + escapeHtml(line.replace('### ', '')) + '</h4>';
+    } else if (line.startsWith('## ')) {
+      if (inSection) { html += '</div>'; inSection = false; }
+      html += '<h3>' + escapeHtml(line.replace('## ', '')) + '</h3>';
+    } else if (line.startsWith('# ')) {
+      if (inSection) { html += '</div>'; inSection = false; }
+      html += '<h3>' + escapeHtml(line.replace('# ', '')) + '</h3>';
+    }
+    // Lists
+    else if (line.match(/^[-*]\s/)) {
+      var item = line.replace(/^[-*]\s/, '');
+      html += '<li>' + formatInline(item) + '</li>';
+    } else if (line.match(/^\d+[.)]\s/)) {
+      var item2 = line.replace(/^\d+[.)]\s/, '');
+      html += '<li>' + formatInline(item2) + '</li>';
+    }
+    // Section wrapper
+    else if (line.toLowerCase().includes('key concept') || line.toLowerCase().includes('overview') || line.toLowerCase().includes('introduction') || line.toLowerCase().includes('tips') || line.toLowerCase().includes('question')) {
+      if (inSection) { html += '</div>'; inSection = false; }
+      html += '<div class="sg-section">';
+      inSection = true;
+      html += '<p>' + formatInline(line) + '</p>';
+    } else {
+      html += '<p>' + formatInline(line) + '</p>';
+    }
+  }
+  if (inSection) html += '</div>';
+  return html;
+}
+
+function formatStudyPlan(text, subject, days) {
+  var lines = text.split('\n');
+  var html = '<h3><span class="icon icon-sm icon-cal"></span> Study Plan: ' + escapeHtml(subject) + ' (' + days + ' days)</h3>';
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    if (!line.trim()) { html += '<br>'; continue; }
+
+    if (line.startsWith('### ') || line.startsWith('## ') || line.startsWith('#')) {
+      html += '<h3>' + escapeHtml(line.replace(/^#+\s/, '')) + '</h3>';
+    } else if (line.match(/^\*?\*?Day\s+\d+/i)) {
+      var dayMatch = line.match(/Day\s+(\d+)/i);
+      var dayNum = dayMatch ? dayMatch[1] : '';
+      var rest = line.replace(/^\*?\*?Day\s+\d+.*?[:\-]\s*/i, '');
+      html += '<div class="sg-planner-day"><strong>Day ' + dayNum + '</strong><p>' + formatInline(rest || line) + '</p></div>';
+    } else if (line.match(/^[-*]\s/)) {
+      html += '<li>' + formatInline(line.replace(/^[-*]\s/, '')) + '</li>';
+    } else if (line.match(/^\d+[.)]\s/)) {
+      html += '<li>' + formatInline(line.replace(/^\d+[.)]\s/, '')) + '</li>';
+    } else {
+      html += '<p>' + formatInline(line) + '</p>';
+    }
+  }
+  return html;
+}
+
+function formatInline(text) {
+  text = escapeHtml(text);
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  text = text.replace(/`(.+?)`/g, '<code style="background:var(--accent-soft);padding:2px 6px;border-radius:4px;font-size:0.85em">$1</code>');
+  return text;
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ===== PEER TUTORING =====
+function setupPeerTutoring() {
+  var active = 'same-age';
+  qsa('.peer-method').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      qsa('.peer-method').forEach(function(b) { b.classList.remove('active'); });
+      this.classList.add('active');
+      active = this.dataset.method;
+      state.settings.peerMethod = active;
+      saveState();
+      showToast('Peer method: ' + this.textContent.trim().replace(/\s+small.*/, ''));
+    });
+  });
+  if (state.settings.peerMethod) {
+    var saved = qs('.peer-method[data-method="' + state.settings.peerMethod + '"]');
+    if (saved) { qsa('.peer-method').forEach(function(b) { b.classList.remove('active'); }); saved.classList.add('active'); }
+  }
+}
+
+function getPeerTutoringPrompt() {
+  var method = state.settings.peerMethod || 'same-age';
+  var prompts = {
+    'same-age': 'You are a peer tutor at the same academic level as the student. Explain concepts as a knowledgeable classmate would. Use relatable examples and casual but correct language. Ask guiding questions.',
+    'cross-age': 'You are an older student mentor. Teach with patience and mentorship. Break down complex ideas into simple steps. Share study strategies and meta-learning tips. Be encouraging and supportive.',
+    'reciprocal': 'Use a reciprocal teaching approach. First explain a concept, then ask the student to explain it back in their own words. Take turns being the teacher. Ask "Can you teach this back to me?" frequently.',
+    'classwide': 'Use a structured classwide teaching approach. Present material clearly step by step. Use consistent formatting. Give clear instructions. Assume the student is part of a group learning session and use inclusive language.',
+    'socratic': 'Use the Socratic method. Do not give direct answers. Instead, ask thoughtful questions that lead the student to discover the answer themselves. Challenge assumptions and guide critical thinking.'
+  };
+  return prompts[method] || prompts['same-age'];
+}
+
+// ===== CALCULATOR =====
+function setupCalculator() {
+  var display = $('calcBasicDisplay');
+  var sciDisplay = $('calcSciDisplay');
+  var expr = '', sciExpr = '';
+
+  qsa('#calcBasic .calc-btn').forEach(function(b) {
+    b.addEventListener('click', function() {
+      var v = this.dataset.v;
+      if (v === 'C') { expr = ''; updateDisp(); return; }
+      if (v === '=') { expr = evalExpr(expr); updateDisp(); return; }
+      expr += v; updateDisp();
+    });
+  });
+  qsa('#calcScientific .calc-btn').forEach(function(b) {
+    b.addEventListener('click', function() {
+      var v = this.dataset.v;
+      if (v === 'C') { sciExpr = ''; updateSciDisp(); return; }
+      if (v === '=') { sciExpr = evalExpr(sciExpr); updateSciDisp(); return; }
+      sciExpr += v; updateSciDisp();
+    });
+  });
+  function updateDisp() { if (display) display.value = expr || '0'; }
+  function updateSciDisp() { if (sciDisplay) sciDisplay.value = sciExpr || '0'; }
+
+  // Mode switching
+  qsa('.calc-mode-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      qsa('.calc-mode-btn').forEach(function(b) { b.classList.remove('active'); });
+      this.classList.add('active');
+      var mode = this.dataset.mode;
+      qsa('.calc-panel').forEach(function(p) { p.classList.add('hidden'); });
+      var panel = $('calc' + mode.charAt(0).toUpperCase() + mode.slice(1));
+      if (panel) panel.classList.remove('hidden');
+      if (mode === 'graphing') setTimeout(setupGraphingCalculator, 50);
+      if (mode === 'converter') setupConverter();
+    });
+  });
+
+  // Graphing
+  function setupGraphingCalculator() {
+    var canvas = $('graphCanvas');
+    if (!canvas) return;
+    function plot() {
+      var ctx = canvas.getContext('2d');
+      var W = canvas.offsetWidth || canvas.parentElement.offsetWidth || 500;
+      var H = 320;
+      canvas.width = W * 2; canvas.height = H * 2;
+      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      ctx.scale(2, 2);
+      ctx.clearRect(0, 0, W, H);
+      var bg = getComputedStyle(canvas).getPropertyValue('--card-bg') || '#fff';
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+      var gridOn = ($('graphGrid') ? $('graphGrid').value : 'on') === 'on';
+      var lineColor = ($('graphColor') ? $('graphColor').value : '#0f766e');
+      var lineWidth = parseInt(($('graphLineWidth') ? $('graphLineWidth').value : '2'));
+      // Grid
+      if (gridOn) {
+        ctx.strokeStyle = '#e8e8e8'; ctx.lineWidth = 0.5;
+        for (var gx = 0; gx <= W; gx += 40) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke(); }
+        for (var gy = 0; gy <= H; gy += 40) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke(); }
+      }
+      // Axes
+      var cx = W / 2, cy = H / 2;
+      ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(W, cy); ctx.stroke();
+      ctx.fillStyle = '#333'; ctx.font = '10px sans-serif';
+      for (var t = -10; t <= 10; t++) {
+        if (t === 0) continue;
+        var px = cx + t * 40, py = cy - t * 40;
+        ctx.fillText(t, px + 3, cy - 3);
+        ctx.fillText(t, cx + 3, py - 3);
+      }
+
+      // Plot function
+      var fnText = ($('graphFnInput') ? $('graphFnInput').value : 'x^2') || 'x^2';
+      try {
+        var compiled = new Function('x', 'with(Math){return ' + fnText.replace(/\^/g, '**').replace(/pi/g, 'Math.PI').replace(/e\b/g, 'Math.E') + '}');
+        ctx.strokeStyle = lineColor; ctx.lineWidth = lineWidth;
+        ctx.beginPath(); var started = false;
+        for (var px2 = 0; px2 <= W; px2++) {
+          var x = (px2 - cx) / 40;
+          var y;
+          try { y = compiled(x); } catch(e) { started = false; continue; }
+          if (typeof y !== 'number' || !isFinite(y)) { started = false; continue; }
+          var py2 = cy - y * 40;
+          if (!started) { ctx.moveTo(px2, py2); started = true; } else { ctx.lineTo(px2, py2); }
+        }
+        ctx.stroke();
+      } catch(e) { ctx.fillStyle = '#dc2626'; ctx.fillText('Invalid function', 10, 20); }
+    }
+    var plotBtn = $('graphPlotBtn');
+    if (plotBtn) {
+      plotBtn.addEventListener('click', plot);
+      var inp = $('graphFnInput');
+      if (inp) inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') plot(); });
+    }
+    setTimeout(plot, 100);
+  }
+
+  // Converter
+  function setupConverter() {
+    var convData = {
+      Length: { units: ['mm','cm','m','km','in','ft','yd','mi'], toBase: {mm:0.001,cm:0.01,m:1,km:1000,in:0.0254,ft:0.3048,yd:0.9144,mi:1609.344} },
+      Mass: { units: ['mg','g','kg','oz','lb'], toBase: {mg:0.000001,g:0.001,kg:1,oz:0.0283495,lb:0.453592} },
+      Temperature: { units: ['°C','°F','K'], special: true },
+      Volume: { units: ['mL','L','gal','qt','pt','cup','fl oz'], toBase: {mL:0.001,L:1,gal:3.78541,qt:0.946353,pt:0.473176,cup:0.236588,'fl oz':0.0295735} },
+      Area: { units: ['mm²','cm²','m²','km²','in²','ft²','ac','ha'], toBase: {'mm²':0.000001,'cm²':0.0001,'m²':1,'km²':1000000,'in²':0.00064516,'ft²':0.092903,'ac':4046.86,'ha':10000} },
+      Speed: { units: ['m/s','km/h','mph','kn','ft/s'], toBase: {'m/s':1,'km/h':0.277778,'mph':0.44704,'kn':0.514444,'ft/s':0.3048} }
+    };
+    var catSel = $('convCategory'), fromUnit = $('convFromUnit'), toUnit = $('convToUnit');
+    var fromInp = $('convFrom'), toInp = $('convTo'), swapBtn = $('convSwap');
+    if (!catSel) return;
+
+    function populateUnits() {
+      var cat = convData[catSel.value];
+      if (!cat) return;
+      fromUnit.innerHTML = ''; toUnit.innerHTML = '';
+      cat.units.forEach(function(u) {
+        fromUnit.innerHTML += '<option>' + u + '</option>';
+        toUnit.innerHTML += '<option>' + u + '</option>';
+      });
+      toUnit.value = cat.units[1] || cat.units[0];
+      convert();
+    }
+
+    function convert() {
+      var cat = convData[catSel.value];
+      var val = parseFloat(fromInp.value) || 0;
+      var from = fromUnit.value, to = toUnit.value;
+      if (cat.special) {
+        // Temperature
+        if (from === '°C' && to === '°F') toInp.value = (val * 9/5 + 32).toFixed(2);
+        else if (from === '°F' && to === '°C') toInp.value = ((val - 32) * 5/9).toFixed(2);
+        else if (from === '°C' && to === 'K') toInp.value = (val + 273.15).toFixed(2);
+        else if (from === 'K' && to === '°C') toInp.value = (val - 273.15).toFixed(2);
+        else if (from === '°F' && to === 'K') toInp.value = ((val - 32) * 5/9 + 273.15).toFixed(2);
+        else if (from === 'K' && to === '°F') toInp.value = ((val - 273.15) * 9/5 + 32).toFixed(2);
+        else toInp.value = val;
+      } else {
+        var baseVal = val * (cat.toBase[from] || 1);
+        toInp.value = (baseVal / (cat.toBase[to] || 1)).toFixed(6).replace(/\.?0+$/, '');
+      }
+    }
+
+    catSel.addEventListener('change', populateUnits);
+    fromInp.addEventListener('input', convert);
+    fromUnit.addEventListener('change', convert);
+    toUnit.addEventListener('change', convert);
+    if (swapBtn) swapBtn.addEventListener('click', function() {
+      var t = fromUnit.value; fromUnit.value = toUnit.value; toUnit.value = t;
+      var tv = fromInp.value; fromInp.value = toInp.value; toInp.value = tv;
+      convert();
+    });
+    populateUnits();
+
+    // Custom expr eval
+    var evalBtn = $('convEval'), exprInp = $('convCustomExpr'), resEl = $('convResult');
+    if (evalBtn && exprInp && resEl) {
+      evalBtn.addEventListener('click', function() {
+        try { resEl.textContent = '= ' + evalExpr(exprInp.value); }
+        catch(e) { resEl.textContent = 'Error'; }
+      });
+      exprInp.addEventListener('keydown', function(e) { if (e.key === 'Enter') evalBtn.click(); });
+    }
+  }
+}
+
+function evalExpr(expr) {
+  try {
+    var e = expr.replace(/\u00d7/g, '*').replace(/\u00f7/g, '/').replace(/\u2212/g, '-');
+    e = e.replace(/\^/g, '**');
+    e = e.replace(/sqrt\(/g, 'Math.sqrt(');
+    e = e.replace(/sin\(/g, 'Math.sin(');
+    e = e.replace(/cos\(/g, 'Math.cos(');
+    e = e.replace(/tan\(/g, 'Math.tan(');
+    e = e.replace(/log\(/g, 'Math.log10(');
+    e = e.replace(/ln\(/g, 'Math.log(');
+    e = e.replace(/pi/g, 'Math.PI');
+    e = e.replace(/\be\b(?!\s*\()/g, 'Math.E');
+    e = e.replace(/abs\(/g, 'Math.abs(');
+    e = e.replace(/!\)/, ')'); // factorial placeholder
+    return String(Function('"use strict"; return (' + e + ')')());
+  } catch(e) { return 'Error'; }
+}
+
+// ===== TUTORIAL =====
+function setupTutorial() {
+  // Static content — no dynamic JS needed beyond tab switching
+}
+
+// ===== AUTISM SUPPORT =====
+var scripts = {
+  classroom: [
+    { role: 'Teacher', text: 'Can someone explain the main idea of this paragraph?', hint: 'Try: "I think the main idea is..." or ask for clarification.' },
+    { role: 'Student', text: "I don't understand question 3.", hint: 'Try: "Could you please explain question 3 again?"' },
+    { role: 'Teacher', text: 'What did you learn from today\'s lesson?', hint: 'Share one thing you learned. It\'s okay if it\'s small.' }
+  ],
+  group: [
+    { role: 'Student A', text: 'What part of the project should we work on first?', hint: 'Try: "I think we should start with..." or ask what others think.' },
+    { role: 'Student B', text: "I disagree with that idea.", hint: 'Try: "I see it differently because..." or suggest an alternative.' },
+    { role: 'Student C', text: 'Does everyone agree on this plan?', hint: 'You can say: "I agree" or "Can we change one thing?"' }
+  ],
+  teacher: [
+    { role: 'You', text: "I need help with today's assignment.", hint: 'Try: "Excuse me, could you help me with..."' },
+    { role: 'Teacher', text: 'Tell me what you understand so far.', hint: 'Explain what you know. It helps the teacher know where to start.' },
+    { role: 'You', text: 'Can I have extra time to finish this?', hint: 'Try: "Could I have until [day] to complete this?"' }
+  ],
+  social: [
+    { role: 'Friend', text: 'Hey, want to sit with us at lunch?', hint: 'Try: "Sure, thanks!" or "Thanks, maybe another time."' },
+    { role: 'Friend', text: 'Did you see that movie? What did you think?', hint: 'Share your opinion. "I liked it because..." or "I haven\'t seen it yet."' },
+    { role: 'You', text: 'Would you like to study together this weekend?', hint: 'Try: "Would you like to study together on Saturday?"' }
+  ],
+  advocacy: [
+    { role: 'You', text: 'I learn better when instructions are written down.', hint: 'Try: "Could you please write the instructions on the board?"' },
+    { role: 'You', text: 'The noise in this room is distracting me.', hint: 'Try: "Could I move to a quieter spot to focus?"' },
+    { role: 'Teacher', text: 'Is there anything I can do to help you learn better?', hint: 'Share one thing that helps you. "It helps when..."' }
+  ]
+};
+
+function setupAutismSupport() {
+  var loadBtn = $('loadScriptBtn'), scriptArea = $('scriptArea');
+  var scriptContent = $('scriptContent'), scriptResponse = $('scriptResponse');
+  var scriptSubmit = $('scriptSubmitBtn'), scriptFeedback = $('scriptFeedback');
+  var scriptCategory = $('scriptCategory');
+  var currentScript = null, currentStep = 0;
+
+  if (loadBtn && scriptArea) {
+    loadBtn.addEventListener('click', function() {
+      var cat = scriptCategory ? scriptCategory.value : 'classroom';
+      currentScript = scripts[cat] || scripts.classroom;
+      currentStep = 0;
+      scriptArea.classList.remove('hidden');
+      showScriptStep();
+    });
+  }
+
+  function showScriptStep() {
+    if (!currentScript || currentStep >= currentScript.length) {
+      if (scriptContent) scriptContent.innerHTML = '<p>✅ Great job! You completed this script. <button id="resetScriptBtn" class="ghost">Practice Again</button></p>';
+      if (scriptResponse) scriptResponse.value = '';
+      if (scriptFeedback) { scriptFeedback.className = 'script-feedback subtle top-gap'; scriptFeedback.textContent = ''; }
+      var resetBtn = $('resetScriptBtn');
+      if (resetBtn) resetBtn.addEventListener('click', function() { currentStep = 0; showScriptStep(); });
+      if (scriptSubmit) scriptSubmit.disabled = true;
+      return;
+    }
+    var s = currentScript[currentStep];
+    if (scriptContent) scriptContent.innerHTML = '<p><strong>' + s.role + ':</strong> "' + s.text + '"</p><p class="subtle" style="margin-top:8px"><span class="icon icon-sm icon-brain" style="display:inline-flex;vertical-align:middle;margin-right:4px"></span> ' + s.hint + '</p>';
+    if (scriptResponse) { scriptResponse.value = ''; scriptResponse.placeholder = 'Your response as ' + (s.role === 'You' ? 'you' : 'the student') + '...'; }
+    if (scriptFeedback) { scriptFeedback.className = 'script-feedback subtle top-gap'; scriptFeedback.textContent = ''; }
+    if (scriptSubmit) scriptSubmit.disabled = false;
+  }
+
+  if (scriptSubmit && scriptResponse) {
+    scriptSubmit.addEventListener('click', function() {
+      var ans = scriptResponse.value.trim();
+      if (!ans) { showToast('Please type your response first.'); return; }
+      var isGood = ans.length > 10;
+      if (scriptFeedback) {
+        scriptFeedback.className = 'script-feedback ' + (isGood ? 'good' : 'try-again') + ' top-gap';
+        scriptFeedback.textContent = isGood ? 'Good response! You showed great communication.' : 'Good try! Try being more specific in your response.';
+      }
+      if (isGood) {
+        currentStep++;
+        setTimeout(showScriptStep, 1200);
+      }
+    });
+    scriptResponse.addEventListener('keydown', function(e) { if (e.key === 'Enter') scriptSubmit.click(); });
+  }
+
+  // Save prefs
+  var savePrefs = $('saveAutismPrefs');
+  if (savePrefs) {
+    $('autismClearLang').checked = state.settings.autismClearLang !== false;
+    $('autismStepByStep').checked = state.settings.autismStepByStep !== false;
+    $('autismVisual').checked = state.settings.autismVisual !== false;
+    $('autismPredictable').checked = state.settings.autismPredictable !== false;
+    if ($('autismSpeechRate')) $('autismSpeechRate').value = state.settings.autismSpeechRate || 'moderate';
+    savePrefs.addEventListener('click', function() {
+      state.settings.autismClearLang = $('autismClearLang').checked;
+      state.settings.autismStepByStep = $('autismStepByStep').checked;
+      state.settings.autismVisual = $('autismVisual').checked;
+      state.settings.autismPredictable = $('autismPredictable').checked;
+      state.settings.autismSpeechRate = $('autismSpeechRate').value;
+      saveState();
+      showToast('Autism support preferences saved');
+    });
+  }
+
+  // Adaptive AI chat
+  var aiSend = $('autismAiSend'), aiInput = $('autismAiInput'), aiChat = $('autismAiChat');
+  if (aiSend && aiInput && aiChat) {
+    aiSend.addEventListener('click', function() {
+      var q = aiInput.value.trim();
+      if (!q) return;
+      aiInput.value = '';
+      aiChat.innerHTML += '<div class="chat-bubble user">' + escapeHtml(q) + '</div>';
+      var prefs = '';
+      if (state.settings.autismClearLang !== false) prefs += ' Use clear, literal language. Avoid idioms and sarcasm.';
+      if (state.settings.autismStepByStep !== false) prefs += ' Break down explanations step by step.';
+      if (state.settings.autismPredictable !== false) prefs += ' Use consistent structure and predictable formatting.';
+      var rate = state.settings.autismSpeechRate || 'moderate';
+      if (rate === 'slow') prefs += ' Explain at a calm, measured pace.';
+      prefs += ' Be patient, encouraging, and specific.';
+      var adhd = state.settings.adhdMode ? ' Keep the response very short and concise.' : '';
+
+      callGroq(prefs + adhd + '\n\nStudent asks: ' + q).then(function(text) {
+        aiChat.innerHTML += '<div class="chat-bubble ai">' + formatInline(text) + '</div>';
+        aiChat.scrollTop = aiChat.scrollHeight;
+      }).catch(function(err) {
+        aiChat.innerHTML += '<div class="chat-bubble ai">Sorry, I had trouble responding. Please try again.</div>';
+      });
+    });
+    aiInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') aiSend.click(); });
+  }
+}
+
+// ===== ADHD MODE HELPER =====
+function adhdShorten(text) {
+  if (!state.settings.adhdMode) return text;
+  // Shorten by keeping only the first paragraph and summarizing
+  var parts = text.split('\n\n');
+  if (parts.length <= 1) {
+    var sentences = text.split(/(?<=[.!?])\s+/);
+    if (sentences.length > 3) return sentences.slice(0, 3).join(' ') + ' [...]';
+    return text;
+  }
+  return parts[0] + '\n\n[...]';
+}
+
+function callGroq(prompt) {
+  return new Promise(function(resolve, reject) {
+    var key = state.settings.groqApiKey || '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';
+    if (!key) { reject(new Error('No Groq API key')); return; }
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', 'https://api.groq.com/openai/v1/chat/completions');
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.setRequestHeader('Authorization', 'Bearer ' + key);
+    xhr.onload = function() {
+      if (xhr.status === 200) {
+        try { resolve(JSON.parse(xhr.responseText).choices[0].message.content); }
+        catch(e) { reject(new Error('Failed to parse response')); }
+      } else { reject(new Error(xhr.status + ': ' + xhr.statusText)); }
+    };
+    xhr.onerror = function() { reject(new Error('Network error')); };
+    xhr.send(JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7, max_tokens: 2048
+    }));
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
