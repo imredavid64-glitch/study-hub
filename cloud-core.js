@@ -10,15 +10,24 @@ const SUPABASE_CONFIG = {
 };
 
 // Initialize Supabase client
-const supabase = window.supabase.createClient(
-  SUPABASE_CONFIG.url,
-  SUPABASE_CONFIG.anon_key
-);
-
-const supabaseAdmin = window.supabase.createClient(
-  SUPABASE_CONFIG.url,
-  SUPABASE_CONFIG.service_key
-);
+let supabase = null;
+let supabaseAdmin = null;
+try {
+  if (window.supabase && typeof window.supabase.createClient === 'function') {
+    supabase = window.supabase.createClient(
+      SUPABASE_CONFIG.url,
+      SUPABASE_CONFIG.anon_key
+    );
+    supabaseAdmin = window.supabase.createClient(
+      SUPABASE_CONFIG.url,
+      SUPABASE_CONFIG.service_key
+    );
+  } else {
+    console.warn('[Cloud] Supabase SDK not available — cloud features disabled');
+  }
+} catch (e) {
+  console.warn('[Cloud] Failed to initialize Supabase client:', e.message);
+}
 
 // ===== USER MANAGEMENT =====
 class UserManager {
@@ -673,6 +682,7 @@ function getLegacyState() {
   } catch (error) {
     console.error('Failed to parse legacy state:', error);
     return null;
+  }
 }
 
 function saveLegacyState() {

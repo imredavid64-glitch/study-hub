@@ -1,13 +1,80 @@
 {
   "name": "study-hub",
   "version": "1.0.0",
-  "description": "Study Hub is a full-featured academic productivity app for:",
-  "main": "app.js",
+  "description": "Study Hub - Plan smarter. Practice deeper. Improve daily.",
+  "main": "electron-main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "electron .",
+    "desktop:dev": "electron .",
+    "desktop:build": "electron-packager . \"Study Hub\" --platform=darwin --arch=universal --icon=assets/icon --overwrite --asar --out=release --app-version=1.0.0",
+    "desktop:build-win": "electron-packager . \"Study Hub\" --platform=win32 --arch=x64 --icon=assets/icon --overwrite --asar --out=release",
+    "desktop:build-linux": "electron-packager . \"Study Hub\" --platform=linux --arch=x64 --overwrite --asar --out=release",
+    "desktop:dmg": "electron-builder --mac dmg",
+    "build:mobile": "mkdir -p www && cp index.html styles.css app.js cloud-core.js mobile.js build.js www/ && cp -r assets www/ && cp -r music www/",
+    "cap:sync": "npm run build:mobile && npx cap sync",
+    "cap:ios": "npm run build:mobile && npx cap sync ios && npx cap open ios",
+    "cap:android": "npm run build:mobile && npx cap sync android && npx cap open android",
+    "test": "node --check app.js && node --check cloud-core.js"
   },
-  "keywords": [],
+  "keywords": [
+    "study",
+    "education",
+    "productivity",
+    "ai"
+  ],
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "dependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/cli": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.4.2",
+    "@capacitor/local-notifications": "^8.2.1"
+  },
+  "devDependencies": {
+    "electron": "^43.2.0",
+    "electron-builder": "^25.1.8",
+    "electron-packager": "^17.1.2"
+  },
+  "build": {
+    "appId": "com.studyhub.desktop",
+    "productName": "Study Hub",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "**/*",
+      "!www",
+      "!ios",
+      "!android",
+      "!src-tauri",
+      "!node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.education",
+      "icon": "assets/icon.png",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "minimumSystemVersion": "12.0"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "icon": "assets/icon.png"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "assets/icon.png",
+      "category": "Education"
+    }
+  }
 }

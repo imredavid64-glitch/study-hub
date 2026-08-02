@@ -2,14 +2,25 @@
 <html lang="en" data-theme="teal">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#1a1a2e" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
     <title>Study Hub</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" media="(prefers-color-scheme:light)" />
+    <link rel="icon" type="image/svg+xml" href="favicon-dark.svg" media="(prefers-color-scheme:dark)" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.7.1/dist/umd/supabase.min.js"></script>
-    <script src="https://unpkg.com/tesseract.js@3.0.5/dist/tesseract.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/Chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  </head>
+    <script src="mobile.js"></script>
+    <script>window.addEventListener('error',function(e){var msg=e.message||e;try{var log=JSON.parse(localStorage.getItem('_js_errors')||'[]');log.push({msg:msg,time:new Date().toISOString()});if(log.length>20)log.shift();localStorage.setItem('_js_errors',JSON.stringify(log))}catch(_){}});window.addEventListener('unhandledrejection',function(e){window.dispatchEvent(new ErrorEvent('error',{message:'Promise: '+(e.reason&&e.reason.message||e.reason||'unknown')}))});</script>
+    </head>
   <body>
     <div class="ambient"></div>
     <div class="app-shell">
@@ -33,6 +44,11 @@
           <button class="nav-btn" data-tab="ai-tutor">AI Tutor</button>
           <button class="nav-btn" data-tab="ai-lessons">AI Lessons</button>
           <button class="nav-btn" data-tab="ai-voice">Voice Mode</button>
+          <button class="nav-btn" data-tab="warmup"><span class="icon icon-sm icon-brain"></span> Warm Up</button>
+          <button class="nav-btn" data-tab="studyguide"><span class="icon icon-sm icon-note"></span> Study Guide</button>
+          <button class="nav-btn" data-tab="calculator"><span class="icon icon-sm icon-card"></span> Calculator</button>
+          <button class="nav-btn" data-tab="tutorial"><span class="icon icon-sm icon-book"></span> Tutorial</button>
+          <button class="nav-btn" data-tab="autism"><span class="icon icon-sm icon-star"></span> Autism Support</button>
           <button class="nav-btn" data-tab="subjects">Subjects</button>
           <button class="nav-btn" data-tab="calendar">Calendar</button>
           <button class="nav-btn" data-tab="social">Social</button>
@@ -50,7 +66,7 @@
           <div class="topbar-actions">
                   <button id="quickFocusBtn">Start 25m Sprint</button>
                   <button id="seedDataBtn" class="ghost">Load Demo Data</button>
-                  <button id="themeToggleBtn" class="ghost" title="Toggle dark mode">🌙</button>
+                  <button id="themeToggleBtn" class="ghost" title="Toggle dark mode"><span class="icon icon-sm icon-star"></span></button>
           </div>
         </header>
 
@@ -541,10 +557,27 @@
             </div>
             <div id="gcalEvents" class="stack top-gap"></div>
           </article>
+          <article class="card">
+                <h3><span class="icon icon-sm icon-voice"></span> Lecture Recording</h3>
+            <p class="subtle">Record your teachers' lectures (with consent) and get AI-generated practice exercises.</p>
+            <div class="lecture-recording-section top-gap">
+              <div class="consent-area card" style="background:var(--panel);padding:12px;border-radius:8px">
+                <label><input type="checkbox" id="lectureConsentCheck" /> I confirm that my teacher has given consent to record this lecture</label>
+                <button id="lectureConsentBtn" class="ghost top-gap">Record Consent</button>
+              </div>
+              <div class="recording-controls top-gap inline wrap">
+                <button id="lectureRecordBtn" class="voice-btn mic" disabled><span class="icon icon-sm icon-voice"></span> Start Recording</button>
+                <button id="lectureStopBtn" class="voice-btn stop" style="display:none;"><span class="icon icon-sm icon-timer"></span> Stop Recording</button>
+                <button id="lectureGenerateBtn" class="ghost">Generate Exercises</button>
+              </div>
+              <div id="lectureSavedList" class="stack top-gap"></div>
+            </div>
+          </article>
         </section>
 
         <!-- ===== COACH (with PDF upload) ===== -->
         <section id="coach" class="tab">
+          <div class="mascot-area"><div class="mascot" id="mascotCoach"><span class="icon icon-lg icon-ai"></span></div></div>
           <div class="split-grid">
             <article class="card">
               <h3>Daily Reflection</h3>
@@ -574,7 +607,8 @@
             </div>
             <div id="pdfStatus" class="top-gap subtle"></div>
             <div id="pdfPreview" class="pdf-content-preview top-gap hidden"></div>
-            <div id="pdfAiChat" class="stack top-gap" style="max-height:200px;overflow-y:auto;"></div>
+            <div class="chat-header"><span>PDF Chat</span><button class="expand-chat-btn" id="expandPdfChat" title="Expand chat">+</button></div>
+            <div id="pdfAiChat" class="stack top-gap chat-history" style="max-height:200px;overflow-y:auto;"></div>
             <div class="inline top-gap">
               <input id="pdfAiInput" placeholder="Ask a question about this PDF..." />
               <button id="pdfAiSendBtn" type="button">Ask</button>
@@ -592,6 +626,7 @@
 
         <!-- ===== SMART AI ===== -->
         <section id="ai-content-generator" class="tab">
+          <div class="mascot-area"><div class="mascot" id="mascotSmart"><span class="icon icon-lg icon-brain"></span></div></div>
           <div class="split-grid">
             <article class="card">
               <h3>Smart Content Generator</h3>
@@ -643,11 +678,13 @@
 
         <!-- ===== AI TUTOR ===== -->
         <section id="ai-tutor" class="tab">
+          <div class="mascot-area"><div class="mascot" id="mascotTutor"><span class="icon icon-lg icon-ai"></span></div></div>
           <div class="split-grid">
             <article class="card">
               <h3>AI Study Assistant</h3>
               <p class="subtle">Conversational AI tutor. I guide your thinking, never solve homework directly.</p>
-              <div id="aiChatHistory" class="stack"></div>
+              <div class="chat-header"><span>Conversation</span><button class="expand-chat-btn" id="expandAiChat" title="Expand chat">+</button></div>
+              <div id="aiChatHistory" class="stack chat-history"></div>
               <div class="inline top-gap">
                 <input id="aiChatInput" placeholder="Ask the tutor or request study help..." />
                 <button id="aiSendBtn">Send</button>
@@ -675,6 +712,17 @@
               </div>
             </article>
           </div>
+          <article class="card top-gap">
+            <h3>Peer Tutoring Method</h3>
+            <p class="subtle">Choose how the AI tutors you. Each method uses a different teaching approach.</p>
+            <div class="peer-grid">
+              <button class="peer-method active" data-method="same-age"><span class="icon icon-sm icon-ai"></span> Same-Age<br><small>Peer-level guidance</small></button>
+              <button class="peer-method" data-method="cross-age"><span class="icon icon-sm icon-star"></span> Cross-Age<br><small>Mentor-style teaching</small></button>
+              <button class="peer-method" data-method="reciprocal"><span class="icon icon-sm icon-timer"></span> Reciprocal<br><small>Take turns teaching</small></button>
+              <button class="peer-method" data-method="classwide"><span class="icon icon-sm icon-card"></span> Classwide<br><small>Structured group pace</small></button>
+              <button class="peer-method" data-method="socratic"><span class="icon icon-sm icon-brain"></span> Socratic<br><small>Question-based discovery</small></button>
+            </div>
+          </article>
           <article class="card">
             <h3>Session History</h3>
             <div id="aiSessionHistory" class="stack"></div>
@@ -721,42 +769,341 @@
           </article>
         </section>
 
-        <!-- ===== AI VOICE MODE ===== -->
-        <section id="ai-voice" class="tab">
-          <article class="card">
-            <h3>AI Voice Mode</h3>
-            <p class="subtle">Practice languages, debate topics, or present to an AI audience using your microphone.</p>
-            <div class="sub-nav top-gap">
-              <button class="sub-nav-btn active" data-voice-mode="language">Language Practice</button>
-              <button class="sub-nav-btn" data-voice-mode="debate">Debate Mode</button>
-              <button class="sub-nav-btn" data-voice-mode="presentation">Presentation Practice</button>
+        <!-- ===== WARM UP — BRAIN TRAINING ===== -->
+        <section id="warmup" class="tab">
+          <div class="warmup-mascot">
+            <div class="mascot mascot-warmup"><span class="icon icon-lg icon-brain"></span></div>
+            <h2>Brain Warm-Up</h2>
+            <p class="subtle">Quick mental exercises to sharpen your focus before studying.</p>
+          </div>
+          <div class="warmup-tabs">
+            <button class="warmup-tab-btn active" data-game="math"><span class="icon icon-sm icon-timer"></span> Quick Math</button>
+            <button class="warmup-tab-btn" data-game="memory"><span class="icon icon-sm icon-card"></span> Memory Sprint</button>
+            <button class="warmup-tab-btn" data-game="speed"><span class="icon icon-sm icon-target"></span> Speed Reader</button>
+          </div>
+          <div id="warmupGameArea" class="card warmup-game">
+            <div id="warmupContent"></div>
+            <div id="warmupResult" class="warmup-result hidden"></div>
+          </div>
+          <div id="warmupStats" class="warmup-stats card">
+            <div><span class="icon icon-sm icon-target"></span><span id="warmupStreak">0</span><span class="subtle">streak</span></div>
+            <div><span class="icon icon-sm icon-check"></span><span id="warmupScore">0</span><span class="subtle">correct</span></div>
+            <div><span class="icon icon-sm icon-timer"></span><span id="warmupAvg">0s</span><span class="subtle">avg time</span></div>
+          </div>
+        </section>
+
+        <!-- ===== STUDY GUIDE & PLANNER GENERATOR ===== -->
+        <section id="studyguide" class="tab">
+          <div class="mascot-area"><div class="mascot" id="mascotStudy"><span class="icon icon-lg icon-note"></span></div></div>
+          <div class="split-grid">
+            <article class="card">
+              <h3>Study Guide Generator</h3>
+              <p class="subtle">AI creates a comprehensive study guide for any topic.</p>
+              <form id="studyGuideForm" class="stack top-gap">
+                <input id="sgTopic" placeholder="Topic (e.g. 'Photosynthesis', 'World War II')" required />
+                <div class="inline wrap">
+                  <select id="sgSubject">
+                    <option value="">Subject (optional)</option>
+                    <option>Math</option><option>Science</option><option>History</option>
+                    <option>English</option><option>Languages</option><option>Social Studies</option>
+                  </select>
+                  <select id="sgDepth">
+                    <option value="quick">Quick Overview</option>
+                    <option value="standard" selected>Standard</option>
+                    <option value="deep">Deep Dive</option>
+                  </select>
+                </div>
+                <button type="submit"><span class="icon icon-sm icon-note"></span> Generate Study Guide</button>
+              </form>
+              <div id="sgLoading" class="hidden subtle top-gap">Generating your study guide...</div>
+            </article>
+            <article class="card">
+              <h3>Study Planner Generator</h3>
+              <p class="subtle">AI builds a custom study plan for your goals and schedule.</p>
+              <form id="studyPlannerForm" class="stack top-gap">
+                <input id="spSubject" placeholder="Subject / Exam" required />
+                <div class="inline wrap">
+                  <input id="spTopic" placeholder="Specific topics (optional)" />
+                  <input id="spDays" type="number" min="1" max="90" value="7" placeholder="Days until" />
+                </div>
+                <div class="inline wrap">
+                  <input id="spHours" type="number" min="0.5" max="8" step="0.5" value="1" placeholder="Hours/day" />
+                  <select id="spIntensity">
+                    <option value="light">Light</option>
+                    <option value="moderate" selected>Moderate</option>
+                    <option value="intense">Intense</option>
+                  </select>
+                </div>
+                <button type="submit"><span class="icon icon-sm icon-cal"></span> Generate Study Plan</button>
+              </form>
+              <div id="spLoading" class="hidden subtle top-gap">Planning your study schedule...</div>
+            </article>
+          </div>
+          <div id="sgOutput" class="study-output hidden"></div>
+          <div id="spOutput" class="study-output hidden"></div>
+        </section>
+
+        <!-- ===== CALCULATOR ===== -->
+        <section id="calculator" class="tab">
+          <div class="mascot-area"><div class="mascot mascot-warmup"><span class="icon icon-lg icon-timer"></span></div></div>
+          <div class="calc-mode-tabs">
+            <button class="calc-mode-btn active" data-mode="basic">Basic</button>
+            <button class="calc-mode-btn" data-mode="scientific">Scientific</button>
+            <button class="calc-mode-btn" data-mode="graphing">Graphing</button>
+            <button class="calc-mode-btn" data-mode="converter">Converter</button>
+          </div>
+          <div id="calcBasic" class="calc-panel">
+            <input id="calcBasicDisplay" class="calc-display" readonly />
+            <div class="calc-buttons">
+              <button class="calc-btn calc-clear" data-v="C">C</button>
+              <button class="calc-btn calc-fn" data-v="(">(</button>
+              <button class="calc-btn calc-fn" data-v=")">)</button>
+              <button class="calc-btn calc-op" data-v="/">÷</button>
+              <button class="calc-btn calc-num" data-v="7">7</button>
+              <button class="calc-btn calc-num" data-v="8">8</button>
+              <button class="calc-btn calc-num" data-v="9">9</button>
+              <button class="calc-btn calc-op" data-v="*">×</button>
+              <button class="calc-btn calc-num" data-v="4">4</button>
+              <button class="calc-btn calc-num" data-v="5">5</button>
+              <button class="calc-btn calc-num" data-v="6">6</button>
+              <button class="calc-btn calc-op" data-v="-">−</button>
+              <button class="calc-btn calc-num" data-v="1">1</button>
+              <button class="calc-btn calc-num" data-v="2">2</button>
+              <button class="calc-btn calc-num" data-v="3">3</button>
+              <button class="calc-btn calc-op" data-v="+">+</button>
+              <button class="calc-btn calc-num" data-v="0">0</button>
+              <button class="calc-btn calc-num" data-v=".">.</button>
+              <button class="calc-btn calc-eq" data-v="=">=</button>
+              <button class="calc-btn calc-op" data-v="^">^</button>
+              <button class="calc-btn calc-fn" data-v="sqrt">√</button>
+              <button class="calc-btn calc-fn" data-v="pi">π</button>
+            </div>
+          </div>
+          <div id="calcScientific" class="calc-panel hidden">
+            <input id="calcSciDisplay" class="calc-display" readonly />
+            <div class="calc-buttons">
+              <button class="calc-btn calc-clear" data-v="C">C</button>
+              <button class="calc-btn calc-fn" data-v="(">(</button>
+              <button class="calc-btn calc-fn" data-v=")">)</button>
+              <button class="calc-btn calc-op" data-v="/">÷</button>
+              <button class="calc-btn calc-op" data-v="^">^</button>
+              <button class="calc-btn calc-fn" data-v="sin">sin</button>
+              <button class="calc-btn calc-fn" data-v="cos">cos</button>
+              <button class="calc-btn calc-fn" data-v="tan">tan</button>
+              <button class="calc-btn calc-fn" data-v="log">log</button>
+              <button class="calc-btn calc-fn" data-v="ln">ln</button>
+              <button class="calc-btn calc-fn" data-v="sqrt">√</button>
+              <button class="calc-btn calc-fn" data-v="pi">π</button>
+              <button class="calc-btn calc-fn" data-v="e">e</button>
+              <button class="calc-btn calc-fn" data-v="!">!</button>
+              <button class="calc-btn calc-num" data-v="7">7</button>
+              <button class="calc-btn calc-num" data-v="8">8</button>
+              <button class="calc-btn calc-num" data-v="9">9</button>
+              <button class="calc-btn calc-op" data-v="*">×</button>
+              <button class="calc-btn calc-fn" data-v="abs">|x|</button>
+              <button class="calc-btn calc-num" data-v="4">4</button>
+              <button class="calc-btn calc-num" data-v="5">5</button>
+              <button class="calc-btn calc-num" data-v="6">6</button>
+              <button class="calc-btn calc-op" data-v="-">−</button>
+              <button class="calc-btn calc-num" data-v=".">.</button>
+              <button class="calc-btn calc-num" data-v="1">1</button>
+              <button class="calc-btn calc-num" data-v="2">2</button>
+              <button class="calc-btn calc-num" data-v="3">3</button>
+              <button class="calc-btn calc-op" data-v="+">+</button>
+              <button class="calc-btn calc-num" data-v="0">0</button>
+              <button class="calc-btn calc-eq" data-v="=">=</button>
+            </div>
+          </div>
+          <div id="calcGraphing" class="calc-panel hidden">
+            <div class="split-grid">
+              <div>
+                <h3><span class="icon icon-sm icon-chart"></span> Graph Plotter</h3>
+                <div class="stack" style="gap:10px">
+                  <input id="graphFnInput" placeholder="f(x) = e.g. x^2, sin(x), 2*x+1" value="x^2" />
+                  <div class="inline"><button id="graphPlotBtn">Plot</button><span class="small">^=power, pi, e</span></div>
+                  <canvas id="graphCanvas" height="320" style="background:var(--card-bg);border-radius:12px;border:1px solid var(--border);width:100%;"></canvas>
+                </div>
+              </div>
+              <div>
+                <h3><span class="icon icon-sm icon-gear"></span> Options</h3>
+                <div class="stack" style="gap:10px">
+                  <label>Color <select id="graphColor"><option value="#0f766e">Teal</option><option value="#dc2626">Red</option><option value="#2563eb">Blue</option><option value="#ca8a04">Yellow</option></select></label>
+                  <label>Line Width <select id="graphLineWidth"><option value="1">Thin</option><option value="2" selected>Normal</option><option value="4">Thick</option></select></label>
+                  <label>Grid <select id="graphGrid"><option value="on">On</option><option value="off">Off</option></select></label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="calcConverter" class="calc-panel hidden">
+            <div class="split-grid">
+              <div>
+                <h3><span class="icon icon-sm icon-timer"></span> Unit Converter</h3>
+                <div class="stack" style="gap:12px">
+                  <select id="convCategory"><option>Length</option><option>Mass</option><option>Temperature</option><option>Volume</option><option>Area</option><option>Speed</option></select>
+                  <div class="conv-row"><input id="convFrom" type="number" value="1" /><select id="convFromUnit"></select></div>
+                  <div class="conv-row" style="justify-content:center">
+                    <button id="convSwap" class="ghost" style="font-size:1.3rem">&#8646; Swap</button>
+                  </div>
+                  <div class="conv-row"><input id="convTo" readonly /><select id="convToUnit"></select></div>
+                </div>
+              </div>
+              <div>
+                <h3><span class="icon icon-sm icon-timer"></span> Quick Math</h3>
+                <div class="stack">
+                  <input id="convCustomExpr" placeholder="Type any expression..." />
+                  <button id="convEval">Evaluate</button>
+                  <div id="convResult" class="subtle"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== TUTORIAL ===== -->
+        <section id="tutorial" class="tab">
+          <div class="mascot-area"><div class="mascot mascot-warmup"><span class="icon icon-lg icon-book"></span></div></div>
+          <div class="split-grid">
+            <article class="card">
+              <h3>Welcome to Study Hub</h3>
+              <p>Study Hub is your all-in-one academic command center. Here's how to get started:</p>
+              <div class="sg-section" style="margin-top:12px">
+                <h4><span class="icon icon-sm icon-chart"></span> Dashboard</h4>
+                <p>Your home base. See your study hours, task completion, streak, and daily mission at a glance.</p>
+              </div>
+              <div class="sg-section">
+                <h4><span class="icon icon-sm icon-note"></span> Planner</h4>
+                <p>Add goals and tasks, organize with a Kanban board, and generate AI study plans.</p>
+              </div>
+              <div class="sg-section">
+                <h4><span class="icon icon-sm icon-timer"></span> Sessions</h4>
+                <p>Use the Pomodoro timer for focused study. Log your sessions to track hours.</p>
+              </div>
+              <div class="sg-section">
+                <h4><span class="icon icon-sm icon-card"></span> Flashcards</h4>
+                <p>Create decks with SM-2 spaced repetition. Generate AI flashcards from any topic.</p>
+              </div>
+              <div class="sg-section">
+                <h4><span class="icon icon-sm icon-quiz"></span> Quizzes & Recalls</h4>
+                <p>Test yourself with multiple choice, fill-in, matching, true/false, and blurting exercises.</p>
+              </div>
+            </article>
+            <article class="card">
+              <h3>AI Features</h3>
+              <div class="sg-section">
+                <h4><span class="icon icon-sm icon-ai"></span> AI Tutor</h4>
+                <p>Chat with AI about any subject. Choose from 5 peer tutoring methods for personalized help.</p>
+              </div>
+              <div class="sg-section">
+                <h4><span class="icon icon-sm icon-brain"></span> Smart AI</h4>
+                <p>Generate quizzes, flashcards, and study content from any topic automatically.</p>
+              </div>
+              <div class="sg-section">
+                <h4><span class="icon icon-sm icon-note"></span> Study Guide</h4>
+                <p>AI generates comprehensive study guides and custom study plans for exams.</p>
+              </div>
+              <div class="sg-section">
+                <h4><span class="icon icon-sm icon-voice"></span> Voice Mode</h4>
+                <p>Practice speaking with AI in 10 languages. Get real-time pronunciation feedback.</p>
+              </div>
+              <div class="sg-section">
+                <h4><span class="icon icon-sm icon-card"></span> Coach</h4>
+                <p>Daily reflections, essay feedback, PDF Q&A, and performance insights.</p>
+              </div>
+            </article>
+          </div>
+          <article class="card top-gap">
+            <h3>Quick Tips</h3>
+            <div class="split-grid">
+              <div><span class="icon icon-sm icon-note"></span><p><strong>Keyboard Shortcuts</strong><br>Ctrl+1-7: Switch tabs<br>Space: Flip flashcard<br>Enter: Send chat</p></div>
+              <div><span class="icon icon-sm icon-star"></span><p><strong>Dark Mode</strong><br>Toggle in Settings or use the dark mode button in the top bar.</p></div>
+              <div><span class="icon icon-sm icon-check"></span><p><strong>Data Safety</strong><br>All data is stored locally. Export regularly via Settings → Backup.</p></div>
+              <div><span class="icon icon-sm icon-brain"></span><p><strong>Warm Up</strong><br>Before studying, do a quick brain warm-up to sharpen your focus.</p></div>
             </div>
           </article>
-          <article class="card" id="voiceModeArea">
-            <div class="voice-mode-container">
-              <div class="voice-avatar" id="voiceAvatar">AI</div>
-              <h3 id="voiceModeTitle">Language Practice</h3>
-              <p class="subtle" id="voiceModeDesc">Select a language and have a conversation with the AI.</p>
-              <div id="voiceSettings" class="inline wrap top-gap">
-                <select id="voiceLanguage">
-                  <option value="spanish">Spanish</option>
-                  <option value="french">French</option>
-                  <option value="german">German</option>
-                  <option value="japanese">Japanese</option>
-                  <option value="mandarin">Mandarin</option>
-                  <option value="arabic">Arabic</option>
-                  <option value="portuguese">Portuguese</option>
-                  <option value="italian">Italian</option>
+        </section>
+
+        <!-- ===== AUTISM SUPPORT ===== -->
+        <section id="autism" class="tab">
+          <div class="mascot-area"><div class="mascot mascot-warmup"><span class="icon icon-lg icon-star"></span></div></div>
+          <div class="split-grid">
+            <article class="card">
+              <h3><span class="icon icon-sm icon-card"></span> Script Training</h3>
+              <p class="subtle">Practice structured conversation scripts for common social and academic situations.</p>
+              <div class="stack top-gap">
+                <select id="scriptCategory">
+                  <option value="classroom">Classroom Participation</option>
+                  <option value="group">Group Work</option>
+                  <option value="teacher">Talking to Teachers</option>
+                  <option value="social">Social Situations</option>
+                  <option value="advocacy">Self-Advocacy</option>
                 </select>
-                <input id="voiceDebateTopic" placeholder="Debate topic (for debate mode)" class="hidden" />
+                <button id="loadScriptBtn"><span class="icon icon-sm icon-note"></span> Load Script</button>
               </div>
-              <div class="voice-transcript" id="voiceTranscript">
-                <p class="subtle">Press the microphone to start speaking. The AI will respond in text (speech synthesis when available).</p>
+              <div id="scriptArea" class="script-area hidden">
+                <div id="scriptContent" class="script-content"></div>
+                <div class="inline top-gap">
+                  <input id="scriptResponse" placeholder="Type your response..." />
+                  <button id="scriptSubmitBtn">Submit</button>
+                </div>
+                <div id="scriptFeedback" class="script-feedback subtle top-gap"></div>
               </div>
-              <div class="voice-controls">
-                <button class="voice-btn mode-switch" id="voiceClearBtn" title="Clear">CLR</button>
-                <button class="voice-btn mic" id="voiceStartBtn" title="Start speaking">MIC</button>
-                <button class="voice-btn stop" id="voiceStopBtn" title="Stop" style="display:none;">STOP</button>
+            </article>
+            <article class="card">
+              <h3><span class="icon icon-sm icon-gear"></span> Adaptive Settings</h3>
+              <div class="stack">
+                <label><input type="checkbox" id="autismClearLang" checked /> Use clear, literal language</label>
+                <label><input type="checkbox" id="autismStepByStep" checked /> Step-by-step instructions</label>
+                <label><input type="checkbox" id="autismVisual" checked /> Visual supports</label>
+                <label><input type="checkbox" id="autismPredictable" checked /> Predictable structure</label>
+                <label>Speech Rate <select id="autismSpeechRate"><option value="slow">Slow</option><option value="moderate" selected>Moderate</option><option value="fast">Fast</option></select></label>
+                <button id="saveAutismPrefs">Save Preferences</button>
+              </div>
+            </article>
+          </div>
+          <article class="card top-gap">
+            <h3><span class="icon icon-sm icon-ai"></span> Adaptive AI Tutor</h3>
+            <p class="subtle">AI that adapts to your learning style with clear, structured responses.</p>
+            <div id="autismAiChat" class="chat-history" style="max-height:200px;overflow-y:auto;"></div>
+            <div class="inline top-gap">
+              <input id="autismAiInput" placeholder="Ask a question..." />
+              <button id="autismAiSend">Ask</button>
+            </div>
+          </article>
+        </section>
+
+        <!-- ===== AI VOICE MODE — LIVE CONVERSATION ===== -->
+        <section id="ai-voice" class="tab">
+          <article class="card">
+            <h3><span class="icon icon-sm icon-voice"></span> AI Live Conversation</h3>
+            <p class="subtle">Have a real-time voice conversation with AI in 10 languages. Get live corrections, post-call analysis, and personalized exercises.</p>
+          </article>
+          <article class="card" id="voiceConvCard">
+            <div class="voice-call-container">
+              <div class="call-avatar" id="voiceConvAvatar">
+                <div class="call-avatar-ring"></div>
+                <span class="call-avatar-text">AI</span>
+              </div>
+              <div class="call-info">
+                <select id="voiceConvLang" class="call-lang-select">
+                  <!-- populated by JS -->
+                </select>
+                <select id="voiceConvVoice" class="call-lang-select" style="margin-top:6px">
+                  <option value="">AI Voice (auto)</option>
+                </select>
+                <div id="voiceConvStatus" class="call-status idle">Select language and press Start</div>
+              </div>
+              <div class="call-transcript" id="voiceConvTranscript">
+                <p class="subtle">Press <strong>Start Call</strong> to begin a live conversation. The AI will respond with voice and text corrections.</p>
+              </div>
+              <div class="call-controls">
+                <button class="call-btn call-btn-start" id="voiceConvStart"><span class="icon icon-sm icon-voice"></span> Start Call</button>
+                <button class="call-btn call-btn-end" id="voiceConvEnd" style="display:none;"><span class="icon icon-sm icon-timer"></span> End Call</button>
+              </div>
+              <div class="call-analysis" id="voiceConvAnalysis">
+                <!-- populated after call ends -->
+              </div>
+              <div class="call-exercises" id="voiceConvExercises">
+                <!-- populated after call ends -->
               </div>
             </div>
           </article>
@@ -779,41 +1126,42 @@
           <div id="subject-math" class="subject-panel">
             <div class="split-grid">
               <article class="card">
-                <h3>🧮 Scientific Calculator</h3>
+                <h3><span class="icon icon-sm icon-timer"></span> Scientific Calculator</h3>
                 <div id="mathCalc" class="math-calc">
                   <input id="calcDisplay" class="calc-display" readonly />
                   <div class="calc-buttons">
-                    <button class="calc-btn calc-op" data-v="C">C</button>
-                    <button class="calc-btn calc-op" data-v="(">(</button>
-                    <button class="calc-btn calc-op" data-v=")">)</button>
+                    <button class="calc-btn calc-clear" data-v="C">C</button>
+                    <button class="calc-btn calc-fn" data-v="(">(</button>
+                    <button class="calc-btn calc-fn" data-v=")">)</button>
                     <button class="calc-btn calc-op" data-v="/">÷</button>
-                    <button class="calc-btn calc-op" data-v="7">7</button>
-                    <button class="calc-btn calc-op" data-v="8">8</button>
-                    <button class="calc-btn calc-op" data-v="9">9</button>
+                    <button class="calc-btn calc-num" data-v="7">7</button>
+                    <button class="calc-btn calc-num" data-v="8">8</button>
+                    <button class="calc-btn calc-num" data-v="9">9</button>
                     <button class="calc-btn calc-op" data-v="*">×</button>
-                    <button class="calc-btn calc-op" data-v="4">4</button>
-                    <button class="calc-btn calc-op" data-v="5">5</button>
-                    <button class="calc-btn calc-op" data-v="6">6</button>
+                    <button class="calc-btn calc-num" data-v="4">4</button>
+                    <button class="calc-btn calc-num" data-v="5">5</button>
+                    <button class="calc-btn calc-num" data-v="6">6</button>
                     <button class="calc-btn calc-op" data-v="-">−</button>
-                    <button class="calc-btn calc-op" data-v="1">1</button>
-                    <button class="calc-btn calc-op" data-v="2">2</button>
-                    <button class="calc-btn calc-op" data-v="3">3</button>
+                    <button class="calc-btn calc-num" data-v="1">1</button>
+                    <button class="calc-btn calc-num" data-v="2">2</button>
+                    <button class="calc-btn calc-num" data-v="3">3</button>
                     <button class="calc-btn calc-op" data-v="+">+</button>
-                    <button class="calc-btn calc-op" data-v="0">0</button>
-                    <button class="calc-btn calc-op" data-v=".">.</button>
-                    <button class="calc-btn calc-op" data-v="^">^</button>
+                    <button class="calc-btn calc-num" data-v="0">0</button>
+                    <button class="calc-btn calc-num" data-v=".">.</button>
                     <button class="calc-btn calc-eq" data-v="=">=</button>
-                    <button class="calc-btn calc-op" data-v="sqrt">√</button>
-                    <button class="calc-btn calc-op" data-v="pi">π</button>
-                    <button class="calc-btn calc-op" data-v="sin">sin</button>
-                    <button class="calc-btn calc-op" data-v="cos">cos</button>
-                    <button class="calc-btn calc-op" data-v="tan">tan</button>
-                    <button class="calc-btn calc-op" data-v="log">log</button>
+                    <button class="calc-btn calc-op" data-v="^">^</button>
+                    <button class="calc-btn calc-fn" data-v="sqrt">√</button>
+                    <button class="calc-btn calc-fn" data-v="pi">π</button>
+                    <button class="calc-btn calc-fn" data-v="sin">sin</button>
+                    <button class="calc-btn calc-fn" data-v="cos">cos</button>
+                    <button class="calc-btn calc-fn" data-v="tan">tan</button>
+                    <button class="calc-btn calc-fn" data-v="log">log</button>
                   </div>
+                </div>
                 </div>
               </article>
               <article class="card">
-                <h3>📈 Graph Plotter</h3>
+                <h3><span class="icon icon-sm icon-chart"></span> Graph Plotter</h3>
                 <div class="stack">
                   <input id="graphFunction" placeholder="f(x) = e.g. x^2, sin(x), 2*x+1" value="x^2" />
                   <div class="inline">
@@ -825,7 +1173,7 @@
               </article>
             </div>
             <article class="card">
-              <h3>🤖 AI Step-by-Step Solver</h3>
+                <h3><span class="icon icon-sm icon-ai"></span> AI Step-by-Step Solver</h3>
               <p class="subtle">Paste a math problem and get step-by-step guidance (AI helps, never solves directly).</p>
               <div class="inline top-gap">
                 <input id="mathSolverInput" placeholder="e.g. Solve 3x + 7 = 22, or factor x^2 + 5x + 6" />
@@ -834,7 +1182,7 @@
               <div id="mathSolverResult" class="stack top-gap"></div>
             </article>
             <article class="card">
-              <h3>📐 Formula Reference</h3>
+                <h3><span class="icon icon-sm icon-note"></span> Formula Reference</h3>
               <div id="mathFormulas" class="stack"></div>
             </article>
           </div>
@@ -843,7 +1191,7 @@
           <div id="subject-science" class="subject-panel hidden">
             <div class="split-grid">
               <article class="card">
-                <h3>🔬 Physics</h3>
+                <h3><span class="icon icon-sm icon-target"></span> Physics</h3>
                 <div class="stack">
                   <select id="physicsTopic">
                     <option value="motion">Motion & Kinematics</option>
@@ -857,7 +1205,7 @@
                 </div>
               </article>
               <article class="card">
-                <h3>🧪 Chemistry</h3>
+                <h3><span class="icon icon-sm icon-timer"></span> Chemistry</h3>
                 <div class="stack">
                   <select id="chemistryTopic">
                     <option value="atoms">Atomic Structure</option>
@@ -873,7 +1221,7 @@
             </div>
             <div class="split-grid top-gap">
               <article class="card">
-                <h3>🧬 Biology</h3>
+                <h3><span class="icon icon-sm icon-brain"></span> Biology</h3>
                 <div class="stack">
                   <select id="biologyTopic">
                     <option value="cells">Cell Biology</option>
@@ -887,7 +1235,7 @@
                 </div>
               </article>
               <article class="card">
-                <h3>🧠 Science Mind Maps</h3>
+                <h3><span class="icon icon-sm icon-brain"></span> Science Mind Maps</h3>
                 <div class="stack">
                   <select id="mindmapTopic">
                     <option value="photosynthesis">Photosynthesis</option>
@@ -902,15 +1250,15 @@
               </article>
             </div>
             <article class="card">
-              <h3>📷 Science Image Gallery</h3>
+              <h3><span class="icon icon-sm icon-card"></span> Science Image Gallery</h3>
               <p class="subtle">Copyright-free educational images for science concepts.</p>
               <div class="science-image-grid" id="scienceImageGrid">
-                <div class="science-image-card"><div class="science-image-placeholder">🧬 DNA</div><p class="subtle">Double helix structure</p></div>
-                <div class="science-image-card"><div class="science-image-placeholder">⚛️ Atom</div><p class="subtle">Bohr model</p></div>
-                <div class="science-image-card"><div class="science-image-placeholder">🌿 Cell</div><p class="subtle">Plant cell anatomy</p></div>
-                <div class="science-image-card"><div class="science-image-placeholder">🔗 Molecule</div><p class="subtle">H2O water molecule</p></div>
-                <div class="science-image-card"><div class="science-image-placeholder">🌍 Earth</div><p class="subtle">Earth's layers</p></div>
-                <div class="science-image-card"><div class="science-image-placeholder">🧠 Brain</div><p class="subtle">Brain regions</p></div>
+                <div class="science-image-card"><div class="science-image-placeholder"><span class="icon icon-sm icon-brain"></span> DNA</div><p class="subtle">Double helix structure</p></div>
+                <div class="science-image-card"><div class="science-image-placeholder"><span class="icon icon-sm icon-target"></span> Atom</div><p class="subtle">Bohr model</p></div>
+                <div class="science-image-card"><div class="science-image-placeholder"><span class="icon icon-sm icon-card"></span> Cell</div><p class="subtle">Plant cell anatomy</p></div>
+                <div class="science-image-card"><div class="science-image-placeholder"><span class="icon icon-sm icon-target"></span> Molecule</div><p class="subtle">H2O water molecule</p></div>
+                <div class="science-image-card"><div class="science-image-placeholder"><span class="icon icon-sm icon-timer"></span> Earth</div><p class="subtle">Earth's layers</p></div>
+                <div class="science-image-card"><div class="science-image-placeholder"><span class="icon icon-sm icon-brain"></span> Brain</div><p class="subtle">Brain regions</p></div>
               </div>
             </article>
           </div>
@@ -919,7 +1267,7 @@
           <div id="subject-languages" class="subject-panel hidden">
             <div class="split-grid">
               <article class="card">
-                <h3>🗣️ Speaking Practice</h3>
+                <h3><span class="icon icon-sm icon-voice"></span> Speaking Practice</h3>
                 <p class="subtle">Use your microphone to practice pronunciation.</p>
                 <div class="inline top-gap">
                   <select id="langSpeakingLang">
@@ -942,7 +1290,7 @@
                 <div id="langSpeakingArea" class="top-gap stack"></div>
               </article>
               <article class="card">
-                <h3>👂 Listening Comprehension</h3>
+                <h3><span class="icon icon-sm icon-voice"></span> Listening Comprehension</h3>
                 <p class="subtle">AI generates audio passages for listening practice.</p>
                 <div class="inline top-gap">
                   <select id="langListeningLang">
@@ -958,7 +1306,7 @@
             </div>
             <div class="split-grid top-gap">
               <article class="card">
-                <h3>📖 Reading Practice</h3>
+                <h3><span class="icon icon-sm icon-book"></span> Reading Practice</h3>
                 <p class="subtle">AI generates reading passages with comprehension questions.</p>
                 <div class="inline top-gap">
                   <select id="langReadingLang">
@@ -977,7 +1325,7 @@
                 <div id="langReadingArea" class="stack top-gap"></div>
               </article>
               <article class="card">
-                <h3>✍️ Writing Prompts</h3>
+                <h3><span class="icon icon-sm icon-note"></span> Writing Prompts</h3>
                 <p class="subtle">AI generates writing prompts and gives feedback on your writing.</p>
                 <div class="inline top-gap">
                   <select id="langWritingLang">
@@ -997,7 +1345,7 @@
           <div id="subject-social-studies" class="subject-panel hidden">
             <div class="split-grid">
               <article class="card">
-                <h3>🌍 Geography</h3>
+                <h3><span class="icon icon-sm icon-target"></span> Geography</h3>
                 <select id="geoRegion">
                   <option value="world">World Geography</option>
                   <option value="europe">Europe</option>
@@ -1009,7 +1357,7 @@
                 <div id="geoResult" class="stack top-gap"></div>
               </article>
               <article class="card">
-                <h3>📅 History Timeline</h3>
+                <h3><span class="icon icon-sm icon-cal"></span> History Timeline</h3>
                 <select id="historyPeriod">
                   <option value="ancient">Ancient History</option>
                   <option value="medieval">Medieval Period</option>
@@ -1023,7 +1371,7 @@
             </div>
             <div class="split-grid top-gap">
               <article class="card">
-                <h3>💰 Economy</h3>
+                <h3><span class="icon icon-sm icon-timer"></span> Economy</h3>
                 <select id="economyTopic">
                   <option value="basics">Basic Economic Principles</option>
                   <option value="supply-demand">Supply & Demand</option>
@@ -1035,7 +1383,7 @@
                 <div id="economyResult" class="stack top-gap"></div>
               </article>
               <article class="card">
-                <h3>⚖️ Civics & Sociology</h3>
+                <h3><span class="icon icon-sm icon-note"></span> Civics & Sociology</h3>
                 <select id="civicsTopic">
                   <option value="gov">Government Systems</option>
                   <option value="rights">Rights & Responsibilities</option>
@@ -1053,14 +1401,14 @@
           <div id="subject-english" class="subject-panel hidden">
             <div class="split-grid">
               <article class="card">
-                <h3>📝 Text Analyzer</h3>
+                <h3><span class="icon icon-sm icon-note"></span> Text Analyzer</h3>
                 <p class="subtle">Analyze your writing for readability, structure, and grammar.</p>
                 <textarea id="englishAnalyzerInput" rows="8" placeholder="Paste your text here for analysis..."></textarea>
                 <button id="englishAnalyzeBtn" class="top-gap">Analyze Text</button>
                 <div id="englishAnalysisResult" class="stack top-gap"></div>
               </article>
               <article class="card">
-                <h3>✍️ Essay Helper</h3>
+                <h3><span class="icon icon-sm icon-note"></span> Essay Helper</h3>
                 <p class="subtle">Get suggestions to improve your essay — the AI guides, never writes for you.</p>
                 <textarea id="englishEssayInput" rows="6" placeholder="Paste your essay draft..."></textarea>
                 <div class="inline top-gap wrap">
@@ -1071,7 +1419,7 @@
               </article>
             </div>
             <article class="card">
-              <h3>📚 Vocabulary Builder</h3>
+              <h3><span class="icon icon-sm icon-book"></span> Vocabulary Builder</h3>
               <div class="inline top-gap">
                 <input id="englishVocabTopic" placeholder="Topic (e.g. 'academic writing', 'business')" />
                 <button id="englishVocabBtn">Generate Vocabulary →</button>
@@ -1084,7 +1432,7 @@
           <div id="subject-health" class="subject-panel hidden">
             <div class="split-grid">
               <article class="card">
-                <h3>🏋️ Exercise Guides</h3>
+                <h3><span class="icon icon-sm icon-target"></span> Exercise Guides</h3>
                 <select id="exerciseType">
                   <option value="cardio">Cardio</option>
                   <option value="strength">Strength Training</option>
@@ -1096,7 +1444,7 @@
                 <div id="exerciseResult" class="stack top-gap"></div>
               </article>
               <article class="card">
-                <h3>🫀 Body Systems</h3>
+                <h3><span class="icon icon-sm icon-brain"></span> Body Systems</h3>
                 <select id="bodySystem">
                   <option value="skeletal">Skeletal System</option>
                   <option value="muscular">Muscular System</option>
@@ -1111,7 +1459,7 @@
               </article>
             </div>
             <article class="card">
-              <h3>🥗 Nutrition & Wellness</h3>
+              <h3><span class="icon icon-sm icon-timer"></span> Nutrition & Wellness</h3>
               <div class="inline top-gap">
                 <input id="nutritionQuery" placeholder="Ask about nutrition, diet, or wellness..." style="flex:1;" />
                 <button id="nutritionAskBtn">Ask AI</button>
@@ -1169,9 +1517,33 @@
               <p class="subtle">Connect with the Study Hub community on YouTube.</p>
               <div class="social-embed top-gap">
                 <div class="youtube-placeholder">
-                  <p>📺 <strong>DS Indie AI</strong></p>
+                  <p><span class="icon icon-sm icon-voice"></span> <strong>DS Indie AI</strong></p>
                   <p class="subtle">Subscribe for study tips, updates, and tutorials.</p>
                   <a href="https://www.youtube.com/@dsindieai/videos" target="_blank" class="social-link">Visit Channel →</a>
+                </div>
+              </div>
+            </article>
+            <article class="card">
+              <h3>Student Collaboration</h3>
+              <p class="subtle">Collaborate with other students on study methods, tips, and resources.</p>
+              <div class="social-embed top-gap">
+                <div class="youtube-placeholder">
+                  <p><span class="icon icon-sm icon-book"></span> <strong>LearningFans</strong></p>
+                  <p class="subtle">A collaborative space where students share study techniques and help each other succeed.</p>
+                  <a href="https://learningfans-imredavid64-glitchs-projects.vercel.app/" target="_blank" class="social-link">Join LearningFans →</a>
+                </div>
+              </div>
+            </article>
+          </div>
+          <div class="split-grid top-gap">
+            <article class="card">
+              <h3>More Apps</h3>
+              <p class="subtle">Explore more tools and apps from the same developer.</p>
+              <div class="social-embed top-gap">
+                <div class="youtube-placeholder">
+                  <p><span class="icon icon-sm icon-target"></span> <strong>DSIndieAI</strong></p>
+                  <p class="subtle">Innovation, research, and pioneering engineering at your fingertips. Visit the website for even more apps, tools, and innovations for needs of all cases.</p>
+                  <a href="https://dsindieai-website.vercel.app/" target="_blank" class="social-link">Browse Apps →</a>
                 </div>
               </div>
             </article>
@@ -1200,9 +1572,9 @@
           <article class="card">
             <h3>Resources</h3>
             <div class="stack">
-              <div class="item"><strong>📚 Study Hub Docs</strong><p class="subtle">Learn how to use all features effectively.</p></div>
-              <div class="item"><strong>🎯 Study Tips</strong><p class="subtle">Active recall, spaced repetition, and Pomodoro techniques.</p></div>
-              <div class="item"><strong>🛠️ API Status</strong><p class="subtle">Check your API connections in Settings.</p></div>
+              <div class="item"><strong><span class="icon icon-sm icon-book"></span> Study Hub Docs</strong><p class="subtle">Learn how to use all features effectively.</p></div>
+              <div class="item"><strong><span class="icon icon-sm icon-target"></span> Study Tips</strong><p class="subtle">Active recall, spaced repetition, and Pomodoro techniques.</p></div>
+              <div class="item"><strong><span class="icon icon-sm icon-gear"></span> API Status</strong><p class="subtle">Check your API connections in Settings.</p></div>
             </div>
           </article>
         </section>
@@ -1260,6 +1632,14 @@
                 <button class="theme-swatch" data-theme="yellow" title="Yellow">Yellow</button>
               </div>
             </article>
+            <article class="card">
+              <h3>App Language</h3>
+              <p class="subtle">Choose the app interface language.</p>
+              <select id="appLanguageSelect" class="top-gap">
+                <option value="en">English</option>
+                <option value="hu">Magyar (Hungarian)</option>
+              </select>
+            </article>
           </div>
           <article class="card">
             <h3>API & Integrations</h3>
@@ -1281,19 +1661,39 @@
                 <span class="badge">iCal Import Available</span>
               </div>
             </div>
+            <label class="top-gap" style="display:flex;align-items:center;gap:8px;font-weight:600"><input type="checkbox" id="adhdModeToggle" /> <span class="icon icon-sm icon-brain"></span> ADHD Mode — shorter AI explanations everywhere</label>
+            <div class="top-gap google-oauth-section">
+              <h4><span class="icon icon-sm icon-gear"></span> Google OAuth Connection</h4>
+              <p class="subtle">Connect Google Classroom & Calendar via OAuth. You need a Google Cloud Project with OAuth 2.0 credentials.</p>
+              <input id="googleClientId" placeholder="Google OAuth Client ID" class="top-gap" />
+              <div class="inline wrap top-gap">
+                <label style="font-size:12px"><input type="checkbox" name="google-scope" value="https://www.googleapis.com/auth/classroom.courses.readonly" checked /> Classroom</label>
+                <label style="font-size:12px"><input type="checkbox" name="google-scope" value="https://www.googleapis.com/auth/calendar.events.readonly" checked /> Calendar</label>
+              </div>
+              <div class="inline wrap top-gap">
+                <button id="googleConnectBtn" class="ghost"><span class="icon icon-sm icon-gear"></span> Connect Google</button>
+                <button id="googleDisconnectBtn" class="ghost danger" style="display:none;">Disconnect</button>
+                <button id="googleFetchClassroom" class="ghost small" onclick="fetchGoogleClassroom()">Fetch Classroom</button>
+                <button id="googleFetchCalendar" class="ghost small" onclick="fetchGoogleCalendar()">Fetch Calendar</button>
+              </div>
+              <div id="googleStatus" class="top-gap"><span class="badge">Not connected</span></div>
+            </div>
             <button id="runHealthCheckBtn" class="ghost top-gap">Run Health Check</button>
             <div id="healthCheckResults" class="top-gap"></div>
+            <button id="showDebugLogsBtn" class="ghost top-gap">Show JS Errors</button>
+            <div id="debugLogs" class="top-gap" style="max-height:200px;overflow:auto"></div>
           </article>
           <article class="card">
             <h3>Backup and Data</h3>
-            <div class="inline wrap">
-              <button id="exportDataBtn">Export JSON</button>
-              <label class="ghost file-label">
-                Import JSON
-                <input id="importDataInput" type="file" accept="application/json" />
-              </label>
-              <button id="resetDataBtn" class="danger">Reset All Data</button>
-            </div>
+              <div class="inline wrap">
+                <button id="exportDataBtn">Export JSON</button>
+                <label class="ghost file-label">
+                  Import JSON
+                  <input id="importDataInput" type="file" accept="application/json" />
+                </label>
+                <button id="rerunOnboardingBtn" class="ghost">Re-run Onboarding</button>
+                <button id="resetDataBtn" class="danger">Reset All Data</button>
+              </div>
           </article>
         </section>
       </main>
@@ -1322,7 +1722,7 @@
         <button id="musicToggleList" class="music-btn music-list-btn" title="Track List">&#9776;</button>
       </div>
       <div id="musicTrackList" class="music-tracklist hidden"></div>
-      <button id="musicPlaylistBtn" class="music-btn music-list-btn" title="Playlists">🎵</button>
+      <button id="musicPlaylistBtn" class="music-btn music-list-btn" title="Playlists"><span class="icon icon-sm icon-music"></span></button>
     </div>
     <div id="playlistPanel" class="playlist-panel hidden">
       <div class="playlist-header">
@@ -1343,21 +1743,16 @@
     <script src="cloud-core.js"></script>
     <script src="app.js"></script>
   <!-- ===== SETUP MODAL ===== -->
-<div id="setupModal" class="setup-overlay hidden">
-  <div class="setup-modal">
-    <div class="setup-steps" id="setupSteps">
-      <span class="setup-step-dot active" data-step="0"></span>
-      <span class="setup-step-dot" data-step="1"></span>
-      <span class="setup-step-dot" data-step="2"></span>
-    </div>
-    <div id="setupStepContent"></div>
-    <div class="inline top-gap" style="justify-content:space-between;">
-      <button id="setupBackBtn" class="ghost" style="display:none;">Back</button>
-      <span></span>
-      <button id="setupNextBtn">Next</button>
-      <button id="setupFinishBtn" style="display:none;">Finish Setup</button>
+<div id="setupModal" class="onboarding-overlay hidden">
+  <div class="onboarding-inner" id="onbInner">
+    <div id="setupStepContent" class="onboarding-content"></div>
+    <div class="onboarding-footer" id="onbFooter">
+      <button id="setupBackBtn" class="onb-back" style="display:none;">← Back</button>
+      <button id="setupNextBtn" class="onb-next" style="display:none;">Continue →</button>
+      <button id="setupFinishBtn" class="onb-finish" style="display:none;"><span class="icon icon-sm icon-target"></span> Start Studying</button>
     </div>
   </div>
 </div>
+ <script>(function(){var d=document.createElement('div');d.id='diag';d.style.cssText='display:none';document.body.appendChild(d);})();</script>
 </body>
 </html>
