@@ -509,19 +509,13 @@ body {
 }
 
 .tab {
-  display: grid;
-  gap: 12px;
-  opacity: 0;
-  pointer-events: none;
-  max-height: 0;
-  overflow: hidden;
-  transition: opacity 0.25s ease, max-height 0.3s ease;
+  display: none;
 }
 .tab.active {
+  display: grid;
+  gap: 12px;
   opacity: 1;
   pointer-events: auto;
-  max-height: none;
-  overflow: visible;
 }
 
 .stack {
