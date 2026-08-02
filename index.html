@@ -1038,6 +1038,9 @@
                   <option value="advocacy">Self-Advocacy</option>
                 </select>
                 <button id="loadScriptBtn"><span class="icon icon-sm icon-note"></span> Load Script</button>
+                <p class="subtle" style="margin-top:10px">Or type your own topic to practice it with AI:</p>
+                <input id="scriptTopic" placeholder="e.g. Ordering food, a job interview, presenting my project..." />
+                <button id="scriptGenerateBtn" class="ghost"><span class="icon icon-sm icon-ai"></span> Generate AI Script</button>
               </div>
               <div id="scriptArea" class="script-area hidden">
                 <div id="scriptContent" class="script-content"></div>
@@ -1106,6 +1109,24 @@
                 <!-- populated after call ends -->
               </div>
             </div>
+          </article>
+          <article class="card top-gap">
+            <h3><span class="icon icon-sm icon-star"></span> Presentation &amp; Speech Practice</h3>
+            <p class="subtle">Practice a speech or presentation and get AI feedback. In AI Crowd mode, a simulated audience reacts live to your performance.</p>
+            <div class="inline top-gap">
+              <select id="practiceMode">
+                <option value="speech">Speech Practice</option>
+                <option value="presentation">Presentation Feedback</option>
+                <option value="crowd">AI Crowd (Audience Reactions)</option>
+              </select>
+              <input id="practiceTopic" placeholder="Topic you are presenting on..." />
+            </div>
+            <textarea id="practiceText" rows="6" class="top-gap" style="width:100%;margin-top:10px" placeholder="Paste or type your speech / presentation content here..."></textarea>
+            <div class="inline top-gap">
+              <button id="practiceRunBtn"><span class="icon icon-sm icon-ai"></span> Get Feedback</button>
+              <button id="practiceResetBtn" class="ghost">Clear</button>
+            </div>
+            <div id="practiceOutput" class="call-analysis" style="margin-top:12px"></div>
           </article>
         </section>
 

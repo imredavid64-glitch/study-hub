@@ -3090,6 +3090,7 @@ async function handleVoiceConversationInput(text) {
   transcript.innerHTML += `<div class="call-bubble user">You: ${escapeHtml(text)}</div>`;
   transcript.scrollTop = transcript.scrollHeight;
   voiceConversation.history.push({ role: 'user', content: text });
+  var currentLang = langSelect ? langSelect.value : 'en-US';
   try {
     const systemPrompt = `You are a ${groqLang} language conversation partner. Respond naturally in ${groqLang}. Keep responses conversational (2-4 sentences). After your response, add "---CORRECTIONS---" then list any grammar/vocabulary corrections if needed, or "---NONE---" if everything was correct.`;
     const resp = await groqChat([{ role: 'system', content: systemPrompt }, ...voiceConversation.history.slice(-6)], { maxTokens: 512 });
@@ -3102,21 +3103,80 @@ async function handleVoiceConversationInput(text) {
     }
     transcript.scrollTop = transcript.scrollHeight;
     voiceConversation.history.push({ role: 'assistant', content: reply });
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(reply);
-      utter.lang = lang;
-      utter.rate = 1.0;
-      var vs = $('voiceConvVoice');
-      if (vs && vs.value) {
-        var voices = window.speechSynthesis.getVoices();
-        var found = voices.filter(function(v) { return v.name === vs.value; });
-        if (found.length > 0) utter.voice = found[0];
-      }
-      window.speechSynthesis.speak(utter);
-    }
   } catch (e) {
-    transcript.innerHTML += `<div class="call-bubble ai">AI: (error generating response)</div>`;
+    console.error('Voice conversation error:', e);
+    transcript.innerHTML += `<div class="call-bubble ai">AI: ${escapeHtml(e && e.message ? e.message : 'I had trouble responding. Please try again.')}</div>`;
+  }
+  if ('speechSynthesis' in window && voiceConversation.history.length) {
+    var lastReply = voiceConversation.history[voiceConversation.history.length - 1];
+    if (lastReply && lastReply.role === 'assistant') {
+      try {
+        window.speechSynthesis.cancel();
+        var utter = new SpeechSynthesisUtterance(lastReply.content);
+        utter.lang = currentLang;
+        utter.rate = 1.0;
+        var vs = $('voiceConvVoice');
+        if (vs && vs.value) {
+          var allVoices = window.speechSynthesis.getVoices();
+          var found = allVoices.filter(function(v) { return v.name === vs.value; });
+          if (found.length > 0) utter.voice = found[0];
+        }
+        window.speechSynthesis.speak(utter);
+      } catch (e) { console.warn('TTS error:', e); }
+    }
+  }
+}
+
+// ===== PRESENTATION, SPEECH & AI CROWD PRACTICE =====
+function setupPracticeCoach() {
+  var modeSel = $('practiceMode'), topicInput = $('practiceTopic');
+  var textEl = $('practiceText'), runBtn = $('practiceRunBtn'), resetBtn = $('practiceResetBtn');
+  var outEl = $('practiceOutput');
+  if (!runBtn || !textEl || !outEl) return;
+
+  function modeLabel(mode) {
+    return mode === 'speech' ? 'Speech Practice' : mode === 'presentation' ? 'Presentation Feedback' : 'AI Crowd (Audience Reactions)';
+  }
+
+  function buildPrompt(mode, topic, text) {
+    var base = topic ? ' The user is presenting on this topic: "' + topic + '".' : '';
+    if (mode === 'speech') {
+      return 'Act as a speech coach. Review the speech below and give feedback on pacing, clarity, tone, filler words, and delivery confidence. Be specific and encouraging. Use short headers.' + base + '\n\nSPEECH:\n' + text;
+    }
+    if (mode === 'presentation') {
+      return 'Act as a presentation coach. Review structure, opening, flow, clarity, supporting points, and closing. Suggest improvements and give a score out of 10.' + base + '\n\nPRESENTATION:\n' + text;
+    }
+    return 'Act as a live audience member reacting to this presentation. Write lively, realistic reactions: cheers, applause, murmurs, questions the crowd would ask, and the overall crowd vibe. End with a short reaction summary.' + base + '\n\nPRESENTATION:\n' + text;
+  }
+
+  runBtn.addEventListener('click', async function() {
+    var text = textEl.value.trim();
+    if (!text) { showToast('Type or paste your speech / presentation first.'); textEl.focus(); return; }
+    var mode = modeSel ? modeSel.value : 'speech';
+    var topic = topicInput ? topicInput.value.trim() : '';
+    var lbl = modeLabel(mode);
+    outEl.innerHTML = '<p class="subtle">' + lbl + ' — analyzing...</p>';
+    runBtn.disabled = true;
+    try {
+      var resp = await groqChat([
+        { role: 'system', content: 'You are a friendly, constructive practice coach. Keep feedback clear and well-structured.' },
+        { role: 'user', content: buildPrompt(mode, topic, text) }
+      ], { maxTokens: 1024, temperature: 0.7 });
+      outEl.innerHTML = '<h4><span class="icon icon-sm icon-chart"></span> ' + lbl + '</h4><div class="analysis-content" style="white-space:pre-wrap">' + escapeHtml(resp) + '</div>';
+    } catch (err) {
+      outEl.innerHTML = '<p class="subtle">Sorry, I could not generate feedback. Please try again.</p>';
+      if (typeof console !== 'undefined') console.error('Practice coach error:', err);
+    } finally {
+      runBtn.disabled = false;
+    }
+  });
+
+  if (resetBtn) {
+    resetBtn.addEventListener('click', function() {
+      if (textEl) textEl.value = '';
+      if (topicInput) topicInput.value = '';
+      if (outEl) outEl.innerHTML = '<p class="subtle">Clear and start again.</p>';
+    });
   }
 }
 
@@ -3443,6 +3503,7 @@ function init() {
   safeCall(setupSocial);
   safeCall(setupLearningTools);
   safeCall(setupVoiceConversation);
+  safeCall(setupPracticeCoach);
   safeCall(setupLectureRecording);
   safeCall(setupGoogleConnection);
   safeCall(setupGlobalShortcuts);
@@ -4134,6 +4195,50 @@ function setupAutismSupport() {
       scriptArea.classList.remove('hidden');
       showScriptStep();
     });
+  }
+
+  var scriptTopic = $('scriptTopic'), generateBtn = $('scriptGenerateBtn');
+  if (generateBtn && scriptTopic && scriptArea) {
+    generateBtn.addEventListener('click', function() {
+      if (!scriptTopic.value.trim()) {
+        showToast('Type a topic to practice first.');
+        scriptTopic.focus();
+        return;
+      }
+      var topic = scriptTopic.value.trim();
+      generateBtn.disabled = true;
+      var originalTxt = generateBtn.textContent;
+      generateBtn.textContent = 'Generating...';
+      var sys = 'Create a short role-play conversation to practice the topic below. Return EXACTLY 4 lines. Each line on its own line, format: ROLE|spoken line|short hint. Roles alternate between "You" and a real conversation partner for this situation. Use clear, literal language and simple sentences.';
+      groqChat([{ role: 'system', content: sys }, { role: 'user', content: 'Topic: ' + topic }], { maxTokens: 1024, temperature: 0.7 }).then(function(txt) {
+        var steps = parseGeneratedScript(txt);
+        if (!steps || steps.length < 2) throw new Error('bad script');
+        currentScript = steps;
+        currentStep = 0;
+        scriptArea.classList.remove('hidden');
+        if (scriptResponse) scriptResponse.value = '';
+        showScriptStep();
+        showToast('AI script generated for: ' + topic);
+      }).catch(function() {
+        showToast('Could not generate a script. Please try again.');
+      }).finally(function() {
+        generateBtn.disabled = false;
+        generateBtn.textContent = originalTxt;
+      });
+    });
+    scriptTopic.addEventListener('keydown', function(e) { if (e.key === 'Enter') generateBtn.click(); });
+  }
+
+  function parseGeneratedScript(txt) {
+    var output = [];
+    txt.split(/\r?\n/).forEach(function(line) {
+      line = (line || '').trim();
+      if (!line) return;
+      var parts = line.split('|').map(function(s) { return s ? s.trim() : ''; });
+      if (parts.length < 2) return;
+      output.push({ role: parts[0] || 'You', text: parts[1], hint: parts[2] || 'Respond naturally in a polite, clear way.' });
+    });
+    return output.length >= 2 ? output : null;
   }
 
   function showScriptStep() {
