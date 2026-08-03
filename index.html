@@ -46,6 +46,7 @@
           <button class="nav-btn" data-tab="ai-voice">Voice Mode</button>
           <button class="nav-btn" data-tab="warmup"><span class="icon icon-sm icon-brain"></span> Warm Up</button>
           <button class="nav-btn" data-tab="studyguide"><span class="icon icon-sm icon-note"></span> Study Guide</button>
+          <button class="nav-btn" data-tab="generators"><span class="icon icon-sm icon-ai"></span> Generators</button>
           <button class="nav-btn" data-tab="calculator"><span class="icon icon-sm icon-card"></span> Calculator</button>
           <button class="nav-btn" data-tab="tutorial"><span class="icon icon-sm icon-book"></span> Tutorial</button>
           <button class="nav-btn" data-tab="autism"><span class="icon icon-sm icon-star"></span> Autism Support</button>
@@ -234,18 +235,22 @@
                 </div>
               </div>
               <div id="fcDeckFilter" class="fc-deck-filter"></div>
+              <div class="fc-mastery top-gap">
+                <div class="fc-mastery-label"><span>Session progress</span><span id="fcMasteryPct">0%</span></div>
+                <div class="fc-mastery-track"><span id="fcMasteryFill" class="fc-mastery-fill"></span></div>
+              </div>
               <div id="fcCardArea" class="fc-card-area">
                 <div id="fcFlipCard" class="fc-flip-card" tabindex="0">
                   <div class="fc-flip-inner">
                     <div class="fc-flip-front">
                       <span class="fc-flip-label">QUESTION</span>
                       <p id="fcFrontText" class="fc-flip-text">No cards due. Add cards or generate with AI.</p>
-                      <span class="fc-flip-hint">Click or press Space to flip</span>
+                      <span class="fc-flip-hint">Click / Space / tap to flip · swipe left or right</span>
                     </div>
                     <div class="fc-flip-back">
                       <span class="fc-flip-label">ANSWER</span>
                       <p id="fcBackText" class="fc-flip-text"></p>
-                      <span class="fc-flip-hint">Click to flip back</span>
+                      <span class="fc-flip-hint">Swipe or click to go to the next card</span>
                     </div>
                   </div>
                 </div>
@@ -253,6 +258,7 @@
                   <button id="fcPrevBtn" class="fc-nav-btn" title="Previous">&#9664;</button>
                   <span id="fcCounter" class="fc-counter">0 / 0</span>
                   <button id="fcNextBtn" class="fc-nav-btn" title="Next">&#9654;</button>
+                  <button id="fcShuffleBtn" class="fc-nav-btn" title="Shuffle">&#8645;</button>
                 </div>
                 <div id="fcRatingRow" class="fc-rating-row">
                   <button class="fc-rate-btn fc-rate-again" data-rating="1">Again</button>
@@ -1156,6 +1162,56 @@
                 <button class="call-btn call-btn-end" id="ttsTutorStop" style="display:none;"><span class="icon icon-sm icon-timer"></span> End Session</button>
               </div>
             </div>
+          </article>
+        </section>
+
+        <!-- ===== GENERATORS TAB ===== -->
+        <section id="generators" class="tab">
+          <article class="card">
+            <h3><span class="icon icon-sm icon-ai"></span> Creative Generators</h3>
+            <p class="subtle">Turn any concept into a study visual: an interactive mind map, a film storyboard, an AI illustration, or a step-by-step concept model.</p>
+          </article>
+          <article class="card">
+            <h3><span class="icon icon-sm icon-note"></span> Mind Map Maker</h3>
+            <p class="subtle">Type a concept and let AI build an interactive mind map. Drag nodes, click a node to expand it, and double-click to add your own branches.</p>
+            <div class="inline top-gap">
+              <input id="genMapTopic" placeholder="e.g. Photosynthesis, The Water Cycle, WW2 Causes" />
+              <button id="genMapBtn"><span class="icon icon-sm icon-ai"></span> Generate Mind Map</button>
+            </div>
+            <div id="genMapCanvas" class="gen-map-canvas top-gap">
+              <p class="subtle" id="genMapHint">Enter a topic and press Generate.</p>
+            </div>
+            <div class="inline top-gap">
+              <button id="genMapAddNode" class="ghost">Add Branch</button>
+              <button id="genMapReset" class="ghost">Reset</button>
+            </div>
+          </article>
+          <article class="card">
+            <h3><span class="icon icon-sm icon-film"></span> Film Generator</h3>
+            <p class="subtle">Turn any concept into a short educational film: hook, scenes, narration, and visuals.</p>
+            <div class="inline top-gap">
+              <input id="genFilmTopic" placeholder="e.g. Photosynthesis, The Industrial Revolution" />
+              <button id="genFilmBtn"><span class="icon icon-sm icon-film"></span> Write the Film</button>
+            </div>
+            <div id="genFilmOut" class="gen-film-out top-gap"></div>
+          </article>
+          <article class="card">
+            <h3><span class="icon icon-sm icon-image"></span> Image Generator</h3>
+            <p class="subtle">Create a study illustration for any concept (uses the free Pollinations image API).</p>
+            <div class="inline top-gap">
+              <input id="genImgTopic" placeholder="e.g. a diagram of a plant cell" />
+              <button id="genImgBtn"><span class="icon icon-sm icon-image"></span> Generate Image</button>
+            </div>
+            <div id="genImgOut" class="top-gap"></div>
+          </article>
+          <article class="card">
+            <h3><span class="icon icon-sm icon-chart"></span> Concept Model Generator</h3>
+            <p class="subtle">AI breaks a concept into parts, how each part works, and how they connect — an interactive working model you can explore step by step.</p>
+            <div class="inline top-gap">
+              <input id="genModelTopic" placeholder="e.g. How a car engine works, The immune system" />
+              <button id="genModelBtn"><span class="icon icon-sm icon-chart"></span> Build the Model</button>
+            </div>
+            <div id="genModelOut" class="top-gap"></div>
           </article>
         </section>
 

@@ -274,6 +274,61 @@ body {
   min-height: 100%;
 }
 
+/* ===== GENERATORS ===== */
+.gen-map-canvas {
+  min-height: 360px;
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  background: var(--panel);
+  user-select: none;
+}
+.gen-map-canvas .subtle { text-align: center; margin-top: 120px; }
+.gen-map-node { transition: box-shadow 0.15s; }
+.gen-map-node:active { cursor: grabbing; box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+.gen-film-body { font-size: 0.9rem; line-height: 1.65; }
+.gen-model-parts { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.gen-model-part { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; background: var(--panel); }
+.gen-model-part summary { cursor: pointer; font-weight: 600; }
+.gen-model-part p { margin: 6px 0 0; font-size: 0.9rem; line-height: 1.5; }
+.gen-model-flow { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.gen-model-flow-step { font-size: 0.85rem; }
+
+/* ===== DEBUG OVERLAY ===== */
+#debugOverlay {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  width: min(420px, 92vw);
+  max-height: 60vh;
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.97);
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  overflow: hidden;
+  font-size: 12px;
+  display: none;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+#debugOverlay.open { display: block; }
+#debugOverlay .debug-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #0f172a;
+  border-bottom: 1px solid #334155;
+}
+#debugOverlay .debug-head button { font-size: 11px; padding: 3px 8px; }
+#debugOverlay .debug-count { color: #fbbf24; font-size: 11px; }
+#debugOverlay .debug-body { padding: 10px 12px; overflow-y: auto; max-height: calc(60vh - 40px); }
+#debugOverlay .debug-row { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 1px dashed #1e293b; }
+#debugOverlay .debug-row code { color: #7dd3fc; word-break: break-all; }
+#debugOverlay .debug-log { margin-top: 8px; color: #fda4af; line-height: 1.5; }
+#debugOverlay .debug-log i { color: #64748b; font-style: normal; }
+
 body {
   font-family: "Space Grotesk", sans-serif;
   color: var(--ink);
@@ -748,6 +803,7 @@ button.danger:hover {
   perspective: 1000px;
   cursor: pointer;
   outline: none;
+  touch-action: pan-y;
 }
 
 .fc-flip-inner {
@@ -851,6 +907,34 @@ button.danger:hover {
   opacity: 0.6;
   min-width: 60px;
   text-align: center;
+}
+
+.fc-mastery {
+  max-width: 420px;
+  width: 100%;
+}
+.fc-mastery-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+  margin-bottom: 6px;
+}
+.fc-mastery-track {
+  height: 8px;
+  border-radius: 20px;
+  background: var(--panel);
+  overflow: hidden;
+}
+.fc-mastery-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong, var(--accent)));
+  border-radius: 20px;
+  transition: width 0.3s ease;
 }
 
 .fc-rating-row {
@@ -1929,6 +2013,34 @@ canvas {
   background: rgba(255,255,255,0.9);
   box-shadow: 6px 0 0 rgba(255,255,255,0.9);
   transform: translate(-50%, -50%);
+}
+
+/* Film icon — rectangle with sprocket holes */
+.icon-film::after {
+  content: ''; width: 62%; height: 48%;
+  border: 2px solid rgba(255,255,255,0.9);
+  border-radius: 3px;
+}
+.icon-film::before {
+  content: ''; width: 4px; height: 4px;
+  border-radius: 1px;
+  background: rgba(255,255,255,0.9);
+  box-shadow: 8px 0 0 rgba(255,255,255,0.9), -8px 0 0 rgba(255,255,255,0.9), 0 12px 0 rgba(255,255,255,0.9), 8px 12px 0 rgba(255,255,255,0.9), -8px 12px 0 rgba(255,255,255,0.9);
+  transform: translate(-50%, -50%);
+}
+
+/* Image icon — rectangle with a sun circle */
+.icon-image::after {
+  content: ''; width: 60%; height: 55%;
+  border: 2px solid rgba(255,255,255,0.9);
+  border-radius: 3px;
+}
+.icon-image::before {
+  content: ''; width: 6px; height: 6px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.9);
+  box-shadow: 7px 9px 0 -4px rgba(255,255,255,0.9);
+  transform: translate(30%, 30%);
 }
 
 /* Quiz icon — circle with checkmark */

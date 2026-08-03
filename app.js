@@ -313,6 +313,60 @@ function logErrors(context) {
 const WORK_PRINCIPLE = ' When the student asks you to do their work (solve homework, write an essay, answer a question), DO NOT just do it for them: guide them step by step, check what they already know, give hints, and make them learn it themselves. Only provide a full answer if they are clearly stuck or explicitly ask to see it.';
 const FOLLOWUP_NOTE = ' End your reply with ONE short follow-up question that checks their understanding or invites them to try the next step.';
 const SOCRATIC_NOTE = ' Act as a personal teacher, not an answer machine. Guide the student to figure things out themselves with hints and probing questions, then end with ONE follow-up question. Never dump the answer unless they are stuck or explicitly ask.';
+
+// ===== DEBUG / DIAGNOSTICS OVERLAY =====
+window.__DEBUG = new URLSearchParams(window.location.search).has('debug') || /(android|ipad|iphone)/i.test(navigator.userAgent && (window.innerWidth < 820));
+const __diag = [];
+window.addEventListener('error', function(ev) {
+  const entry = { at: new Date().toISOString().slice(11, 19), msg: ev.message, src: ev.filename + ':' + ev.lineno };
+  __diagLog(entry);
+});
+window.addEventListener('unhandledrejection', function(ev) {
+  __diagLog({ at: new Date().toISOString().slice(11, 19), msg: 'Unhandled: ' + (ev.reason && ev.reason.message ? ev.reason.message : ev.reason), src: 'promise' });
+});
+function __diagLog(entry) {
+  __diag.push(entry);
+  if (__diag.length > 60) __diag.shift();
+  if (window.__DEBUG) buildDebugOverlay();
+}
+function openDebugOverlay() {
+  window.__DEBUG = true;
+  buildDebugOverlay();
+  const o = $('debugOverlay');
+  if (o) o.classList.add('open');
+}
+function closeDebugOverlay() {
+  window.__DEBUG = false;
+  const o = $('debugOverlay');
+  if (o) o.classList.remove('open');
+}
+function buildDebugOverlay() {
+  let o = $('debugOverlay');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'debugOverlay';
+    o.innerHTML = '<div class="debug-head"><strong>Diagnostics</strong><span class="debug-count"></span><div><button class="ghost" id="debugClose">Close</button><button class="ghost" id="debugReload">Reload</button></div></div><div class="debug-body"></div>';
+    document.body.appendChild(o);
+    if (o.querySelector('#debugClose')) o.querySelector('#debugClose').addEventListener('click', closeDebugOverlay);
+    if (o.querySelector('#debugReload')) o.querySelector('#debugReload').addEventListener('click', function() { location.reload(); });
+  }
+  const body = o.querySelector('.debug-body');
+  if (body) {
+    if (!state.profile || typeof state === 'undefined') {
+      body.innerHTML = '<p>State not loaded yet.</p>';
+    } else {
+      body.innerHTML = '<div class="debug-row"><span>App version</span><code>72ce460+</code></div>' +
+        '<div class="debug-row"><span>Groq reachable</span><code id="dbgGroq">?</code></div>' +
+        '<div class="debug-row"><span>SpeechRecognition</span><code>' + ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window ? 'yes' : 'no') + '</code></div>' +
+        '<div class="debug-row"><span>speechSynthesis</span><code>' + ('speechSynthesis' in window ? 'yes' : 'no') + '</code></div>' +
+        '<div class="debug-row"><span>Profile</span><code>' + escapeHtml(JSON.stringify(state.profile || {})) + '</code></div>' +
+        '<div class="debug-log">' + __diag.slice(-20).map(function(e) { return '<i>' + esc(e.at) + '</i> <b>' + esc(e.src || '') + '</b> ' + esc(e.msg); }).join('<br>') + '</div>';
+    }
+  }
+  const c = o.querySelector('.debug-count');
+  if (c) c.textContent = __diag.length ? (__diag.length + ' issue(s)') : 'no issues';
+}
+function esc(s) { try { return String(s).replace(/[&<>]/g, function(m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]; }); } catch (e) { return s; } }
 function qs(s, c) { return (c || document).querySelector(s); }
 function qsa(s, c) { return (c || document).querySelectorAll(s); }
 
@@ -583,6 +637,41 @@ function setupFlashcards() {
   $('fcFlipCard').addEventListener('click', () => { fcState.flipped = !fcState.flipped; $('fcFlipCard').classList.toggle('flipped', fcState.flipped); });
   $('fcPrevBtn').addEventListener('click', () => { if (fcState.index > 0) { fcState.index--; fcState.flipped = false; $('fcFlipCard').classList.remove('flipped'); showCurrentFlashcard(); } });
   $('fcNextBtn').addEventListener('click', () => { if (fcState.index < fcState.cards.length - 1) { fcState.index++; fcState.flipped = false; $('fcFlipCard').classList.remove('flipped'); showCurrentFlashcard(); } });
+  const fcShuffle = $('fcShuffleBtn');
+  if (fcShuffle) fcShuffle.addEventListener('click', () => {
+    for (let i = fcState.cards.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [fcState.cards[i], fcState.cards[j]] = [fcState.cards[j], fcState.cards[i]]; }
+    fcState.index = 0; fcState.flipped = false; $('fcFlipCard').classList.remove('flipped'); showCurrentFlashcard(); showToast('Deck shuffled');
+  });
+  // Swipe gestures (Snapchat-style) on the study card
+  (function() {
+    const card = $('fcFlipCard');
+    if (!card) return;
+    let sx = 0, sy = 0, sdx = 0, sdy = 0, swiping = false;
+    card.addEventListener('touchstart', function(e) {
+      const t = e.touches[0];
+      sx = t.clientX; sy = t.clientY; sdx = 0; sdy = 0; swiping = true;
+      card.style.transition = 'none';
+    }, { passive: true });
+    card.addEventListener('touchmove', function(e) {
+      if (!swiping) return;
+      const t = e.touches[0];
+      sdx = t.clientX - sx; sdy = t.clientY - sy;
+      if (Math.abs(sdx) > 12) card.style.transform = 'translateX(' + sdx + 'px) rotate(' + (sdx * 0.02) + 'deg)';
+      else if (Math.abs(sdy) > 12) card.style.transform = 'translateY(' + sdy + 'px)';
+    }, { passive: true });
+    card.addEventListener('touchend', function() {
+      swiping = false;
+      card.style.transition = '';
+      card.style.transform = '';
+      if (Math.abs(sdx) > 60) {
+        if (sdx < 0) { const n = $('fcNextBtn'); if (n) n.click(); }
+        else { const p = $('fcPrevBtn'); if (p) p.click(); }
+      } else if (Math.abs(sdy) > 60) {
+        card.click();
+      }
+      sdx = 0; sdy = 0;
+    }, { passive: true });
+  })();
   qsa('.fc-rate-btn').forEach(b => b.addEventListener('click', () => { const r = +b.dataset.rating; if (fcState.cards.length > 0) rateCurrentFlashcard(r); }));
   document.addEventListener('keydown', e => {
     var tag = e.target.tagName;
@@ -628,7 +717,7 @@ function renderFlashcardStudy() {
   fcState.index = 0;
   fcState.flipped = false;
   $('fcFlipCard').classList.remove('flipped');
-  if (fcState.cards.length > 0) { showCurrentFlashcard(); $('fcCardArea').classList.remove('hidden'); $('fcEmptyState').classList.add('hidden'); }
+  if (fcState.cards.length > 0) { showCurrentFlashcard(); updateFcMastery(); $('fcCardArea').classList.remove('hidden'); $('fcEmptyState').classList.add('hidden'); }
   else { $('fcCardArea').classList.add('hidden'); $('fcEmptyState').classList.remove('hidden'); }
 }
 function showCurrentFlashcard() {
@@ -637,6 +726,17 @@ function showCurrentFlashcard() {
   $('fcFrontText').textContent = c.question;
   $('fcBackText').textContent = c.answer;
   $('fcCounter').textContent = `${fcState.index + 1} / ${fcState.cards.length}`;
+  const pct = Math.round(((fcState.index) / fcState.cards.length) * 100);
+  const fill = $('fcMasteryFill'), pctEl = $('fcMasteryPct');
+  if (fill) fill.style.width = pct + '%';
+  if (pctEl) pctEl.textContent = pct + '%';
+}
+function updateFcMastery() {
+  const fill = $('fcMasteryFill'), pctEl = $('fcMasteryPct');
+  if (!fill || !pctEl) return;
+  const pct = fcState.cards.length ? Math.round(((fcState.index + 1) / fcState.cards.length) * 100) : 0;
+  fill.style.width = pct + '%';
+  pctEl.textContent = pct + '%';
 }
 function rateCurrentFlashcard(rating) {
   if (fcState.cards.length === 0) return;
@@ -649,7 +749,18 @@ function rateCurrentFlashcard(rating) {
   else if (rating === 5) { card.ease += 0.15; card.interval = card.interval === 0 ? 1 : Math.round(card.interval * card.ease); card.repetitions++; }
   const d = new Date(); d.setDate(d.getDate() + Math.round(card.interval));
   card.dueDate = d.toISOString().split('T')[0];
-  saveState(); renderFlashcardStudy(); renderAllFlashcards(); showToast('Rated!');
+  saveState();
+  // Advance to the next card Quizlet-style instead of resetting the deck
+  if (fcState.index < fcState.cards.length - 1) {
+    fcState.index++;
+    fcState.flipped = false;
+    $('fcFlipCard').classList.remove('flipped');
+    showCurrentFlashcard();
+    renderAllFlashcards();
+  } else {
+    renderFlashcardStudy(); renderAllFlashcards();
+  }
+  showToast('Rated!');
 }
 function generateAiFlashcards(deckName) {
   const topic = $('flashcardAiInput').value || deckName;
@@ -3618,6 +3729,7 @@ function init() {
   safeCall(setupTutorial);
   safeCall(setupAutismSupport);
   safeCall(setupPeerTutoring);
+  safeCall(setupGenerators);
   var qf = $('quickFocusBtn');
   if (qf) qf.addEventListener('click', () => {
     showTab('sessions');
@@ -3628,6 +3740,22 @@ function init() {
   });
   var sd = $('seedDataBtn');
   if (sd) sd.addEventListener('click', seedDemoData);
+  // Debug overlay: open on ?debug=1, 'd' key x3, or mobile screen triple-tap on the app title
+  var debugTaps = 0, lastTap = 0;
+  var appTitleEl = $('appTitle') || $('logoText') || document.querySelector('.brand');
+  if (appTitleEl) {
+    appTitleEl.addEventListener('click', function() {
+      var now = Date.now();
+      debugTaps = (now - lastTap < 600) ? debugTaps + 1 : 1;
+      lastTap = now;
+      if (debugTaps >= 3) { debugTaps = 0; openDebugOverlay(); }
+    });
+  }
+  var dcount = 0;
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'd' || e.key === 'D') { dcount++; if (dcount >= 5) { dcount = 0; openDebugOverlay(); } e.preventDefault(); }
+  });
+  if (window.__DEBUG) setTimeout(openDebugOverlay, 1200);
   showTab('dashboard');
   if (typeof initializeCloudSystem === 'function') {
     initializeCloudSystem().catch(logErrors('initializeCloudSystem'));
@@ -4468,4 +4596,218 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {
   init();
+}
+
+// ===== CREATIVE GENERATORS =====
+function setupGenerators() {
+  // ---- Interactive Mind Map ----
+  var mapBtn = $('genMapBtn'), mapTopic = $('genMapTopic'), mapCanvas = $('genMapCanvas');
+  var addNodeBtn = $('genMapAddNode'), resetBtn = $('genMapReset');
+  var mm = { nodes: [], edges: [], dragging: null, offsetX: 0, offsetY: 0 };
+
+  function mapColors(i) {
+    var palette = ['#0f766e', '#0b5cab', '#e6a700', '#8b5cf6', '#dc2626', '#059669', '#d97706', '#2563eb'];
+    return palette[i % palette.length];
+  }
+  function addMapNode(id, label, x, y) {
+    var n = { id: id, label: label, x: x, y: y };
+    mm.nodes.push(n);
+    return n;
+  }
+  function renderMindMap() {
+    if (!mapCanvas) return;
+    if (!mm.nodes.length) { mapCanvas.innerHTML = '<p class="subtle" id="genMapHint">Enter a topic and press Generate.</p>'; return; }
+    mapCanvas.style.position = 'relative';
+    mapCanvas.style.overflow = 'auto';
+    mapCanvas.innerHTML = '';
+    var seen = {};
+    mm.edges.forEach(function(e) {
+      if (seen[e.from + e.to]) return;
+      seen[e.from + e.to] = 1;
+      var a = mm.nodes.find(n => n.id === e.from), b = mm.nodes.find(n => n.id === e.to);
+      if (!a || !b) return;
+      var line = document.createElement('div');
+      line.className = 'gen-map-edge';
+      line.style.cssText = 'position:absolute;height:2px;background:#94a3b8;opacity:.6;transform-origin:left center;z-index:1;pointer-events:none;';
+      positionEdge(line, a, b);
+      mapCanvas.appendChild(line);
+    });
+    mm.nodes.forEach(function(n) {
+      var el = document.createElement('div');
+      el.className = 'gen-map-node';
+      el.textContent = n.label;
+      el.dataset.id = n.id;
+      el.style.cssText = 'position:absolute;left:' + n.x + 'px;top:' + n.y + 'px;background:' + mapColors(parseInt(n.id.replace(/\D/g, '')) || 0) + ';color:#fff;padding:8px 12px;border-radius:12px;font-weight:600;font-size:13px;cursor:grab;z-index:2;max-width:170px;box-shadow:0 4px 12px rgba(0,0,0,.15);touch-action:none;';
+      el.addEventListener('mousedown', startDrag.bind(null, n, el));
+      el.addEventListener('touchstart', startDrag.bind(null, n, el));
+      mapCanvas.appendChild(el);
+    });
+    mapCanvas.style.height = Math.max(360, (Math.max(...mm.nodes.map(n => n.y)) + 90)) + 'px';
+    mapCanvas.style.width = Math.max(600, (Math.max(...mm.nodes.map(n => n.x)) + 220)) + 'px';
+  }
+  function positionEdge(line, a, b) {
+    var ax = a.x + 80, ay = a.y + 16, bx = b.x + 80, by = b.y + 16;
+    var dx = bx - ax, dy = by - ay;
+    var len = Math.max(10, Math.sqrt(dx * dx + dy * dy));
+    line.style.left = ax + 'px'; line.style.top = ay + 'px';
+    line.style.width = len + 'px';
+    line.style.transform = 'rotate(' + (Math.atan2(dy, dx) * 180 / Math.PI) + 'deg)';
+  }
+  function startDrag(n, el, e) {
+    if (e.preventDefault) e.preventDefault();
+    mm.dragging = { n: n, el: el };
+    var rect = mapCanvas.getBoundingClientRect();
+    var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    mm.offsetX = clientX - rect.left - n.x;
+    mm.offsetY = clientY - rect.top - n.y;
+  }
+  function onDragMove(e) {
+    if (!mm.dragging) return;
+    var rect = mapCanvas.getBoundingClientRect();
+    var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    mm.dragging.n.x = Math.max(0, clientX - rect.left - mm.offsetX);
+    mm.dragging.n.y = Math.max(0, clientY - rect.top - mm.offsetY);
+    mm.dragging.el.style.left = mm.dragging.n.x + 'px';
+    mm.dragging.el.style.top = mm.dragging.n.y + 'px';
+    renderMindMap();
+  }
+  function stopDrag() { mm.dragging = null; }
+  document.addEventListener('mousemove', onDragMove);
+  document.addEventListener('mouseup', stopDrag);
+  document.addEventListener('touchmove', onDragMove, { passive: true });
+  document.addEventListener('touchend', stopDrag);
+
+  function parseMindMap(txt) {
+    mm.nodes = []; mm.edges = [];
+    var lines = txt.split('\n').map(l => l.trim()).filter(Boolean);
+    var center = lines[0].replace(/^[-•*#\s]+/, '') || 'Concept';
+    addMapNode('m0', center.slice(0, 30), 40, 40);
+    var stack = [{ depth: 0, parent: 'm0' }];
+    var branch = 0;
+    lines.slice(1).forEach(function(raw) {
+      var depth = 0;
+      while (depth < raw.length && (raw[depth] === '-' || raw[depth] === '•' || raw[depth] === '*' || raw[depth] === '\t' || raw[depth] === ' ')) depth++;
+      var label = raw.replace(/^[-•*#\s]+/, '').slice(0, 34);
+      if (!label) return;
+      branch++;
+      var id = 'm' + branch;
+      var parent = 'm0';
+      for (var i = stack.length - 1; i >= 0; i--) { if (stack[i].depth < depth) { parent = stack[i].parent; break; } }
+      stack.push({ depth: depth, parent: id });
+      var px = mm.nodes.find(n => n.id === parent) || mm.nodes[0];
+      var angle = (branch % 8) * (Math.PI / 8) + (parent === 'm0' ? 0 : Math.PI / 3);
+      var dist = 150 + (depth * 30);
+      addMapNode(id, label, px.x + Math.round(Math.cos(angle) * dist), px.y + Math.round(Math.sin(angle) * dist) * 0.8);
+      mm.edges.push({ from: parent, to: id });
+    });
+  }
+
+  if (mapBtn && mapTopic && mapCanvas) {
+    mapBtn.addEventListener('click', async function() {
+      var topic = mapTopic.value.trim();
+      if (!topic) { showToast('Enter a topic for the mind map.'); mapTopic.focus(); return; }
+      mapCanvas.innerHTML = '<p class="subtle">Generating mind map...</p>';
+      try {
+        var txt = await groqChat([{ role: 'system', content: 'Create a text-based mind map for the topic. First line is the central idea, then indented branch lines starting with "-". Use 5-8 branches and 2-3 levels. Return ONLY the mind map.' }, { role: 'user', content: 'Topic: ' + topic }], { maxTokens: 1024, temperature: 0.6 });
+        parseMindMap(txt);
+        renderMindMap();
+        showToast('Mind map generated — drag nodes to explore');
+      } catch (err) {
+        mapCanvas.innerHTML = '<p class="subtle">Could not generate the mind map. Please try again.</p>';
+        logErrors('mindmap')(err);
+      }
+    });
+  }
+  if (addNodeBtn) addNodeBtn.addEventListener('click', function() {
+    if (!mm.nodes.length) { showToast('Generate a mind map first.'); return; }
+    var label = prompt('New branch label:');
+    if (!label || !label.trim()) return;
+    var parent = mm.nodes[mm.nodes.length - 1];
+    addMapNode('m' + Date.now(), label.trim().slice(0, 34), parent.x + 130, parent.y + 50);
+    mm.edges.push({ from: parent.id, to: 'm' + Date.now() });
+    renderMindMap();
+  });
+  if (resetBtn) resetBtn.addEventListener('click', function() {
+    mm.nodes = []; mm.edges = [];
+    renderMindMap();
+  });
+
+  // ---- Film Generator ----
+  var filmBtn = $('genFilmBtn'), filmTopic = $('genFilmTopic'), filmOut = $('genFilmOut');
+  if (filmBtn && filmTopic && filmOut) {
+    filmBtn.addEventListener('click', async function() {
+      var topic = filmTopic.value.trim();
+      if (!topic) { showToast('Enter a topic for the film.'); filmTopic.focus(); return; }
+      filmOut.innerHTML = '<p class="subtle">Writing your study film...</p>';
+      try {
+        var txt = await groqChat([{ role: 'system', content: 'You write short educational film scripts (a storyboard) that teach one concept in under 5 minutes. Return the script as clearly labeled SCENES: for each scene give a SHOT description, NARRATION line, and VISUAL cue. Keep it vivid, simple, and memorable. End with a 3-line review hook.' }, { role: 'user', content: 'Concept to teach: ' + topic }], { maxTokens: 1536, temperature: 0.8 });
+        filmOut.innerHTML = '<h4><span class="icon icon-sm icon-film"></span> Film: ' + escapeHtml(topic) + '</h4><div class="analysis-content gen-film-body" style="white-space:pre-wrap">' + escapeHtml(txt) + '</div>';
+      } catch (err) {
+        filmOut.innerHTML = '<p class="subtle">Could not write the film. Please try again.</p>';
+        logErrors('filmgen')(err);
+      }
+    });
+  }
+
+  // ---- Image Generator (free Pollinations API) ----
+  var imgBtn = $('genImgBtn'), imgTopic = $('genImgTopic'), imgOut = $('genImgOut');
+  if (imgBtn && imgTopic && imgOut) {
+    imgBtn.addEventListener('click', function() {
+      var topic = imgTopic.value.trim();
+      if (!topic) { showToast('Describe the image you want.'); imgTopic.focus(); return; }
+      imgOut.innerHTML = '<p class="subtle">Generating image... (this can take ~15 seconds)</p>';
+      var url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent('educational study illustration of ' + topic + ', clean, colorful, labeled diagram, textbook style') + '?width=800&height=600&nologo=true';
+      var img = document.createElement('img');
+      img.src = url;
+      img.alt = topic;
+      img.style.cssText = 'width:100%;max-width:640px;border-radius:14px;border:1px solid var(--border);margin-top:10px;display:block;';
+      img.onload = function() {
+        imgOut.innerHTML = '';
+        imgOut.appendChild(img);
+        var dl = document.createElement('a');
+        dl.href = url; dl.download = 'studyhub-' + topic.replace(/[^a-z0-9]+/gi, '-') + '.jpg'; dl.className = 'ghost top-gap';
+        dl.textContent = 'Download image';
+        dl.style.display = 'inline-block';
+        dl.style.marginTop = '10px';
+        imgOut.appendChild(dl);
+      };
+      img.onerror = function() { imgOut.innerHTML = '<p class="subtle">Could not generate the image (network or API limit). Please try again later.</p>'; };
+    });
+  }
+
+  // ---- Concept Model Generator ----
+  var modelBtn = $('genModelBtn'), modelTopic = $('genModelTopic'), modelOut = $('genModelOut');
+  if (modelBtn && modelTopic && modelOut) {
+    modelBtn.addEventListener('click', async function() {
+      var topic = modelTopic.value.trim();
+      if (!topic) { showToast('Enter a concept to model.'); modelTopic.focus(); return; }
+      modelOut.innerHTML = '<p class="subtle">Building the concept model...</p>';
+      try {
+        var txt = await groqChat([{ role: 'system', content: 'Explain how a concept works as an interactive working model. Return JSON ONLY: {concept:string, parts:[{name:string, howItWorks:string, connectsTo:[string]}], flows:[{from:string, to:string, what:string}]}. Each part must be a short labeled step. Include 4-7 parts.' }, { role: 'user', content: 'Concept: ' + topic }], { maxTokens: 2048, temperature: 0.6 });
+        var model;
+        try { model = JSON.parse(txt.replace(/```json|```/g, '').trim()); }
+        catch (e) { model = null; }
+        if (!model || !model.parts) throw new Error('bad json');
+        var html = '<h4><span class="icon icon-sm icon-chart"></span> Model: ' + escapeHtml(model.concept || topic) + '</h4>';
+        html += '<div class="gen-model-parts">';
+        model.parts.forEach(function(p, i) {
+          html += '<details class="gen-model-part" open="' + (i === 0) + '"><summary><b>' + (i + 1) + '. ' + escapeHtml(p.name) + '</b></summary><p>' + escapeHtml(p.howItWorks || '') + '</p>' + (p.connectsTo && p.connectsTo.length ? '<p class="subtle">Connects to: ' + p.connectsTo.map(c => escapeHtml(c)).join(', ') + '</p>' : '') + '</details>';
+        });
+        html += '</div>';
+        if (model.flows && model.flows.length) {
+          html += '<h5 style="margin-top:10px">Flow</h5><div class="gen-model-flow">';
+          model.flows.forEach(function(f) {
+            html += '<div class="gen-model-flow-step"><span class="badge">' + escapeHtml(f.from) + '</span> &#8594; <span class="badge">' + escapeHtml(f.to) + '</span><span class="subtle"> — ' + escapeHtml(f.what || '') + '</span></div>';
+          });
+          html += '</div>';
+        }
+        modelOut.innerHTML = html;
+      } catch (err) {
+        modelOut.innerHTML = '<p class="subtle">Could not build the concept model. Please try again.</p>';
+        logErrors('modelgen')(err);
+      }
+    });
+  }
 }
