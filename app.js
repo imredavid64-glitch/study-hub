@@ -174,7 +174,7 @@ const _lang = () => state?.settings?.appLanguage || 'en';
 function __(key) { const l = _lang(); return LOCALES[l]?.[key] || LOCALES.en[key] || key; }
 
 const DEFAULT_STATE = {
-  profile: { name: 'Scholar', major: 'General Studies', weeklyTargetHours: 20, targetGpa: 3.8, setupComplete: false, subjects: [] },
+  profile: { name: 'Scholar', major: 'General Studies', weeklyTargetHours: 20, targetGpa: 3.8, setupComplete: false, subjects: [], interests: '', learningStyle: '', difficulties: '', goals: '' },
    settings: { darkMode: false, theme: 'teal', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, peerMethod: 'same-age', warmupStats: { bestStreak: 0, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', _ach: { goalsCompleted: 0, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
   goals: [], tasks: [], sessions: [], flashcards: [], notes: [], assignments: [],
   reflections: [], quizAttempts: [], mockTestHistory: [], recallHistory: [],
@@ -310,6 +310,9 @@ function logErrors(context) {
     if (typeof console !== 'undefined') console.error('[' + context + ']', err && err.stack ? err.stack : err);
   };
 }
+const WORK_PRINCIPLE = ' When the student asks you to do their work (solve homework, write an essay, answer a question), DO NOT just do it for them: guide them step by step, check what they already know, give hints, and make them learn it themselves. Only provide a full answer if they are clearly stuck or explicitly ask to see it.';
+const FOLLOWUP_NOTE = ' End your reply with ONE short follow-up question that checks their understanding or invites them to try the next step.';
+const SOCRATIC_NOTE = ' Act as a personal teacher, not an answer machine. Guide the student to figure things out themselves with hints and probing questions, then end with ONE follow-up question. Never dump the answer unless they are stuck or explicitly ask.';
 function qs(s, c) { return (c || document).querySelector(s); }
 function qsa(s, c) { return (c || document).querySelectorAll(s); }
 
@@ -1487,7 +1490,7 @@ async function askPdfQuestion() {
   const chat = $('pdfAiChat');
   chat.innerHTML += `<div class="chat-bubble user">${escapeHtml(q)}</div>`;
   try {
-    const txt = await groqChat([{ role: 'system', content: 'Answer questions about the PDF content provided.' }, { role: 'user', content: `PDF Content: ${window._pdfContent}\n\nQuestion: ${q}` }], { maxTokens: 1024 });
+    const txt = await groqChat([{ role: 'system', content: 'Answer questions about the PDF content provided. If the student asks you to do their homework or solve something for them, guide them through it with hints instead and end with one follow-up question.' }, { role: 'user', content: `PDF Content: ${window._pdfContent}\n\nQuestion: ${q}` }], { maxTokens: 1024 });
     chat.innerHTML += `<div class="chat-bubble assistant">${renderMarkdown(txt)}</div>`;
     chat.scrollTop = chat.scrollHeight;
   } catch (e) { chat.innerHTML += `<div class="chat-bubble assistant">AI error. Try again.</div>`; }
@@ -1610,7 +1613,8 @@ async function sendAiChat() {
     const subjects = [...new Set(state.sessions.map(s => s.subject))].slice(0, 3).join(', ') || 'General';
     const peerPrompt = getPeerTutoringPrompt();
     const adhdNote = state.settings.adhdMode ? ' Keep responses VERY short and concise — 2-3 sentences max. The student has ADHD and needs brief, focused answers.' : '';
-    const systemPrompt = `You are a skilled Socratic tutor for ${state.profile.name} (${state.profile.major}). Response style: ${style}. Study mode: ${mode}. ${peerPrompt}${adhdNote} Pedagogical rules you ALWAYS follow: (1) Act like a personal teacher, not an answer machine — your goal is to build the student's understanding. (2) When the student asks a question, first help them THINK: check what they already know, break the problem into smaller steps, and give hints before solutions. (3) After you explain something, ALWAYS end your reply with exactly ONE clear follow-up question that checks understanding or pushes them a step further. (4) Connect ideas with analogies and real-world examples, and praise correct reasoning. Only give a direct answer when the student explicitly asks to be shown the full solution or is clearly stuck. Context: recent subjects include ${subjects}.`;
+    const profileCtx = [state.profile.interests && ('Interests: ' + state.profile.interests + '.'), state.profile.learningStyle && ('Preferred learning style: ' + state.profile.learningStyle + '.'), state.profile.difficulties && ('Known difficulties to handle patiently: ' + state.profile.difficulties + '.'), state.profile.goals && ('Goals to motivate them with: ' + state.profile.goals + '.')].filter(Boolean).join(' ');
+    const systemPrompt = `You are a skilled Socratic tutor for ${state.profile.name} (${state.profile.major}). Response style: ${style}. Study mode: ${mode}. ${peerPrompt}${adhdNote} Pedagogical rules you ALWAYS follow: (1) Act like a personal teacher, not an answer machine — your goal is to build the student's understanding. (2) When the student asks a question, first help them THINK: check what they already know, break the problem into smaller steps, and give hints before solutions. (3) After you explain something, ALWAYS end your reply with exactly ONE clear follow-up question that checks understanding or pushes them a step further. (4) Connect ideas with analogies and real-world examples, and praise correct reasoning. Only give a direct answer when the student explicitly asks to be shown the full solution or is clearly stuck. Context: recent subjects include ${subjects}. Student profile: ${profileCtx}`;
     const txt = await groqChat([
       { role: 'system', content: systemPrompt },
       { role: 'user', content: recentContext ? `Previous discussion:\n${recentContext}\n\nStudent's new question: ${q}` : q }
@@ -1906,6 +1910,10 @@ function setupSettings() {
     state.profile.major = $('profileMajor').value || 'General Studies';
     state.profile.weeklyTargetHours = Math.max(1, +$('profileWeeklyTarget').value || 20);
     state.profile.targetGpa = Math.min(4.0, Math.max(0, +$('profileTargetGpa').value || 3.8));
+    state.profile.interests = $('profileInterests').value.trim();
+    state.profile.learningStyle = $('profileLearningStyle').value;
+    state.profile.difficulties = $('profileDifficulties').value.trim();
+    state.profile.goals = $('profileGoals').value.trim();
     saveState(); updateWelcomeTitle(); showToast('Profile saved');
   });
   qsa('.theme-swatch').forEach(s => {
@@ -1995,6 +2003,10 @@ function setupSettings() {
   $('profileMajor').value = state.profile.major;
   $('profileWeeklyTarget').value = state.profile.weeklyTargetHours;
   $('profileTargetGpa').value = state.profile.targetGpa;
+  $('profileInterests').value = state.profile.interests || '';
+  $('profileLearningStyle').value = state.profile.learningStyle || '';
+  $('profileDifficulties').value = state.profile.difficulties || '';
+  $('profileGoals').value = state.profile.goals || '';
 
   // App language selector
   const langSelect = $('appLanguageSelect');
@@ -2282,7 +2294,7 @@ function setupSubjects() {
     showToast("Explaining...");
     try {
       const txt = await groqChat([
-        { role: "system", content: "You are a physics tutor. Explain the concept clearly with examples. Use analogies. Keep it under 200 words." },
+        { role: "system", content: "You are a physics tutor. Explain the concept clearly with examples. Use analogies. Keep it under 200 words." + FOLLOWUP_NOTE },
         { role: "user", content: "Explain: " + (labels[topic] || topic) }
       ], { maxTokens: 1024 });
       $("physicsResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
@@ -2296,7 +2308,7 @@ function setupSubjects() {
     showToast("Explaining...");
     try {
       const txt = await groqChat([
-        { role: "system", content: "You are a chemistry tutor. Explain the concept clearly with examples." },
+        { role: "system", content: "You are a chemistry tutor. Explain the concept clearly with examples." + FOLLOWUP_NOTE },
         { role: "user", content: "Explain: " + (labels[topic] || topic) }
       ], { maxTokens: 1024 });
       $("chemistryResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
@@ -2310,7 +2322,7 @@ function setupSubjects() {
     showToast("Explaining...");
     try {
       const txt = await groqChat([
-        { role: "system", content: "You are a biology tutor. Explain the concept clearly with examples." },
+        { role: "system", content: "You are a biology tutor. Explain the concept clearly with examples." + FOLLOWUP_NOTE },
         { role: "user", content: "Explain: " + (labels[topic] || topic) }
       ], { maxTokens: 1024 });
       $("biologyResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
@@ -2405,7 +2417,7 @@ function setupSubjects() {
     showToast("Learning...");
     try {
       const txt = await groqChat([
-        { role: "system", content: "You are a geography tutor. Explain key geographical features, countries, and cultural aspects of the region." },
+        { role: "system", content: "You are a geography tutor. Explain key geographical features, countries, and cultural aspects of the region." + FOLLOWUP_NOTE },
         { role: "user", content: "Teach me about: " + (labels[region] || region) }
       ], { maxTokens: 1024 });
       $("geoResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
@@ -2433,7 +2445,7 @@ function setupSubjects() {
     showToast("Explaining...");
     try {
       const txt = await groqChat([
-        { role: "system", content: "You are an economics tutor. Explain the concept with real-world examples." },
+        { role: "system", content: "You are an economics tutor. Explain the concept with real-world examples." + FOLLOWUP_NOTE },
         { role: "user", content: "Explain: " + (labels[topic] || topic) }
       ], { maxTokens: 1024 });
       $("economyResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
@@ -2447,7 +2459,7 @@ function setupSubjects() {
     showToast("Explaining...");
     try {
       const txt = await groqChat([
-        { role: "system", content: "You are a civics and sociology tutor. Explain the concept clearly." },
+        { role: "system", content: "You are a civics and sociology tutor. Explain the concept clearly." + FOLLOWUP_NOTE },
         { role: "user", content: "Explain: " + (labels[topic] || topic) }
       ], { maxTokens: 1024 });
       $("civicsResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
@@ -2598,10 +2610,10 @@ var FEATURES = [
   { icon: '<span class="icon icon-sm icon-star"></span>', title: '8 Custom Themes', desc: 'Choose from teal, blue, purple, green, orange, red, pink, or yellow. Dark mode included.' }
 ];
 
-var setupState = { step: 0, name: '', major: '', weeklyTarget: 20, targetGpa: 3.8, subjects: [], theme: 'teal' };
+var setupState = { step: 0, name: '', major: '', weeklyTarget: 20, targetGpa: 3.8, subjects: [], theme: 'teal', interests: '', learningStyle: '', difficulties: '', goals: '' };
 
 function showSetupModal() {
-  setupState = { step: 0, name: '', major: '', weeklyTarget: 20, targetGpa: 3.8, subjects: [], theme: state.settings.theme || 'teal' };
+  setupState = { step: 0, name: '', major: '', weeklyTarget: 20, targetGpa: 3.8, subjects: [], theme: state.settings.theme || 'teal', interests: '', learningStyle: '', difficulties: '', goals: '' };
   var modal = $('setupModal');
   if (modal) modal.classList.remove('hidden');
   renderSetupStep();
@@ -2621,6 +2633,14 @@ function showSetupModal() {
         if (weekly) setupState.weeklyTarget = +weekly.value || 20;
         var gpa = $('setupGpa');
         if (gpa) setupState.targetGpa = Math.min(4, Math.max(0, +gpa.value || 3.8));
+        var interests = $('setupsInterests');
+        if (interests) setupState.interests = interests.value.trim();
+        var learningStyle = $('setupLearningStyle');
+        if (learningStyle) setupState.learningStyle = learningStyle.value;
+        var difficulties = $('setupDifficulties');
+        if (difficulties) setupState.difficulties = difficulties.value.trim();
+        var goals = $('setupGoals');
+        if (goals) setupState.goals = goals.value.trim();
       }
       if (setupState.step >= 1 && setupState.step < 4) {
         setupState.step++;
@@ -2636,6 +2656,10 @@ function showSetupModal() {
       state.profile.weeklyTargetHours = setupState.weeklyTarget || 20;
       state.profile.targetGpa = setupState.targetGpa || 3.8;
       state.profile.subjects = setupState.subjects;
+      state.profile.interests = setupState.interests || '';
+      state.profile.learningStyle = setupState.learningStyle || '';
+      state.profile.difficulties = setupState.difficulties || '';
+      state.profile.goals = setupState.goals || '';
       state.profile.setupComplete = true;
       state.settings.theme = setupState.theme || 'teal';
       document.documentElement.setAttribute('data-theme', state.settings.theme);
@@ -2757,6 +2781,29 @@ function renderSetupStep() {
               '<label>Target GPA</label>' +
               '<input id="setupGpa" type="number" min="0" max="4" step="0.1" value="' + (setupState.targetGpa || state.profile.targetGpa) + '" />' +
             '</div>' +
+          '</div>' +
+          '<div class="onb-field">' +
+            '<label>Interests</label>' +
+            '<input id="setupsInterests" placeholder="e.g. space, coding, music, history" value="' + escapeHtml(setupState.interests || state.profile.interests || '') + '" />' +
+          '</div>' +
+          '<div class="onb-field">' +
+            '<label>How do you learn best?</label>' +
+            '<select id="setupLearningStyle">' +
+              '<option value="">Select your learning style</option>' +
+              '<option value="visual">Visual — diagrams, images, mind maps</option>' +
+              '<option value="auditory">Auditory — listening, discussion, text-to-speech</option>' +
+              '<option value="reading">Reading / writing — text, notes, lists</option>' +
+              '<option value="kinesthetic">Hands-on — practice, examples, projects</option>' +
+              '<option value="mixed">Mixed — a bit of everything</option>' +
+            '</select>' +
+          '</div>' +
+          '<div class="onb-field">' +
+            '<label>Difficulties (optional, we\'ll adapt)</label>' +
+            '<input id="setupDifficulties" placeholder="e.g. keeping focus, math anxiety, time management" value="' + escapeHtml(setupState.difficulties || state.profile.difficulties || '') + '" />' +
+          '</div>' +
+          '<div class="onb-field">' +
+            '<label>Goals (optional)</label>' +
+            '<input id="setupGoals" placeholder="e.g. reach a 3.5 GPA, get into med school, learn Spanish" value="' + escapeHtml(setupState.goals || state.profile.goals || '') + '" />' +
           '</div>' +
         '</div>';
     } else if (setupState.step === 2) {
@@ -3098,6 +3145,144 @@ function setupPracticeCoach() {
   }
 }
 
+// ===== ACCESSIBILITY: TEXT-TO-SPEECH + VOICE TUTOR (blind-friendly) =====
+function setupTextToSpeech() {
+  var speakBtn = $('ttsSpeakBtn'), stopBtn = $('ttsStopBtn'), readText = $('ttsReadText');
+  var voiceSel = $('ttsVoiceSelect'), speedSlow = $('ttsSpeedSlow');
+  if (!speakBtn || !readText) return;
+
+  var ttsState = { active: false, recognition: null, listening: false };
+  var tutStart = $('ttsTutorStart'), tutStop = $('ttsTutorStop');
+  var tutStatus = $('ttsTutorStatus'), tutTranscript = $('ttsTutorTranscript');
+  var tutorHistory = [];
+
+  function pickVoice(utter) {
+    var slow = speedSlow && speedSlow.checked;
+    utter.rate = slow ? 0.82 : 1.0;
+    utter.pitch = 1.0;
+    var desired = voiceSel ? voiceSel.value : '';
+    if (!desired || !window.speechSynthesis) return;
+    var voices = window.speechSynthesis.getVoices();
+    if (desired === '__en') { var en = voices.find(v => /^en/i.test(v.lang)) || voices[0]; if (en) utter.voice = en; }
+    else { var v = voices.find(x => x.name === desired); if (v) utter.voice = v; }
+  }
+
+  function speak(text) {
+    if (!('speechSynthesis' in window)) { showToast('Text-to-speech is not supported in this browser'); return; }
+    window.speechSynthesis.cancel();
+    var utter = new SpeechSynthesisUtterance(text);
+    pickVoice(utter);
+    window.speechSynthesis.speak(utter);
+  }
+
+  if (voiceSel) {
+    if (window.speechSynthesis) {
+      var fillVoices = function() {
+        var voices = window.speechSynthesis.getVoices();
+        voiceSel.innerHTML = '<option value="">Auto</option><option value="__en">English (any)</option>' + voices.map(function(v) { return '<option value="' + escapeHtml(v.name) + '">' + escapeHtml(v.name) + ' (' + escapeHtml(v.lang) + ')</option>'; }).join('');
+      };
+      fillVoices();
+      window.speechSynthesis.addEventListener('voiceschanged', fillVoices);
+    }
+  }
+
+  speakBtn.addEventListener('click', function() {
+    var text = (readText.value || '').trim();
+    if (!text) { showToast('Type or paste some text first.'); readText.focus(); return; }
+    speak(text);
+  });
+  if (stopBtn) stopBtn.addEventListener('click', function() {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    showToast('Speech stopped');
+  });
+  if (readText) readText.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); speakBtn.click(); }
+  });
+
+  // ---- Voice Tutor: AI asks questions aloud, student answers by voice ----
+  var hasSpeech = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+  if (!tutStart || !tutStop || !tutStatus || !tutTranscript) return;
+
+  function setTutorStatus(txt) {
+    tutStatus.textContent = txt;
+    tutStatus.className = 'call-status ' + (ttsState.active ? 'active' : 'idle');
+  }
+  function tutorLog(html) {
+    tutTranscript.innerHTML += html;
+    tutTranscript.scrollTop = tutTranscript.scrollHeight;
+  }
+  function startListening() {
+    if (!hasSpeech) { tutorLog('<div class="call-bubble ai"><strong>Tutor:</strong> Speech recognition is not available in this browser, so please type your answer in the box below instead.</div>'); return; }
+    ttsState.listening = true;
+    setTutorStatus('Listening... speak your answer');
+    ttsState.recognition.start();
+  }
+  function stopListening() {
+    ttsState.listening = false;
+    if (ttsState.recognition) { try { ttsState.recognition.stop(); } catch (e) {} }
+  }
+
+  tutStart.addEventListener('click', function() {
+    ttsState.active = true;
+    tutStart.style.display = 'none';
+    tutStop.style.display = '';
+    tutorHistory = [];
+    tutTranscript.innerHTML = '<p class="subtle">Press and speak your first answer, or press the button. The tutor guides you by voice.</p>';
+    if (hasSpeech) {
+      var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      ttsState.recognition = new SR();
+      ttsState.recognition.lang = (voiceSel && voiceSel.value && voiceSel.value !== '__en') ? 'en-US' : 'en-US';
+      ttsState.recognition.continuous = false;
+      ttsState.recognition.interimResults = false;
+      ttsState.recognition.onresult = function(e) {
+        var t = e.results[0][0].transcript;
+        tutorLog('<div class="call-bubble user"><strong>You:</strong> ' + escapeHtml(t) + '</div>');
+        handleTutorReply(t);
+      };
+      ttsState.recognition.onend = function() { ttsState.listening = false; setTutorStatus('Waiting...'); };
+      ttsState.recognition.onerror = function(e) {
+        setTutorStatus('Speech error: ' + e.error + '. Press the button to try again.');
+        if (e.error !== 'no-speech' && ttsState.active) stopListening();
+      };
+    }
+    startListening();
+  });
+
+  tutStop.addEventListener('click', function() {
+    ttsState.active = false;
+    stopListening();
+    tutStart.style.display = '';
+    tutStop.style.display = 'none';
+    setTutorStatus('Session ended.');
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    showToast('Voice tutor session ended');
+  });
+
+  async function handleTutorReply(text) {
+    setTutorStatus('Thinking...');
+    var messages = [{ role: 'system', content: 'You are a voice Socratic tutor for a student who may be blind. The student answers questions by voice. ALWAYS do these things: (1) Speak clearly and use short, simple sentences. (2) Guide and teach — ask what they already know, give hints, never just do their work. (3) END your reply with exactly ONE new spoken question they can answer. (4) Keep every reply under 80 words. You are a friendly, patient teacher.' }, { role: 'user', content: 'The student said: "' + text + '". Ask them the next question or guide them forward.' }];
+    if (tutorHistory.length) messages = [{ role: 'system', content: messages[0].content }, ...tutorHistory.slice(-4), { role: 'user', content: 'The student said: "' + text + '". Guide them and ask the next question.' }];
+    tutorHistory.push({ role: 'user', content: text });
+    try {
+      var resp = await groqChat(messages, { maxTokens: 300, temperature: 0.7 });
+      tutorHistory.push({ role: 'assistant', content: resp });
+      tutorLog('<div class="call-bubble ai"><strong>Tutor:</strong> ' + escapeHtml(resp) + '</div>');
+      speak(resp);
+      setTutorStatus('Speaking... then listening');
+      setTimeout(function() {
+        if (!ttsState.active) return;
+        setTutorStatus('Listening...');
+        startListening();
+      }, 2200);
+    } catch (err) {
+      setTutorStatus('Sorry, I could not reach the AI. Please try again.');
+      tutorLog('<div class="call-bubble ai"><strong>Tutor:</strong> Sorry, I could not reach the AI. Please try again.</div>');
+      logErrors('voiceTutor')(err);
+      setTimeout(function() { if (ttsState.active) startListening(); }, 1500);
+    }
+  }
+}
+
 async function analyzeVoiceConversation(targetLang, transcriptEl, analysisEl, exercisesEl) {
   if (!voiceConversation.history.length) {
     if (analysisEl) analysisEl.innerHTML = '<p class="subtle">No conversation to analyze.</p>';
@@ -3422,6 +3607,7 @@ function init() {
   safeCall(setupLearningTools);
   safeCall(setupVoiceConversation);
   safeCall(setupPracticeCoach);
+  safeCall(setupTextToSpeech);
   safeCall(setupLectureRecording);
   safeCall(setupGoogleConnection);
   safeCall(setupGlobalShortcuts);

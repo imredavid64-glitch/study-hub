@@ -2956,6 +2956,12 @@ canvas {
   gap: 16px;
   padding: 20px 16px;
 }
+.call-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
 .call-avatar {
   width: 96px; height: 96px;
   border-radius: 50%;
@@ -3007,6 +3013,7 @@ canvas {
   margin-top: 8px;
 }
 .call-status.idle { background: var(--panel); color: var(--muted); }
+.call-status.active { background: #065f46; color: #d1fae5; }
 .call-status.live { background: #065f46; color: #d1fae5; }
 .call-status.analyzing { background: #1e3a5f; color: #bfdbfe; }
 .call-status.ended { background: #1f2937; color: #9ca3af; }

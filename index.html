@@ -1128,6 +1128,35 @@
             </div>
             <div id="practiceOutput" class="call-analysis" style="margin-top:12px"></div>
           </article>
+          <article class="card top-gap" id="accessibilityCard">
+            <h3><span class="icon icon-sm icon-voice"></span> Text-to-Speech &amp; Voice Tutor</h3>
+            <p class="subtle">Screen-reader friendly mode: the AI reads aloud, asks you questions by voice, and you answer by speaking. Great when you can't look at a screen.</p>
+            <div class="inline top-gap">
+              <select id="ttsVoiceSelect">
+                <option value="">TTS Voice (auto)</option>
+              </select>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600"><input type="checkbox" id="ttsSpeedSlow" /> Slower speech</label>
+            </div>
+            <div class="inline top-gap" style="margin-top:10px">
+              <input id="ttsReadText" placeholder="Type or paste text to be read aloud..." />
+              <button id="ttsSpeakBtn" class="ghost"><span class="icon icon-sm icon-voice"></span> Read Aloud</button>
+              <button id="ttsStopBtn" class="ghost">Stop</button>
+            </div>
+            <div class="call-container top-gap" style="margin-top:14px;border:1px solid var(--border);border-radius:12px;padding:12px">
+              <div class="call-avatar" id="tutorAvatar">
+                <div class="call-avatar-ring"></div>
+                <span class="call-avatar-text">Tutor</span>
+              </div>
+              <div id="ttsTutorStatus" class="call-status idle">Press Start to have the AI tutor ask you questions by voice.</div>
+              <div class="call-transcript" id="ttsTutorTranscript" style="margin-top:8px">
+                <p class="subtle">The tutor will pick a topic, ask you one question at a time, listen to your spoken answer, and guide you — all by voice.</p>
+              </div>
+              <div class="call-controls">
+                <button class="call-btn call-btn-start" id="ttsTutorStart"><span class="icon icon-sm icon-ai"></span> Start Voice Tutor</button>
+                <button class="call-btn call-btn-end" id="ttsTutorStop" style="display:none;"><span class="icon icon-sm icon-timer"></span> End Session</button>
+              </div>
+            </div>
+          </article>
         </section>
 
         <!-- ===== SUBJECTS TAB ===== -->
@@ -1634,6 +1663,17 @@
                 <input id="profileMajor" placeholder="Program / Major" />
                 <input id="profileWeeklyTarget" type="number" min="1" value="20" />
                 <input id="profileTargetGpa" type="number" min="0" max="4" step="0.01" value="3.8" />
+                <input id="profileInterests" placeholder="Interests (e.g. space, coding, music, history)" />
+                <select id="profileLearningStyle">
+                  <option value="">Learning style — pick what fits best</option>
+                  <option value="visual">Visual — diagrams, images, mind maps</option>
+                  <option value="auditory">Auditory — listening, discussion, TTS</option>
+                  <option value="reading">Reading/writing — text, notes, lists</option>
+                  <option value="kinesthetic">Hands-on — practice, examples, projects</option>
+                  <option value="mixed">Mixed — a bit of everything</option>
+                </select>
+                <input id="profileDifficulties" placeholder="Difficulties (e.g. focus, math anxiety, time management)" />
+                <input id="profileGoals" placeholder="Goals (e.g. 3.5 GPA, med school, learn Spanish)" />
                 <button type="submit">Save Profile</button>
               </form>
             </article>
