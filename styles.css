@@ -2375,8 +2375,9 @@ canvas {
   background: var(--bg);
   overflow-y: auto;
   opacity: 1; transform: scale(1); transition: opacity 0.35s ease, transform 0.35s ease;
+  display: block;
 }
-.onboarding-overlay.hidden { opacity: 0; transform: scale(0.98); pointer-events: none; }
+.onboarding-overlay.hidden { opacity: 0; transform: scale(0.98); pointer-events: none; display: none; }
 .onboarding-inner { max-width: 1100px; margin: 0 auto; }
 
 /* Landing Hero */
@@ -2516,6 +2517,7 @@ canvas {
   display: flex; align-items: center; justify-content: center;
   padding: 20px; overflow-y: auto;
 }
+.landing-overlay.hidden { display: none; }
 .landing-inner {
   position: relative;
   background: var(--card-bg);
