@@ -244,6 +244,7 @@ function getSubjectColor(subject) {
 
 // ===== GROQ AI =====
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
+let studentLearningStyle = '';
 async function groqChat(messages, options = {}) {
   const model = options.model || 'llama-3.1-8b-instant';
   const maxTokens = options.maxTokens || 2048;
@@ -403,6 +404,121 @@ function updateWelcomeTitle() {
   if (!at) return;
   const btn = qs(`.nav-btn[data-tab="${at.id}"]`);
   if (btn) $('welcomeTitle').textContent = `${btn.textContent} — ${state.profile.name}`;
+}
+
+function setupLearningStyle() {
+  var lsSel = $('studentLearningStyle');
+  if (!lsSel) return;
+  lsSel.value = studentLearningStyle || '';
+  lsSel.addEventListener('change', function() {
+    studentLearningStyle = this.value;
+    updateAppForLearningStyle();
+    showToast('Learning style set to: ' + (this.options[this.selectedIndex].text || 'default'));
+    saveLearningStyle();
+  });
+}
+function updateAppForLearningStyle() {
+  if (studentLearningStyle === 'visual') {
+    qsa('.card').forEach(c => {
+      c.style.border = '2px solid var(--accent)';
+      c.style.position = 'relative';
+    });
+    qsa('.tab.active').forEach(t => {
+      t.style.background = 'var(--panel)';
+      t.style.borderBottom = '2px solid var(--accent)';
+    });
+  } else if (studentLearningStyle === 'auditory') {
+    qsa('.card').forEach(c => {
+      c.classList.add('auditory-mode');
+      c.style.backgroundColor = 'var(--panel)';
+    });
+    qsa('.tab.active').forEach(t => {
+      t.classList.add('auditory-active');
+    });
+  } else if (studentLearningStyle === 'kinesthetic') {
+    qsa('.tab').forEach(t => {
+      t.classList.add('kinesthetic-mode');
+    });
+    qsa('.nav-btn').forEach(b => {
+      b.classList.add('kinesthetic-nav');
+    });
+  }
+}
+function showAIThoughtProcess(assistantReply, context) {
+  var thinkEl = document.createElement('div');
+  thinkEl.className = 'ai-thought';
+  thinkEl.innerHTML = `
+    <details class="details-think">
+      <summary><span class="icon icon-sm icon-ai"></span> What the AI is thinking / process</summary>
+      <div class="think-content">
+        <p><strong>Context used:</strong> ${context || '(user profile and current topic)'}</p>
+        <p><strong>Reasoning:</strong> The AI analyzed the student's question and applied the Socratic method — checking what they already know, breaking down the problem, offering hints, and preparing a follow-up question.</p>
+        <p><strong>How the answer is structured:</strong> The reply is concise (~80 words), ends with a follow-up question to guide the student, and uses the student's learning style (${studentLearningStyle || 'default'}) to tailor the approach.</p>
+        <div class="adjust-logic">
+          <button class="ghost">Adjust Logic</button>
+          <textarea class="hidden logic-textarea" placeholder="Modify AI reasoning here..."></textarea>
+        </div>
+      </div>
+    </details>
+  `;
+  return thinkEl;
+}
+function setupSampleLesson() {
+  var sampleBtn = $('sampleLessonBtn');
+  var sampleOutput = $('sampleLessonOutput');
+  if (!sampleBtn || !sampleOutput) return;
+  sampleBtn.addEventListener('click', async function() {
+    sampleBtn.disabled = true;
+    sampleBtn.textContent = 'Loading...';
+    sampleOutput.innerHTML = '<div class="analysis-content">Loading sample lesson...</div>';
+    sampleOutput.classList.remove('hidden');
+    try {
+      var resp = await groqChat([
+        { role: 'system', content: 'Give a 2‑minute sample micro‑lesson for a high‑school student. End with one follow‑up question. Use simple language, be encouraging, and structure for easy understanding.' },
+        { role: 'user', content: 'Create a sample lesson on Photosynthesis.' }
+      ], { maxTokens: 300 });
+      sampleOutput.innerHTML = `
+        <h4>Sample Lesson</h4>
+        <div class="analysis-content">
+          <div class="sample-text">${escapeHtml(resp)}</div>
+          <div class="sample-actions">
+            <button class="ghost" onclick="this.closest('.analysis-content').innerHTML += '<div class=\"note\">Student question: Can you explain chloroplasts in simpler terms</div>';">Ask for clarification</button>
+            <button class="ghost" onclick="this.closest('.analysis-content').innerHTML += '<div class=\"note\">Student thinking: ...</div>';">Adjust thinking</button>
+          </div>
+        </div>
+      `;
+      showToast('Sample lesson loaded');
+    } catch (e) {
+      sampleOutput.innerHTML = '<div class="analysis-content">Failed to load sample lesson. Please try again.</div>';
+      showToast('Failed to load sample lesson');
+    } finally {
+      sampleBtn.disabled = false;
+      sampleBtn.textContent = 'Try Sample Lesson';
+    }
+  });
+}
+function initializeLearningStyle() {
+  if (!studentLearningStyle) {
+    if (state.profile && state.profile.learningStyle) {
+      studentLearningStyle = state.profile.learningStyle;
+    } else {
+      studentLearningStyle = 'mixed';
+    }
+  }
+  updateAppForLearningStyle();
+}
+
+function saveLearningStyle() {
+  if (studentLearningStyle && state.profile) {
+    state.profile.learningStyle = studentLearningStyle;
+    saveState();
+  }
+}
+function saveLearningStyle() {
+  if (studentLearningStyle && state.profile) {
+    state.profile.learningStyle = studentLearningStyle;
+    saveState();
+  }
 }
 
 // ===== DASHBOARD =====
@@ -4669,10 +4785,10 @@ if (document.readyState === 'loading') {
 
 // ===== CREATIVE GENERATORS =====
 function setupGenerators() {
-  // ---- Interactive Mind Map ----
+  // ---- Interactive Mind Map (with explanations and more interactiveness) ----
   var mapBtn = $('genMapBtn'), mapTopic = $('genMapTopic'), mapCanvas = $('genMapCanvas');
-  var addNodeBtn = $('genMapAddNode'), resetBtn = $('genMapReset');
-  var mm = { nodes: [], edges: [], dragging: null, offsetX: 0, offsetY: 0 };
+  var addNodeBtn = $('genMapAddNode'), resetBtn = $('genMapReset'), mapExplanation = $('genMapExplanation');
+  var mm = { nodes: [], edges: [], dragging: null, offsetX: 0, offsetY: 0, selectedNode: null };
 
   function mapColors(i) {
     var palette = ['#0f766e', '#0b5cab', '#e6a700', '#8b5cf6', '#dc2626', '#059669', '#d97706', '#2563eb'];
@@ -4683,9 +4799,18 @@ function setupGenerators() {
     mm.nodes.push(n);
     return n;
   }
+  // ---- Interactive Mind Map (with explanations and more interactiveness) ----
+  var mapBtn = $('genMapBtn'), mapTopic = $('genMapTopic'), mapCanvas = $('genMapCanvas');
+  var addNodeBtn = $('genMapAddNode'), resetBtn = $('genMapReset'), mapExplanation = $('genMapExplanation');
+  var mm = { nodes: [], edges: [], dragging: null, offsetX: 0, offsetY: 0, selectedNode: null };
+
   function renderMindMap() {
     if (!mapCanvas) return;
-    if (!mm.nodes.length) { mapCanvas.innerHTML = '<p class="subtle" id="genMapHint">Enter a topic and press Generate.</p>'; return; }
+    if (!mm.nodes.length) {
+      mapCanvas.innerHTML = '<p class="subtle" id="genMapHint">Enter a topic and press Generate.</p>';
+      if (mapExplanation) mapExplanation.textContent = '';
+      return;
+    }
     mapCanvas.style.position = 'relative';
     mapCanvas.style.overflow = 'auto';
     mapCanvas.innerHTML = '';
@@ -4702,17 +4827,64 @@ function setupGenerators() {
       mapCanvas.appendChild(line);
     });
     mm.nodes.forEach(function(n) {
-      var el = document.createElement('div');
-      el.className = 'gen-map-node';
-      el.textContent = n.label;
-      el.dataset.id = n.id;
-      el.style.cssText = 'position:absolute;left:' + n.x + 'px;top:' + n.y + 'px;background:' + mapColors(parseInt(n.id.replace(/\D/g, '')) || 0) + ';color:#fff;padding:8px 12px;border-radius:12px;font-weight:600;font-size:13px;cursor:grab;z-index:2;max-width:170px;box-shadow:0 4px 12px rgba(0,0,0,.15);touch-action:none;';
-      el.addEventListener('mousedown', startDrag.bind(null, n, el));
-      el.addEventListener('touchstart', startDrag.bind(null, n, el));
-      mapCanvas.appendChild(el);
+      var nodeEl = document.createElement('div');
+      nodeEl.className = 'gen-map-node';
+      nodeEl.dataset.id = n.id;
+      var label = document.createElement('div');
+      label.className = 'gen-map-label';
+      label.textContent = n.label;
+      nodeEl.appendChild(label);
+      if (n.explanation) {
+        var expl = document.createElement('div');
+        expl.className = 'gen-map-explanation';
+        expl.textContent = n.explanation;
+        expl.style.display = 'none';
+        nodeEl.appendChild(expl);
+      }
+      nodeEl.addEventListener('click', function(e) {
+        if (e.target === expl || e.target.closest('.gen-map-explanation')) return;
+        mm.selectedNode = n;
+        mm.nodes.forEach(node => {
+          var nodeEl2 = document.querySelector('.gen-map-node[data-id="' + node.id + '"]');
+          if (nodeEl2) nodeEl2.classList.toggle('selected', node.id === n.id);
+        });
+        if (mapExplanation) {
+          mapExplanation.textContent = n.explanation || 'No explanation for this node.';
+        }
+      });
+      nodeEl.addEventListener('mouseenter', function() {
+        if (n.explanation) {
+          expl.style.display = 'block';
+          expl.style.position = 'absolute';
+          expl.style.top = '110%';
+          expl.style.left = '0';
+          expl.style.background = 'var(--panel)';
+          expl.style.border = '1px solid var(--border)';
+          expl.style.padding = '6px 10px';
+          expl.style.borderRadius = '8px';
+          expl.style.zIndex = '10';
+          expl.style.maxWidth = '240px';
+          expl.style.fontSize = '0.75rem';
+          expl.style.color = 'var(--ink)';
+        }
+      });
+      nodeEl.addEventListener('mouseleave', function() {
+        if (expl) expl.style.display = 'none';
+      });
+      nodeEl.addEventListener('mousedown', startDrag.bind(null, n, nodeEl));
+      nodeEl.addEventListener('touchstart', startDrag.bind(null, n, nodeEl));
+      mapCanvas.appendChild(nodeEl);
     });
     mapCanvas.style.height = Math.max(360, (Math.max(...mm.nodes.map(n => n.y)) + 90)) + 'px';
     mapCanvas.style.width = Math.max(600, (Math.max(...mm.nodes.map(n => n.x)) + 220)) + 'px';
+  }
+  function positionEdge(line, a, b) {
+    var ax = a.x + 80, ay = a.y + 16, bx = b.x + 80, by = b.y + 16;
+    var dx = bx - ax, dy = by - ay;
+    var len = Math.max(10, Math.sqrt(dx * dx + dy * dy));
+    line.style.left = ax + 'px'; line.style.top = ay + 'px';
+    line.style.width = len + 'px';
+    line.style.transform = 'rotate(' + (Math.atan2(dy, dx) * 180 / Math.PI) + 'deg)';
   }
   function positionEdge(line, a, b) {
     var ax = a.x + 80, ay = a.y + 16, bx = b.x + 80, by = b.y + 16;
