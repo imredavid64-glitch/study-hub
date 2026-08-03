@@ -243,20 +243,37 @@ function getSubjectColor(subject) {
 }
 
 // ===== GROQ AI =====
-const GROQ_API_KEY = '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';
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 async function groqChat(messages, options = {}) {
   const model = options.model || 'llama-3.1-8b-instant';
   const maxTokens = options.maxTokens || 2048;
   const temperature = options.temperature ?? 0.7;
-  const res = await fetch(GROQ_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
-    body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature })
-  });
-  if (!res.ok) throw new Error(`Groq API error ${res.status}`);
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content || '';
+  const payload = { model, messages, max_tokens: maxTokens, temperature };
+  // Prefer the serverless proxy (keeps the API key out of the browser bundle).
+  try {
+    const proxied = await fetch('/api/groq', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (proxied.ok) {
+      const data = await proxied.json();
+      return data.choices?.[0]?.message?.content || '';
+    }
+  } catch (e) { /* fall through to local fallback */ }
+  // Local fallback for file:// or dev builds where the proxy is unavailable.
+  const localKey = window._GROQ_FALLBACK_KEY;
+  if (localKey) {
+    const res = await fetch(GROQ_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localKey}` },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(`Groq API error ${res.status}`);
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || '';
+  }
+  throw new Error('Groq proxy unavailable');
 }
 
 // ===== UTILITIES =====
@@ -1315,6 +1332,33 @@ function setupNotes() {
   });
   $('noteForm').addEventListener('submit', saveNote);
   $('noteSearch').addEventListener('input', renderNoteList);
+  const camBtn = $('noteCameraBtn');
+  if (camBtn) camBtn.addEventListener('click', () => {
+    const status = $('noteCameraStatus');
+    if (status) status.textContent = 'Opening camera...';
+    const done = (dataUrl) => {
+      if (!dataUrl) { if (status) status.textContent = 'No photo captured.'; return; }
+      window._pendingNotePhoto = dataUrl;
+      const prev = $('notePhotoPreview');
+      if (prev) prev.innerHTML = '<img src="' + dataUrl + '" style="max-width:180px;border-radius:10px;border:1px solid var(--border);" alt="Captured photo" /> <button type="button" id="notePhotoRemove" class="ghost">Remove</button>';
+      if (status) status.textContent = 'Photo attached — save the note to keep it.';
+      const rm = $('notePhotoRemove');
+      if (rm) rm.addEventListener('click', () => { window._pendingNotePhoto = null; if (prev) prev.innerHTML = ''; if (status) status.textContent = ''; });
+    };
+    if (typeof Mobile !== 'undefined' && Mobile.capturePhoto) Mobile.capturePhoto(done);
+    else {
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment';
+      input.addEventListener('change', () => {
+        const f = input.files && input.files[0];
+        if (!f) { if (status) status.textContent = 'No photo selected.'; return; }
+        const r = new FileReader();
+        r.onload = () => done(r.result);
+        r.readAsDataURL(f);
+      });
+      input.click();
+    }
+  });
   renderNoteList();
 }
 function switchNoteEditor(style) {
@@ -1369,6 +1413,11 @@ function saveNote(e) {
   const style = $('noteStyle').value;
   let content = '';
   if (style === 'freeform') content = $('noteContent').value;
+  if (window._pendingNotePhoto) {
+    content = (content ? content + '\n\n![](' + window._pendingNotePhoto + ')\n' : '![Photo](' + window._pendingNotePhoto + ')\n');
+    window._pendingNotePhoto = null;
+    const prev = $('notePhotoPreview'); if (prev) prev.innerHTML = '';
+  }
   else if (style === 'outline') content = $('noteOutlineContent').value;
   else if (style === 'cornell') content = JSON.stringify({ cues: $('noteCornellCues').value, notes: $('noteCornellNotes').value, summary: $('noteCornellSummary').value });
   else if (style === 'mapping') content = JSON.stringify({ center: $('noteMappingCenter').value, branches: $('noteMappingBranches').value });
@@ -3686,6 +3735,7 @@ function init() {
     Mobile.init().then(() => {
       try { Mobile.addMobileStyles(); } catch(_) {}
       try { Mobile.createMobileNav(); } catch(_) {}
+      try { Mobile.setupSwipeNavigation(); } catch(_) {}
     });
   }
   var hd = $('headerDate');
@@ -4570,26 +4620,7 @@ function adhdShorten(text) {
 }
 
 function callGroq(prompt) {
-  return new Promise(function(resolve, reject) {
-    var key = state.settings.groqApiKey || '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';
-    if (!key) { reject(new Error('No Groq API key')); return; }
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', 'https://api.groq.com/openai/v1/chat/completions');
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.setRequestHeader('Authorization', 'Bearer ' + key);
-    xhr.onload = function() {
-      if (xhr.status === 200) {
-        try { resolve(JSON.parse(xhr.responseText).choices[0].message.content); }
-        catch(e) { reject(new Error('Failed to parse response')); }
-      } else { reject(new Error(xhr.status + ': ' + xhr.statusText)); }
-    };
-    xhr.onerror = function() { reject(new Error('Network error')); };
-    xhr.send(JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7, max_tokens: 2048
-    }));
-  });
+  return groqChat([{ role: 'user', content: prompt }], { model: 'llama-3.3-70b-versatile', maxTokens: 2048 });
 }
 
 if (document.readyState === 'loading') {

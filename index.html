@@ -441,6 +441,11 @@
                 <!-- Freeform editor (default) -->
                 <div id="noteEditorFreeform">
                   <textarea id="noteContent" rows="10" placeholder="Write your notes in markdown style..." required></textarea>
+                  <div class="inline top-gap">
+                    <button type="button" id="noteCameraBtn" class="ghost"><span class="icon icon-sm icon-image"></span> Add Photo</button>
+                    <span class="subtle" id="noteCameraStatus"></span>
+                  </div>
+                  <div id="notePhotoPreview" class="top-gap"></div>
                 </div>
 
                 <!-- Outline editor -->

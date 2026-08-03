@@ -6,7 +6,8 @@
 const SUPABASE_CONFIG = {
   url: 'https://nnrdkdisjfudibvrggxb.supabase.co',
   anon_key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ucmRrZGlzamZ1ZGlidnJnZ3hiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3MzEyNjUsImV4cCI6MjA5OTMwNzI2NX0.DYzp1AEOrZ-iJ3keB4jtlZvHSetWO_h49gYXR9gK-Ro',
-  service_key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ucmRqZGlzamZ1ZGlidnJnZ3hiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MzczMTI2NSwiZXhwIjoyMDk5MzA3MjY1fQ.a9Ojifl6v_dTzjtQAETdKlk2HfFiSwhVib2EFtE8XuQ'
+  // Admin writes run through the /api/cloud serverless proxy (service key stays server-side).
+  service_key: ''
 };
 
 // Initialize Supabase client
@@ -18,10 +19,12 @@ try {
       SUPABASE_CONFIG.url,
       SUPABASE_CONFIG.anon_key
     );
-    supabaseAdmin = window.supabase.createClient(
-      SUPABASE_CONFIG.url,
-      SUPABASE_CONFIG.service_key
-    );
+    if (SUPABASE_CONFIG.service_key) {
+      supabaseAdmin = window.supabase.createClient(
+        SUPABASE_CONFIG.url,
+        SUPABASE_CONFIG.service_key
+      );
+    }
   } else {
     console.warn('[Cloud] Supabase SDK not available — cloud features disabled');
   }

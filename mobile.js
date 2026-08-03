@@ -251,6 +251,81 @@ const Mobile = (() => {
     });
   }
 
+  const TAB_ORDER = ['dashboard','planner','sessions','flashcards','recalls','quizzes','notes','assignments','coach','ai-content-generator','ai-tutor','ai-lessons','ai-voice','warmup','studyguide','generators','calculator','tutorial','autism','subjects','calendar','social','analytics','settings'];
+
+  function setupSwipeNavigation() {
+    // Snapchat-style: swipe left/right across the app to move between tabs.
+    let startX = null, startY = null, moved = false;
+    document.addEventListener('touchstart', (e) => {
+      // don't hijack swipes started inside scrollable/editable regions
+      const t = e.target;
+      if (t && (t.closest('.fc-flip-card') || t.closest('.gen-map-canvas') || t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.tagName === 'SELECT')) {
+        startX = null; return;
+      }
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      moved = false;
+    }, { passive: true });
+    document.addEventListener('touchmove', (e) => {
+      if (startX === null) return;
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      if (Math.abs(dx) > 24 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+        e.preventDefault();
+        moved = true;
+      }
+    }, { passive: false });
+    document.addEventListener('touchend', (e) => {
+      if (startX === null || !moved) { startX = null; return; }
+      const dx = e.changedTouches[0].clientX - startX;
+      const startEl = e.target;
+      const card = startEl.closest && startEl.closest('.card');
+      const current = document.querySelector('.tab.active');
+      let idx = TAB_ORDER.indexOf(current && current.id ? current.id : 'dashboard');
+      if (idx === -1) idx = 0;
+      if (Math.abs(dx) > 70) {
+        if (dx < 0) { idx = Math.min(TAB_ORDER.length - 1, idx + 1); }
+        else { idx = Math.max(0, idx - 1); }
+        const nextTab = TAB_ORDER[idx];
+        const btn = document.querySelector(`.nav-btn[data-tab="${nextTab}"]`);
+        if (btn) {
+          hapticFeedback('light');
+          btn.click();
+        }
+      }
+      startX = null; startY = null; moved = false;
+    }, { passive: true });
+  }
+
+  function capturePhoto(callback) {
+    // Native Camera plugin when available, otherwise browser file input.
+    if (isNative && Capacitor && Capacitor.Plugins && Capacitor.Plugins.Camera) {
+      Capacitor.Plugins.Camera.getPhoto({
+        quality: 85,
+        resultType: 'dataUrl',
+        allowEditing: true,
+        source: 'CAMERA'
+      }).then((photo) => {
+        if (photo && photo.dataUrl) callback(photo.dataUrl);
+        else callback(null);
+      }).catch(() => callback(null));
+      return;
+    }
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment';
+    input.addEventListener('change', () => {
+      const file = input.files && input.files[0];
+      if (!file) { callback(null); return; }
+      const reader = new FileReader();
+      reader.onload = () => callback(reader.result);
+      reader.onerror = () => callback(null);
+      reader.readAsDataURL(file);
+    });
+    input.click();
+  }
+
   return {
     init,
     getPlatform,
@@ -261,6 +336,8 @@ const Mobile = (() => {
     hapticFeedback,
     addMobileStyles,
     createMobileNav,
-    syncMobileNav
+    syncMobileNav,
+    setupSwipeNavigation,
+    capturePhoto
   };
 })();
