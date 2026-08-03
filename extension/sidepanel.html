@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StudyHub Side Tutor</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <header class="sp-header">
+    <div class="sp-brand">
+      <span class="sp-logo">S</span>
+      <div>
+        <h1>StudyHub Tutor</h1>
+        <p id="spCurrentTab" class="sp-tab-label">No page context yet</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="sp-main">
+    <div class="sp-actions">
+      <button id="spCaptureBtn" class="sp-btn">Capture current page</button>
+      <button id="spClearBtn" class="sp-btn ghost">Clear</button>
+    </div>
+    <div class="sp-context">
+      <div class="sp-label">Page context</div>
+      <div id="spContext" class="sp-context-box"><span class="sp-muted">Press "Capture current page" to let the tutor read the page you're on.</span></div>
+    </div>
+    <div class="sp-chat" id="spChat"></div>
+  </main>
+
+  <footer class="sp-footer">
+    <textarea id="spInput" class="sp-input" rows="2" placeholder="Ask a question about the page, or anything you're studying..."></textarea>
+    <button id="spSendBtn" class="sp-btn send">Ask</button>
+    <p class="sp-note">The tutor teaches, not does. It will guide you with hints and follow-up questions.</p>
+  </footer>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

@@ -3632,16 +3632,27 @@ function setupGoogleConnection() {
 
   if (!connectBtn) return;
 
+  // Pull the OAuth client ID from the serverless config (keeps it out of settings code)
+  let googleClientId = '';
+  (async function() {
+    try {
+      const r = await fetch('/api/config', { method: 'GET' });
+      if (r.ok) {
+        const cfg = await r.json();
+        googleClientId = cfg.google && cfg.google.clientId ? cfg.google.clientId : '';
+      }
+    } catch (e) { logErrors('googleConfig')(e); }
+  })();
+
   connectBtn.addEventListener('click', () => {
     // Build scope from checked checkboxes
     const scopes = [];
     scopeChecks.forEach(c => { if (c.checked) scopes.push(c.value); });
     if (!scopes.length) { showToast('Select at least one service'); return; }
     googleAuth.scope = scopes.join(' ');
-    // Open Google OAuth URL (user must set up their own Client ID in Settings)
-    const clientId = state.settings.googleClientId || '';
+    const clientId = state.settings.googleClientId || googleClientId || '';
     if (!clientId) {
-      showToast('Set your Google OAuth Client ID in the settings first');
+      showToast('Google OAuth is not configured yet. Set GOOGLE_CLIENT_ID in Vercel env (see Settings → API & Integrations).');
       return;
     }
     const redirectUri = window.location.origin + '/oauth2callback.html';
@@ -3806,6 +3817,33 @@ function init() {
     if (e.key === 'd' || e.key === 'D') { dcount++; if (dcount >= 5) { dcount = 0; openDebugOverlay(); } e.preventDefault(); }
   });
   if (window.__DEBUG) setTimeout(openDebugOverlay, 1200);
+  // Landing overlay + PWA install
+  let deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    const ib = $('installPwaBtn');
+    if (ib) ib.style.display = '';
+  });
+  const homeBtn = $('homeBtn');
+  if (homeBtn) homeBtn.addEventListener('click', () => {
+    const ov = $('landingOverlay');
+    if (ov) ov.classList.remove('hidden');
+  });
+  const lc = $('landingClose');
+  if (lc) lc.addEventListener('click', () => { const ov = $('landingOverlay'); if (ov) ov.classList.add('hidden'); });
+  const loa = $('landingOpenApp');
+  if (loa) loa.addEventListener('click', () => { const ov = $('landingOverlay'); if (ov) ov.classList.add('hidden'); });
+  const ipb = $('installPwaBtn');
+  if (ipb) {
+    ipb.style.display = (deferredPrompt ? '' : 'none');
+    ipb.addEventListener('click', async () => {
+      if (deferredPrompt) { deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; ipb.style.display = 'none'; }
+      else if (navigator && navigator.share) {
+        try { await navigator.share({ title: 'Study Hub', text: 'Install Study Hub on your device', url: window.location.origin }); } catch (e) { showToast('Use your browser menu → Add to Home Screen'); }
+      } else { showToast('Use your browser menu → Add to Home Screen'); }
+    });
+  }
   showTab('dashboard');
   if (typeof initializeCloudSystem === 'function') {
     initializeCloudSystem().catch(logErrors('initializeCloudSystem'));

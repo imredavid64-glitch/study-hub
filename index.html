@@ -65,6 +65,7 @@
             <p id="headerDate" class="subtle"></p>
           </div>
           <div class="topbar-actions">
+                  <button id="homeBtn" class="ghost" title="Back to Home / Landing"><span class="icon icon-sm icon-star"></span> Home</button>
                   <button id="quickFocusBtn">Start 25m Sprint</button>
                   <button id="seedDataBtn" class="ghost">Load Demo Data</button>
                   <button id="themeToggleBtn" class="ghost" title="Toggle dark mode"><span class="icon icon-sm icon-star"></span></button>
@@ -1871,6 +1872,35 @@
       <button id="setupNextBtn" class="onb-next" style="display:none;">Continue →</button>
       <button id="setupFinishBtn" class="onb-finish" style="display:none;"><span class="icon icon-sm icon-target"></span> Start Studying</button>
     </div>
+  </div>
+</div>
+
+<!-- ===== LANDING / DOWNLOAD OVERLAY ===== -->
+<div id="landingOverlay" class="landing-overlay hidden">
+  <div class="landing-inner">
+    <button id="landingClose" class="landing-close" title="Close">&times;</button>
+    <div class="landing-hero">
+      <p class="eyebrow">Academic OS</p>
+      <h1>Study Hub</h1>
+      <p class="landing-tagline">Plan smarter. Practice deeper. Improve daily. Your AI-powered study companion on every platform.</p>
+    </div>
+    <div class="landing-features">
+      <div class="lp-feature-card"><span class="icon icon-sm icon-ai"></span><strong>AI Tutor</strong><span>Socratic, voice-enabled tutoring</span></div>
+      <div class="lp-feature-card"><span class="icon icon-sm icon-card"></span><strong>Smart Flashcards</strong><span>Spaced repetition, swipe &amp; flip</span></div>
+      <div class="lp-feature-card"><span class="icon icon-sm icon-chart"></span><strong>Analytics</strong><span>Mastery, heatmaps, streaks</span></div>
+      <div class="lp-feature-card"><span class="icon icon-sm icon-voice"></span><strong>Voice Tutor</strong><span>Blind-friendly, reads &amp; asks aloud</span></div>
+    </div>
+    <div class="landing-download">
+      <h3>Get Study Hub</h3>
+      <div class="landing-download-btns">
+        <button id="installPwaBtn"><span class="icon icon-sm icon-star"></span> Install App</button>
+        <a id="dlAndroid" class="btn" href="https://github.com/imredavid64-glitch/study-hub/releases/latest/download/StudyHub.apk" target="_blank" rel="noopener">Android</a>
+        <a id="dlIos" class="btn" href="https://apps.apple.com" target="_blank" rel="noopener">iOS</a>
+        <a id="dlDesktop" class="btn" href="https://github.com/imredavid64-glitch/study-hub/releases/latest" target="_blank" rel="noopener">Desktop</a>
+      </div>
+      <p class="subtle">Android: install the APK from the releases page · iOS: install the PWA from Safari → Share → Add to Home Screen · Desktop: web or Chrome extension.</p>
+    </div>
+    <button id="landingOpenApp" class="landing-open-app"><span class="icon icon-sm icon-star"></span> Open Study Hub Dashboard</button>
   </div>
 </div>
  <script>(function(){var d=document.createElement('div');d.id='diag';d.style.cssText='display:none';document.body.appendChild(d);})();</script>
