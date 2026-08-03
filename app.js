@@ -198,7 +198,7 @@ function loadState() {
   }
 }
 function saveState() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { logErrors('saveState')(e); }
 }
 function deepMerge(t, s) {
   const r = cloneObj(t);
@@ -304,6 +304,11 @@ function $(id) {
 }
 function safeCall(fn) {
   try { return fn(); } catch(e) { if (typeof console !== 'undefined') console.warn(fn.name || 'fn', e); }
+}
+function logErrors(context) {
+  return function(err) {
+    if (typeof console !== 'undefined') console.error('[' + context + ']', err && err.stack ? err.stack : err);
+  };
 }
 function qs(s, c) { return (c || document).querySelector(s); }
 function qsa(s, c) { return (c || document).querySelectorAll(s); }
@@ -1233,7 +1238,7 @@ function renderBoxes() {
       box.innerHTML = `<h4 contenteditable="true">${escapeHtml(b.title || '')}</h4><div class="box-content" contenteditable="true">${escapeHtml(b.content || '')}</div>`;
       container.appendChild(box);
     });
-  } catch (e) {}
+  } catch (e) { logErrors('loadBoxingNotes')(e); }
 }
 function updateBoxingData() {
   const boxes = $('noteBoxingContainer').querySelectorAll('.note-box');
@@ -1311,8 +1316,8 @@ function renderNoteList() {
     switchNoteEditor(n.style); $('noteStyle').value = n.style;
     if (n.style === 'freeform') $('noteContent').value = n.content;
     else if (n.style === 'outline') $('noteOutlineContent').value = n.content;
-    else if (n.style === 'cornell') { try { const d = JSON.parse(n.content); $('noteCornellCues').value = d.cues || ''; $('noteCornellNotes').value = d.notes || ''; $('noteCornellSummary').value = d.summary || ''; } catch (e) {} }
-    else if (n.style === 'mapping') { try { const d = JSON.parse(n.content); $('noteMappingCenter').value = d.center || ''; $('noteMappingBranches').value = d.branches || ''; } catch (e) {} }
+    else if (n.style === 'cornell') { try { const d = JSON.parse(n.content); $('noteCornellCues').value = d.cues || ''; $('noteCornellNotes').value = d.notes || ''; $('noteCornellSummary').value = d.summary || ''; } catch (e) { logErrors('loadNoteCornell')(e); } }
+    else if (n.style === 'mapping') { try { const d = JSON.parse(n.content); $('noteMappingCenter').value = d.center || ''; $('noteMappingBranches').value = d.branches || ''; } catch (e) { logErrors('loadNoteMapping')(e); } }
     else if (n.style === 'charting') { $('noteChartData').value = n.content; renderChartTableFromData(); }
     else if (n.style === 'boxing') { $('noteBoxingData').value = n.content; renderBoxes(); }
     else if (n.style === 'sentence') $('noteSentenceContent').value = n.content;
@@ -1327,8 +1332,8 @@ function renderChartTableFromData() {
   try {
     const rows = JSON.parse($('noteChartData').value || '[]');
     const container = $('noteChartContainer');
-    if (rows.length) { let html = '<table class="note-charting">'; rows.forEach((r, i) => { html += '<tr>' + r.map((c, j) => i === 0 ? `<th contenteditable="true">${escapeHtml(c)}</th>` : `<td contenteditable="true">${escapeHtml(c)}</td>`).join('') + '</tr>'; }); html += '</table>'; container.innerHTML = html; }
-  } catch (e) {}
+    if (rows.length) { let html = '<table class="note-charting">'; rows.forEach((r, i) => { html += '<tr>' + r.map((c, j) => i === 0 ? `<th contenteditable="true">${escapeHtml(c)}</th>` : `<td contenteditable="true">${escapeHtml(c)}</td>`).join('') + '</tr>';     }); html += '</table>'; container.innerHTML = html; }
+  } catch (e) { logErrors('renderChartData')(e); }
 }
 
 // ===== ASSIGNMENTS =====
@@ -1804,93 +1809,6 @@ function setupGlobalShortcuts() {
 }
 
 // ===== AI VOICE MODE =====
-let voiceState = { mode: 'language', listening: false, recognition: null, transcriptHistory: [] };
-function setupVoiceMode() {
-  qsa('.sub-nav-btn').forEach(b => b.addEventListener('click', () => {
-    qsa('.sub-nav-btn').forEach(x => x.classList.remove('active'));
-    b.classList.add('active');
-    voiceState.mode = b.dataset.voiceMode;
-    $('voiceModeTitle').textContent = b.textContent;
-    const descs = {
-      language: 'Select a language and have a conversation with the AI. Practice speaking and get corrections on grammar and pronunciation.',
-      debate: 'Practice debating with the AI on any topic. Develop argumentation, critical thinking, and persuasion skills.',
-      presentation: 'Present your ideas to the AI audience. Get feedback on structure, clarity, delivery, and engagement.'
-    };
-    $('voiceModeDesc').textContent = descs[voiceState.mode] || '';
-    $('voiceLanguage').classList.toggle('hidden', voiceState.mode !== 'language');
-    $('voiceDebateTopic').classList.toggle('hidden', voiceState.mode !== 'debate');
-    $('voiceTranscript').innerHTML = '<p class="subtle">Press the microphone to start speaking. AI will respond with text and speech.</p>';
-    voiceState.transcriptHistory = [];
-  }));
-  const hasSpeechSupport = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
-  if (hasSpeechSupport) {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    voiceState.recognition = new SR();
-    voiceState.recognition.continuous = false;
-    voiceState.recognition.interimResults = false;
-    voiceState.recognition.lang = 'en-US';
-    voiceState.recognition.onresult = e => {
-      const t = e.results[0][0].transcript;
-      handleVoiceInput(t);
-    };
-    voiceState.recognition.onend = () => { stopVoiceInput(); };
-    voiceState.recognition.onerror = e => {
-      console.error('Speech recognition error:', e.error);
-      if (e.error !== 'no-speech') showToast('Voice recognition: ' + e.error);
-      stopVoiceInput();
-    };
-  } else {
-    $('voiceStartBtn').style.opacity = '0.5';
-    $('voiceStartBtn').title = 'Speech recognition not available in this browser';
-  }
-  $('voiceStartBtn').addEventListener('click', startVoiceInput);
-  $('voiceStopBtn').addEventListener('click', stopVoiceInput);
-  $('voiceClearBtn').addEventListener('click', () => {
-    $('voiceTranscript').innerHTML = '<p class="subtle">Transcript cleared.</p>';
-    voiceState.transcriptHistory = [];
-    showToast('Transcript cleared');
-  });
-}
-function startVoiceInput() {
-  if (!voiceState.recognition) { showToast('Speech recognition not supported in this browser'); return; }
-  voiceState.listening = true;
-  updateVoiceUI();
-  try { voiceState.recognition.start(); } catch (e) { showToast('Speech recognition error'); }
-}
-function stopVoiceInput() {
-  voiceState.listening = false;
-  updateVoiceUI();
-  try { voiceState.recognition?.stop(); } catch (e) {}
-}
-function updateVoiceUI() {
-  $('voiceStartBtn').style.display = voiceState.listening ? 'none' : '';
-  $('voiceStopBtn').style.display = voiceState.listening ? '' : 'none';
-  $('voiceAvatar').classList.toggle('speaking', voiceState.listening);
-}
-async function handleVoiceInput(text) {
-  const transcript = $('voiceTranscript');
-  transcript.innerHTML += `<div><strong>You:</strong> ${escapeHtml(text)}</div>`;
-  state.voiceTranscript.push({ role: 'user', content: text, timestamp: new Date().toISOString() });
-  const lang = $('voiceLanguage').value;
-  const topic = $('voiceDebateTopic').value || 'general';
-  const systemPrompts = {
-    language: `You are a ${lang} language practice partner. Respond in ${lang} first, then provide an English translation. Correct grammar mistakes naturally.`,
-    debate: `Debate the user on "${topic}". Present arguments, counterarguments, and challenge their position respectfully.`,
-    presentation: 'Give constructive feedback on the user\'s presentation. Note pacing, clarity, structure, and content.'
-  };
-  try {
-    const txt = await groqChat([{ role: 'system', content: systemPrompts[voiceState.mode] || systemPrompts.language }, { role: 'user', content: text }], { maxTokens: 1024 });
-    transcript.innerHTML += `<div class="call-bubble ai"><strong>AI:</strong> ${renderMarkdown(txt)}</div>`;
-    state.voiceTranscript.push({ role: 'assistant', content: txt, timestamp: new Date().toISOString() });
-    if ('speechSynthesis' in window) {
-      const utter = new SpeechSynthesisUtterance(txt);
-      utter.lang = voiceState.mode === 'language' ? (lang === 'spanish' ? 'es-ES' : lang === 'french' ? 'fr-FR' : lang === 'german' ? 'de-DE' : lang === 'japanese' ? 'ja-JP' : lang === 'mandarin' ? 'zh-CN' : lang === 'arabic' ? 'ar-SA' : lang === 'portuguese' ? 'pt-BR' : lang === 'italian' ? 'it-IT' : 'en-US') : 'en-US';
-      window.speechSynthesis.speak(utter);
-    }
-    transcript.scrollTop = transcript.scrollHeight;
-  } catch (e) { transcript.innerHTML += `<div><strong>AI:</strong> Error generating response.</div>`; }
-  saveState();
-}
 
 // ===== ANALYTICS =====
 let charts = { studyChart: null, completionChart: null };
@@ -2308,7 +2226,7 @@ function setupSubjects() {
       var oldGraphBtn = mathPanel.querySelector('#plotGraphBtn');
       if (!oldGraphBtn) return;
       function plotGraph() {
-        var canvas = mathPanel.querySelector('#graphCanvas');
+        var canvas = mathPanel.querySelector('#graphCanvasAi');
         if (!canvas) return;
         var ctx = canvas.getContext("2d");
         var W = 500, H = 280;
@@ -3526,7 +3444,7 @@ function init() {
   if (sd) sd.addEventListener('click', seedDemoData);
   showTab('dashboard');
   if (typeof initializeCloudSystem === 'function') {
-    initializeCloudSystem().catch(() => {});
+    initializeCloudSystem().catch(logErrors('initializeCloudSystem'));
   }
   } catch(e) {
     if (typeof console !== 'undefined') console.error('init() error:', e);
