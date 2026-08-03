@@ -1605,7 +1605,7 @@ async function sendAiChat() {
     const subjects = [...new Set(state.sessions.map(s => s.subject))].slice(0, 3).join(', ') || 'General';
     const peerPrompt = getPeerTutoringPrompt();
     const adhdNote = state.settings.adhdMode ? ' Keep responses VERY short and concise — 2-3 sentences max. The student has ADHD and needs brief, focused answers.' : '';
-    const systemPrompt = `You are an AI tutor for ${state.profile.name} (${state.profile.major}). Response style: ${style}. Study mode: ${mode}. ${peerPrompt}${adhdNote} Guide the student's thinking, ask probing questions, use analogies and real-world examples. Never give direct answers. Encourage critical thinking and active learning. Context: recent subjects include ${subjects}.`;
+    const systemPrompt = `You are a skilled Socratic tutor for ${state.profile.name} (${state.profile.major}). Response style: ${style}. Study mode: ${mode}. ${peerPrompt}${adhdNote} Pedagogical rules you ALWAYS follow: (1) Act like a personal teacher, not an answer machine — your goal is to build the student's understanding. (2) When the student asks a question, first help them THINK: check what they already know, break the problem into smaller steps, and give hints before solutions. (3) After you explain something, ALWAYS end your reply with exactly ONE clear follow-up question that checks understanding or pushes them a step further. (4) Connect ideas with analogies and real-world examples, and praise correct reasoning. Only give a direct answer when the student explicitly asks to be shown the full solution or is clearly stuck. Context: recent subjects include ${subjects}.`;
     const txt = await groqChat([
       { role: 'system', content: systemPrompt },
       { role: 'user', content: recentContext ? `Previous discussion:\n${recentContext}\n\nStudent's new question: ${q}` : q }
@@ -1728,7 +1728,7 @@ async function sendLessonChat() {
   hist.innerHTML += `<div class="chat-bubble user">${escapeHtml(q)}</div>`;
   try {
     const context = `Lesson topic: ${lessonState.topic}. Current step ${lessonState.currentStep + 1}: ${lessonState.steps[lessonState.currentStep]?.title || ''}. Lesson content: ${lessonState.steps[lessonState.currentStep]?.concept || ''}`;
-    const txt = await groqChat([{ role: 'system', content: 'You are a lesson assistant. Answer student questions about the current lesson step.' }, { role: 'user', content: `${context}\n\nStudent question: ${q}` }], { maxTokens: 1024 });
+    const txt = await groqChat([{ role: 'system', content: 'You are a Socratic lesson assistant. Guide the student to understand the current lesson step by asking them questions and leading them to the answer themselves. Give hints and worked reasoning, not just the answer. After each reply, end with ONE follow-up question that checks their understanding or prepares them for the next step.' }, { role: 'user', content: `${context}\n\nStudent question: ${q}` }], { maxTokens: 1024 });
     hist.innerHTML += `<div class="chat-bubble assistant">${renderMarkdown(txt)}</div>`;
     state.lessonChatHistory.push({ role: 'user', content: q, step: lessonState.currentStep });
     state.lessonChatHistory.push({ role: 'assistant', content: txt, step: lessonState.currentStep });
@@ -4303,6 +4303,8 @@ function setupAutismSupport() {
       aiInput.value = '';
       aiChat.innerHTML += '<div class="chat-bubble user">' + escapeHtml(q) + '</div>';
       var prefs = '';
+      var socratic = ' Help the student learn rather than just answer: ask what they already know, break it into small steps, then end with ONE simple follow-up question they can answer to check understanding.';
+      prefs += socratic;
       if (state.settings.autismClearLang !== false) prefs += ' Use clear, literal language. Avoid idioms and sarcasm.';
       if (state.settings.autismStepByStep !== false) prefs += ' Break down explanations step by step.';
       if (state.settings.autismPredictable !== false) prefs += ' Use consistent structure and predictable formatting.';
