@@ -1235,6 +1235,17 @@ button.danger:hover {
   align-self: flex-end;
   margin-left: auto;
 }
+
+.ai-thinking {
+  opacity: 0.7;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--muted);
+  max-width: 90%;
+  margin: 4px 0 12px 0;
+  padding-left: 12px;
+  border-left: 3px solid var(--accent);
+}
 .chat-bubble.assistant, .chat-bubble.ai {
   background: var(--surface);
   border-color: var(--border);

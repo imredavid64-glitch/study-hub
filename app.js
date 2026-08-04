@@ -407,7 +407,7 @@ function updateWelcomeTitle() {
 }
 
 function setupLearningStyle() {
-  var lsSel = $('studentLearningStyle');
+  var lsSel = $('profileLearningStyle');
   if (!lsSel) return;
   lsSel.value = studentLearningStyle || '';
   lsSel.addEventListener('change', function() {
@@ -468,19 +468,23 @@ function setupSampleLesson() {
   var sampleOutput = $('sampleLessonOutput');
   if (!sampleBtn || !sampleOutput) return;
   sampleBtn.addEventListener('click', async function() {
+    var topicEl = $('sampleLessonTopic');
+    var topic = topicEl ? topicEl.value.trim() || 'Photosynthesis' : 'Photosynthesis';
     sampleBtn.disabled = true;
     sampleBtn.textContent = 'Loading...';
     sampleOutput.innerHTML = '<div class="analysis-content">Loading sample lesson...</div>';
     sampleOutput.classList.remove('hidden');
     try {
+      var style = state.settings.responseStyle || 'detailed';
+      var profileCtx = [state.profile.interests && ('Interests: ' + state.profile.interests + '.'), state.profile.learningStyle && ('Preferred learning style: ' + state.profile.learningStyle + '.'), state.profile.difficulties && ('Known difficulties to handle patiently: ' + state.profile.difficulties + '.'), state.profile.goals && ('Goals to motivate them with: ' + state.profile.goals + '.')].filter(Boolean).join(' ');
       var resp = await groqChat([
-        { role: 'system', content: 'Give a 2‑minute sample micro‑lesson for a high‑school student. End with one follow‑up question. Use simple language, be encouraging, and structure for easy understanding.' },
-        { role: 'user', content: 'Create a sample lesson on Photosynthesis.' }
+        { role: 'system', content: `You are a skilled Socratic tutor for ${state.profile.name || 'the student'}. Response style: ${style}. Act like a personal teacher, build understanding through guided questions, end with ONE follow-up question that checks understanding. ${profileCtx ? 'Student profile: ' + profileCtx : ''}` },
+        { role: 'user', content: `Give a 60-second sample micro-lesson on "${topic}" for ${state.profile.major || 'a high-school student'}. Keep it brief, encouraging, and end with one follow-up question. Use simple language and structure for easy understanding.` }
       ], { maxTokens: 300 });
       sampleOutput.innerHTML = `
-        <h4>Sample Lesson</h4>
+        <h4>Sample Lesson: ${escapeHtml(topic)}</h4>
         <div class="analysis-content">
-          <div class="sample-text">${escapeHtml(resp)}</div>
+          <div class="sample-text">${renderMarkdown(resp)}</div>
           <div class="sample-actions">
             <button class="ghost" onclick="this.closest('.analysis-content').innerHTML += '<div class=\"note\">Student question: Can you explain chloroplasts in simpler terms</div>';">Ask for clarification</button>
             <button class="ghost" onclick="this.closest('.analysis-content').innerHTML += '<div class=\"note\">Student thinking: ...</div>';">Adjust thinking</button>
@@ -1870,8 +1874,11 @@ function setupAITutor() {
   $('savePreferences').addEventListener('click', () => {
     state.settings.responseStyle = $('responseStyle').value;
     state.settings.studyMode = $('studyMode').value;
+    if ($('showAiThinking')) state.settings.showAiThinking = $('showAiThinking').checked;
     saveState(); showToast('Preferences saved');
   });
+  const thinkChk = $('showAiThinking');
+  if (thinkChk) thinkChk.checked = state.settings.showAiThinking || false;
   renderAiSessionHistory();
 }
 async function sendAiChat() {
@@ -1890,12 +1897,19 @@ async function sendAiChat() {
     const peerPrompt = getPeerTutoringPrompt();
     const adhdNote = state.settings.adhdMode ? ' Keep responses VERY short and concise — 2-3 sentences max. The student has ADHD and needs brief, focused answers.' : '';
     const profileCtx = [state.profile.interests && ('Interests: ' + state.profile.interests + '.'), state.profile.learningStyle && ('Preferred learning style: ' + state.profile.learningStyle + '.'), state.profile.difficulties && ('Known difficulties to handle patiently: ' + state.profile.difficulties + '.'), state.profile.goals && ('Goals to motivate them with: ' + state.profile.goals + '.')].filter(Boolean).join(' ');
-    const systemPrompt = `You are a skilled Socratic tutor for ${state.profile.name} (${state.profile.major}). Response style: ${style}. Study mode: ${mode}. ${peerPrompt}${adhdNote} Pedagogical rules you ALWAYS follow: (1) Act like a personal teacher, not an answer machine — your goal is to build the student's understanding. (2) When the student asks a question, first help them THINK: check what they already know, break the problem into smaller steps, and give hints before solutions. (3) After you explain something, ALWAYS end your reply with exactly ONE clear follow-up question that checks understanding or pushes them a step further. (4) Connect ideas with analogies and real-world examples, and praise correct reasoning. Only give a direct answer when the student explicitly asks to be shown the full solution or is clearly stuck. Context: recent subjects include ${subjects}. Student profile: ${profileCtx}`;
-    const txt = await groqChat([
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: recentContext ? `Previous discussion:\n${recentContext}\n\nStudent's new question: ${q}` : q }
-    ], { maxTokens: 1024 });
-    convHistory.innerHTML += `<div class="chat-bubble assistant">${renderMarkdown(txt)}</div>`;
+     const systemPrompt = `You are a skilled Socratic tutor for ${state.profile.name} (${state.profile.major}). Response style: ${style}. Study mode: ${mode}. ${peerPrompt}${adhdNote} Pedagogical rules you ALWAYS follow: (1) Act like a personal teacher, not an answer machine — your goal is to build the student's understanding. (2) When the student asks a question, first help them THINK: check what they already know, break the problem into smaller steps, and give hints before solutions. (3) After you explain something, ALWAYS end your reply with exactly ONE clear follow-up question that checks understanding or pushes them a step further. (4) Connect ideas with analogies and real-world examples, and praise correct reasoning. Only give a direct answer when the student explicitly asks to be shown the full solution or is clearly stuck. If the student asks for direct instruction, start with "Let's think through this step by step..." Context: recent subjects include ${subjects}. Student profile: ${profileCtx}`;
+     const includeThinking = state.settings.showAiThinking;
+     const thinkPrompt = includeThinking ? `\n\nFirst, silently reason through your approach in a <thinking> block (do not show this to the student). Then, when responding, briefly narrate your pedagogical reasoning in a concise "Teaching thought:" line that the student CAN see, so they understand how you're guiding them. Format the teaching thought as: _Teaching thought: <brief reasoning>_` : '';
+     const txt = await groqChat([
+       { role: 'system', content: systemPrompt + thinkPrompt },
+       { role: 'user', content: recentContext ? `Previous discussion:\n${recentContext}\n\nStudent's new question: ${q}` : q }
+     ], { maxTokens: 1024 });
+     let assistantContent = txt;
+     let teachingThought = '';
+     const thoughtMatch = txt.match(/_Teaching thought:\s*(.+?)(?:$|<br|<\/)/i);
+     if (thoughtMatch) { teachingThought = thoughtMatch[1].trim(); assistantContent = txt.replace(thoughtMatch[0], '').trim(); }
+     convHistory.innerHTML += `<div class="chat-bubble assistant">${renderMarkdown(assistantContent)}</div>`;
+     if (includeThinking && teachingThought) { convHistory.innerHTML += `<div class="ai-thinking">${escapeHtml(teachingThought)}</div>`; }
     state.aiChatHistory.push({ role: 'user', content: q, timestamp: new Date().toISOString() });
     state.aiChatHistory.push({ role: 'assistant', content: txt, timestamp: new Date().toISOString() });
     if (state.aiChatHistory.length > 200) state.aiChatHistory = state.aiChatHistory.slice(-200);
@@ -3857,6 +3871,7 @@ async function fetchGoogleCalendar() {
 function init() {
   try {
   loadState();
+  initializeLearningStyle();
   applyLanguage();
   if (typeof Mobile !== 'undefined') {
     Mobile.init().then(() => {
@@ -3907,6 +3922,8 @@ function init() {
   safeCall(setupAutismSupport);
   safeCall(setupPeerTutoring);
   safeCall(setupGenerators);
+  safeCall(setupLearningStyle);
+  safeCall(setupSampleLesson);
   var qf = $('quickFocusBtn');
   if (qf) qf.addEventListener('click', () => {
     showTab('sessions');

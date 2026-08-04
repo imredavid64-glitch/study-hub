@@ -695,7 +695,7 @@
             <article class="card">
               <h3>AI Study Assistant</h3>
               <p class="subtle">Conversational AI tutor. I guide your thinking, never solve homework directly.</p>
-              <div class="chat-header"><span>Conversation</span><button class="expand-chat-btn" id="expandAiChat" title="Expand chat">+</button></div>
+              <div class="chat-header"><span>Conversation</span><button class="expand-chat-btn" id="expandAiChat" title="Expand chat">+</button><label style="font-weight:600"><input type="checkbox" id="showAiThinking"> Show AI thinking</label></div>
               <div id="aiChatHistory" class="stack chat-history"></div>
               <div class="inline top-gap">
                 <input id="aiChatInput" placeholder="Ask the tutor or request study help..." />
@@ -738,6 +738,15 @@
           <article class="card">
             <h3>Session History</h3>
             <div id="aiSessionHistory" class="stack"></div>
+          </article>
+          <article class="card">
+            <h3>Try a Sample Lesson</h3>
+            <p class="subtle">Run a 60-second mini-lesson to see how the AI Socratic tutor teaches — questions over lectures, always ending with a follow-up.</p>
+            <div class="inline top-gap">
+              <input id="sampleLessonTopic" placeholder="e.g. Photosynthesis, Fractions, The French Revolution" value="Photosynthesis" />
+              <button id="sampleLessonBtn">Try Sample Lesson</button>
+            </div>
+            <div id="sampleLessonOutput" class="top-gap hidden"></div>
           </article>
         </section>
 
