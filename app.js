@@ -3172,37 +3172,45 @@ function applyLanguage() {
       if (t !== key) b.textContent = t;
     });
   }
-  // Translate Settings labels (textContent for label/span elements)
-  const labelEls = {
-    settingsTitle: 'settingsTitle',
-    profileLabel: 'profileLabel',
-    themeLabel: 'themeLabel',
-    langLabel: 'langLabel',
-    exportBtn: 'exportBtn',
-    importBtn: 'importBtn',
-    resetBtn: 'resetBtn',
-    healthCheck: 'healthCheck',
-    saveProfile: 'saveProfile',
-    weeklyTarget: 'weeklyTarget',
-    targetGpa: 'targetGpa',
-    googleConnect: 'googleConnect',
-    googleClassroom: 'googleClassroom',
-    googleCalendar: 'googleCalendar',
-    googleOAuth: 'googleOAuth',
-    googleConnected: 'googleConnected',
-    googleDisconnect: 'googleDisconnect',
-    lectureGenerate: 'lectureGenerate',
-    voiceTitle: 'voiceTitle',
-    startCall: 'startCall',
-    voiceCallEnd: 'voiceCallEnd',
-    voiceAnalysis: 'voiceAnalysis',
-    recording: 'recording',
-    paused: 'paused',
+  // Translate Settings / Voice / Lecture labels. Only elements that exist in
+  // the DOM are touched; icon spans inside buttons are preserved (only the
+  // text nodes are replaced, so <span class="icon">...</span> survive).
+  // The HTML is authored in English, so skip when the UI is already English.
+  if (lang !== 'en') {
+    const labelEls = {
+    settingsProfileHeading: 'profileLabel',
+    settingsThemeHeading: 'themeLabel',
+    settingsLangHeading: 'langLabel',
+    exportDataBtn: 'exportBtn',
+    resetDataBtn: 'resetBtn',
+    runHealthCheckBtn: 'healthCheck',
+    saveProfileBtn: 'saveProfile',
+    googleConnectBtn: 'googleConnect',
+    googleDisconnectBtn: 'googleDisconnect',
+    lectureGenerateBtn: 'lectureGenerate',
+    voiceConvStart: 'startCall',
+    voiceConvEnd: 'voiceCallEnd',
   };
   Object.entries(labelEls).forEach(([id, key]) => {
-    const el = $(id);
-    if (el) el.textContent = __(key);
+    const el = document.getElementById(id);
+    if (!el) return;
+    const t = __(key);
+    if (t === key) return;
+    const textNodes = [];
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+    if (!textNodes.length) { el.textContent = t; return; }
+    let filled = false;
+    textNodes.forEach(function(n) {
+      if (!filled && n.nodeValue.trim()) {
+        n.nodeValue = n.nodeValue.replace(/\S[\s\S]*\S|\S/, ' ' + t);
+        filled = true;
+      } else {
+        n.nodeValue = '';
+      }
+    });
   });
+  }
   // Translate the language selector
   const langSelect = $('appLanguageSelect');
   if (langSelect) {
@@ -3935,7 +3943,7 @@ function init() {
   if (sd) sd.addEventListener('click', seedDemoData);
   // Debug overlay: open on ?debug=1, 'd' key x3, or mobile screen triple-tap on the app title
   var debugTaps = 0, lastTap = 0;
-  var appTitleEl = $('appTitle') || $('logoText') || document.querySelector('.brand');
+  var appTitleEl = document.getElementById('appTitle') || document.getElementById('logoText') || document.querySelector('.brand');
   if (appTitleEl) {
     appTitleEl.addEventListener('click', function() {
       var now = Date.now();

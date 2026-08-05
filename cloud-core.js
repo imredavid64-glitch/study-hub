@@ -92,7 +92,16 @@ class UserManager {
       this.userProfile = data;
       return true;
     } else {
-      console.error('Error checking user profile:', error);
+      // Graceful degradation: a non-PGRST116 error means the cloud backend
+      // is not set up (e.g. missing 'users' table or unreachable project).
+      // Log once with a clear message instead of spamming the console.
+      const msg = error && (error.message || error.error_description || error.code)
+        ? (error.message || error.error_description || error.code)
+        : 'unknown error';
+      if (!this._cloudWarned) {
+        this._cloudWarned = true;
+        console.warn('[Cloud] Supabase backend unavailable (' + msg + '). Running on local storage only.');
+      }
       return false;
     }
   }

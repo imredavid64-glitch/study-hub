@@ -1729,7 +1729,7 @@
         <section id="settings" class="tab">
           <div class="split-grid">
             <article class="card">
-              <h3>Profile</h3>
+              <h3 id="settingsProfileHeading">Profile</h3>
               <form id="profileForm" class="stack">
                 <input id="profileName" placeholder="Name" required />
                 <input id="profileMajor" placeholder="Program / Major" />
@@ -1746,7 +1746,7 @@
                 </select>
                 <input id="profileDifficulties" placeholder="Difficulties (e.g. focus, math anxiety, time management)" />
                 <input id="profileGoals" placeholder="Goals (e.g. reach a 3.5 GPA, get into med school, learn Spanish)" />
-                <button type="submit">Save Profile</button>
+                <button id="saveProfileBtn" type="submit">Save Profile</button>
               </form>
               <div class="learning-style-info">
                 <p><strong>Learning Style:</strong> Your learning style will adapt the app to work best with how you learn.</p>
@@ -1759,7 +1759,7 @@
               </div>
             </article>
             <article class="card">
-              <h3>Platform Theme</h3>
+              <h3 id="settingsThemeHeading">Platform Theme</h3>
               <p class="subtle">Choose a color theme for the entire platform.</p>
               <div class="theme-grid top-gap">
                 <button class="theme-swatch active" data-theme="teal" title="Teal">Teal</button>
@@ -1773,7 +1773,7 @@
               </div>
             </article>
             <article class="card">
-              <h3>App Language</h3>
+              <h3 id="settingsLangHeading">App Language</h3>
               <p class="subtle">Choose the app interface language.</p>
               <select id="appLanguageSelect" class="top-gap">
                 <option value="en">English</option>
