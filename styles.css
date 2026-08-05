@@ -286,6 +286,15 @@ body {
 .gen-map-canvas .subtle { text-align: center; margin-top: 120px; }
 .gen-map-node { transition: box-shadow 0.15s; }
 .gen-map-node:active { cursor: grabbing; box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+.gen-map-explanation-box {
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  min-height: 1em;
+}
 .gen-film-body { font-size: 0.9rem; line-height: 1.65; }
 .gen-model-parts { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .gen-model-part { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; background: var(--panel); }

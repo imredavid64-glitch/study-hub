@@ -396,6 +396,7 @@ function showTab(tabId) {
   if (tab) tab.classList.add('active');
   const btn = qs(`.nav-btn[data-tab="${tabId}"]`);
   if (btn) btn.classList.add('active');
+  if (tabId === 'analytics' && typeof renderCharts === 'function') renderCharts();
   updateWelcomeTitle();
   if (typeof Mobile !== 'undefined' && Mobile.syncMobileNav) Mobile.syncMobileNav(tabId);
 }
@@ -518,12 +519,6 @@ function saveLearningStyle() {
     saveState();
   }
 }
-function saveLearningStyle() {
-  if (studentLearningStyle && state.profile) {
-    state.profile.learningStyle = studentLearningStyle;
-    saveState();
-  }
-}
 
 // ===== DASHBOARD =====
 function renderDashboard() {
@@ -628,7 +623,7 @@ function setupPlanner() {
     state.tasks.push({ id: uid(), title: $('taskTitle').value, subject: $('taskSubject').value, due: $('taskDue').value, effort: +$('taskEffort').value, status: 'todo', createdAt: todayStr() });
     saveState(); renderKanban(); renderDashboard(); $('taskForm').reset(); showToast('Task added');
   });
-  $('generatePlanBtn').addEventListener('click', generateStudyPlan);
+  $('generatePlanBtn').addEventListener('click', generateAutoStudyPlan);
   renderGoals(); renderKanban();
 }
 function renderGoals() {
@@ -674,7 +669,7 @@ function renderKanban() {
     saveState(); renderKanban(); renderDashboard(); showToast('Task deleted');
   }));
 }
-function generateStudyPlan() {
+function generateAutoStudyPlan() {
   const start = $('planStartDate').value || todayStr();
   const hpd = +$('hoursPerDay').value || 3;
   const goals = state.goals.filter(g => new Date(g.deadline) >= new Date(start));
@@ -2113,9 +2108,13 @@ function setupAnalytics() {
   renderGradeAnalysis();
 }
 function renderCharts() {
-  if (charts.studyChart) { charts.studyChart.destroy(); charts.studyChart = null; }
-  if (charts.completionChart) { charts.completionChart.destroy(); charts.completionChart = null; }
   if (typeof Chart === 'undefined') return;
+  const canvas = $('studyChart');
+  if (canvas && !canvas.offsetParent) { return; }
+  const c1 = $('studyChart'), c2 = $('completionChart');
+  if (c1) { const ex = Chart.getChart(c1); if (ex) { ex.destroy(); } }
+  if (c2) { const ex = Chart.getChart(c2); if (ex) { ex.destroy(); } }
+  charts.studyChart = null; charts.completionChart = null;
   const days = [];
   const data = [];
   for (let i = 13; i >= 0; i--) {
@@ -4816,10 +4815,6 @@ function setupGenerators() {
     mm.nodes.push(n);
     return n;
   }
-  // ---- Interactive Mind Map (with explanations and more interactiveness) ----
-  var mapBtn = $('genMapBtn'), mapTopic = $('genMapTopic'), mapCanvas = $('genMapCanvas');
-  var addNodeBtn = $('genMapAddNode'), resetBtn = $('genMapReset'), mapExplanation = $('genMapExplanation');
-  var mm = { nodes: [], edges: [], dragging: null, offsetX: 0, offsetY: 0, selectedNode: null };
 
   function renderMindMap() {
     if (!mapCanvas) return;
@@ -4894,14 +4889,6 @@ function setupGenerators() {
     });
     mapCanvas.style.height = Math.max(360, (Math.max(...mm.nodes.map(n => n.y)) + 90)) + 'px';
     mapCanvas.style.width = Math.max(600, (Math.max(...mm.nodes.map(n => n.x)) + 220)) + 'px';
-  }
-  function positionEdge(line, a, b) {
-    var ax = a.x + 80, ay = a.y + 16, bx = b.x + 80, by = b.y + 16;
-    var dx = bx - ax, dy = by - ay;
-    var len = Math.max(10, Math.sqrt(dx * dx + dy * dy));
-    line.style.left = ax + 'px'; line.style.top = ay + 'px';
-    line.style.width = len + 'px';
-    line.style.transform = 'rotate(' + (Math.atan2(dy, dx) * 180 / Math.PI) + 'deg)';
   }
   function positionEdge(line, a, b) {
     var ax = a.x + 80, ay = a.y + 16, bx = b.x + 80, by = b.y + 16;

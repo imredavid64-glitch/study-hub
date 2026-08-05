@@ -489,29 +489,43 @@ class RealTimeDashboard {
     // Update various dashboard components
     switch (event.event_type) {
       case 'session_logged':
-        this.updateStudyTimeChart(event);
+        if (this.updateStudyTimeChart) this.updateStudyTimeChart(event);
         break;
       case 'task_completed':
-        this.updateTaskCompletionChart(event);
+        if (this.updateTaskCompletionChart) this.updateTaskCompletionChart(event);
         break;
       case 'flashcard_reviewed':
-        this.updateFlashcardReview(event);
+        if (this.updateFlashcardReview) this.updateFlashcardReview(event);
         break;
       case 'quiz_completed':
-        this.updateQuizPerformance(event);
+        if (this.updateQuizPerformance) this.updateQuizPerformance(event);
         break;
       case 'user_interaction':
-        this.updateUserActivity(event);
+        if (this.updateUserActivity) this.updateUserActivity(event);
         break;
     }
   }
 
   async initializeCharts() {
     // Initialize Chart.js with real-time data
+    // Note: app.js renderCharts() already owns the analytics canvases.
+    // Only create charts here when the helper methods exist AND the canvas
+    // is not already managed by the app, otherwise Chart.js throws
+    // "Canvas is already in use".
     if (typeof Chart !== 'undefined') {
-      this.studyTimeChart = this.createStudyTimeChart();
-      this.taskCompletionChart = this.createTaskCompletionChart();
-      this.analyticsHeatmap = this.createActivityHeatmap();
+      const c1 = document.getElementById('studyChart');
+      if (c1 && !Chart.getChart(c1)) {
+        this.studyTimeChart = this.createStudyTimeChart();
+      }
+      if (this.createTaskCompletionChart) {
+        const c2 = document.getElementById('completionChart');
+        if (c2 && !Chart.getChart(c2)) {
+          this.taskCompletionChart = this.createTaskCompletionChart();
+        }
+      }
+      if (this.createActivityHeatmap) {
+        this.analyticsHeatmap = this.createActivityHeatmap();
+      }
     }
   }
 
