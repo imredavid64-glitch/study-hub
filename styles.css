@@ -369,9 +369,9 @@ body {
   align-items: center;
   gap: 16px;
   font-size: 0.9rem;
+  width: auto;
   max-width: 90vw;
   animation: slideDown 0.4s ease;
-  pointer-events: auto;
 }
 .judge-banner .judge-banner-text {
   line-height: 1.5;
