@@ -18,12 +18,17 @@
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sonner@1.5.0/dist/sonner.umd.min.js"></script>
     <script src="mobile.js"></script>
     <script>window.addEventListener('error',function(e){var msg=e.message||e;try{var log=JSON.parse(localStorage.getItem('_js_errors')||'[]');log.push({msg:msg,time:new Date().toISOString()});if(log.length>20)log.shift();localStorage.setItem('_js_errors',JSON.stringify(log))}catch(_){}});window.addEventListener('unhandledrejection',function(e){window.dispatchEvent(new ErrorEvent('error',{message:'Promise: '+(e.reason&&e.reason.message||e.reason||'unknown')}))});</script>
     </head>
   <body>
-    <div class="ambient"></div>
-    <div class="app-shell">
+  <div class="ambient"></div>
+  <div id="judgeBanner" class="judge-banner">
+    <span class="judge-banner-text"><strong>🏆 Hackathon Judge Mode Active:</strong> Click 'Load Demo Data' to instantly populate decks, quizzes, and streak analytics without signing up.</span>
+    <button id="dismissBannerBtn" class="ghost judge-banner-dismiss">Dismiss</button>
+  </div>
+  <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
           <p class="eyebrow">Academic OS</p>
@@ -60,14 +65,31 @@
 
       <main class="main">
         <header class="topbar card">
-          <div>
-            <h2 id="welcomeTitle">Welcome, Scholar</h2>
-            <p id="headerDate" class="subtle"></p>
+          <div class="topbar-left">
+            <button id="mobileMenuBtn" class="mobile-menu-btn ghost" title="Toggle menu">
+              <span class="hamburger-icon"></span>
+            </button>
+            <div>
+              <h2 id="welcomeTitle">Welcome, Scholar</h2>
+              <p id="headerDate" class="subtle"></p>
+            </div>
           </div>
           <div class="topbar-actions">
                   <button id="homeBtn" class="ghost" title="Back to Home / Landing"><span class="icon icon-sm icon-star"></span> Home</button>
                   <button id="quickFocusBtn">Start 25m Sprint</button>
                   <button id="seedDataBtn" class="ghost">Load Demo Data</button>
+                  <div id="streakXPContainer" class="streak-xp-container">
+                    <div id="streakCounter" class="streak-counter">
+                      <span class="streak-icon">🔥</span>
+                      <span id="streakValue">0</span>
+                      <span class="streak-label">Day Streak</span>
+                    </div>
+                    <div id="xpCounter" class="xp-counter">
+                      <span class="xp-icon">✨</span>
+                      <span id="xpValue">0</span>
+                      <span class="xp-label">XP</span>
+                    </div>
+                  </div>
                   <button id="themeToggleBtn" class="ghost" title="Toggle dark mode"><span class="icon icon-sm icon-star"></span></button>
           </div>
         </header>
@@ -102,6 +124,20 @@
               <ul id="todayAgendaList" class="list"></ul>
             </article>
           </div>
+          <div class="split-grid">
+            <article class="card">
+              <h3>👥 Peer Activity Feed</h3>
+              <div id="peerActivityFeed" class="peer-activity-feed"></div>
+            </article>
+            <article class="card">
+              <h3>🏆 Weekly Leaderboard</h3>
+              <div id="weeklyLeaderboard" class="leaderboard-container"></div>
+            </article>
+          </div>
+          <article class="card">
+            <h3>📊 Impact Metrics Dashboard</h3>
+            <div id="impactMetrics" class="impact-metrics-grid"></div>
+          </article>
           <article class="card">
             <h3>Achievements</h3>
             <div id="achievementList" class="chip-wrap"></div>
@@ -940,9 +976,28 @@
               <div>
                 <h3><span class="icon icon-sm icon-chart"></span> Graph Plotter</h3>
                 <div class="stack" style="gap:10px">
-                  <input id="graphFnInput" placeholder="f(x) = e.g. x^2, sin(x), 2*x+1" value="x^2" />
-                  <div class="inline"><button id="graphPlotBtn">Plot</button><span class="small">^=power, pi, e</span></div>
-                  <canvas id="graphCanvas" height="320" style="background:var(--card-bg);border-radius:12px;border:1px solid var(--border);width:100%;"></canvas>
+                  <div class="inline" style="gap:6px">
+                    <input id="graphFnInput" placeholder="f(x) = e.g. x^2, sin(x), 2*x+1" value="x^2" style="flex:1" />
+                    <button id="graphPlotBtn">Plot</button>
+                  </div>
+                  <p class="subtle" style="margin:0">^=power, pi, e — click the <b>+</b>/<b>−</b>/arrow buttons to zoom and move around.</p>
+                  <div style="position:relative;width:100%;overflow:hidden;border:1px solid var(--border);border-radius:12px;background:var(--card-bg)">
+                    <canvas id="graphCanvas" height="440" style="display:block;width:100%;height:440px;"></canvas>
+                    <div style="position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:5px">
+                      <button class="graph-cam-btn" id="graphZoomIn" title="Zoom in">+</button>
+                      <button class="graph-cam-btn" id="graphZoomOut" title="Zoom out">−</button>
+                      <button class="graph-cam-btn" id="graphReset" title="Reset view">&#8635;</button>
+                    </div>
+                    <div style="position:absolute;bottom:8px;right:8px;display:flex;flex-direction:column;gap:5px;align-items:center">
+                      <button class="graph-cam-btn" id="graphPanUp" title="Pan up">&#9650;</button>
+                      <div style="display:flex;gap:5px">
+                        <button class="graph-cam-btn" id="graphPanLeft" title="Pan left">&#9664;</button>
+                        <button class="graph-cam-btn" id="graphPanRight" title="Pan right">&#9654;</button>
+                      </div>
+                      <button class="graph-cam-btn" id="graphPanDown" title="Pan down">&#9660;</button>
+                    </div>
+                    <span id="graphReadout" style="position:absolute;bottom:8px;left:10px;font-size:0.72rem;color:var(--muted);background:rgba(255,255,255,.75);border-radius:6px;padding:2px 8px"></span>
+                  </div>
                 </div>
               </div>
               <div>
@@ -1062,6 +1117,13 @@
                 <p class="subtle" style="margin-top:10px">Or type your own topic to practice it with AI:</p>
                 <input id="scriptTopic" placeholder="e.g. Ordering food, a job interview, presenting my project..." />
                 <button id="scriptGenerateBtn" class="ghost"><span class="icon icon-sm icon-ai"></span> Generate AI Script</button>
+                <p class="subtle" style="margin-top:10px">Or paste your own script lines below (one line each) to practice them exactly:</p>
+                <textarea id="scriptCustomLines" rows="4" placeholder="e.g.
+Hi, I'd like to order a coffee please.
+What size would you like?
+Medium, please.
+That will be three dollars." style="width:100%;margin-top:6px"></textarea>
+                <button id="scriptCustomBtn" class="ghost"><span class="icon icon-sm icon-note"></span> Practice My Lines</button>
               </div>
               <div id="scriptArea" class="script-area hidden">
                 <div id="scriptContent" class="script-content"></div>
@@ -1074,7 +1136,15 @@
             </article>
             <article class="card">
               <h3><span class="icon icon-sm icon-gear"></span> Adaptive Settings</h3>
-              <div class="stack">
+              <p class="subtle">Choose how much support you need on the spectrum. You can fine-tune individual options below.</p>
+              <div class="autism-spectrum top-gap" id="autismSpectrum" role="radiogroup" aria-label="Support level">
+                <button class="spectrum-seg" data-level="0" role="radio" aria-checked="false"><span class="spectrum-dot"></span><b>Independent</b><small>I can manage on my own</small></button>
+                <button class="spectrum-seg" data-level="1" role="radio" aria-checked="false"><span class="spectrum-dot"></span><b>Light</b><small>A few gentle nudges</small></button>
+                <button class="spectrum-seg" data-level="2" role="radio" aria-checked="false"><span class="spectrum-dot"></span><b>Moderate</b><small>Clear, structured help</small></button>
+                <button class="spectrum-seg" data-level="3" role="radio" aria-checked="false"><span class="spectrum-dot"></span><b>Strong</b><small>Step-by-step, visual aids</small></button>
+                <button class="spectrum-seg" data-level="4" role="radio" aria-checked="false"><span class="spectrum-dot"></span><b>Maximum</b><small>Everything, calm and slow</small></button>
+              </div>
+              <div class="stack top-gap">
                 <label><input type="checkbox" id="autismClearLang" checked /> Use clear, literal language</label>
                 <label><input type="checkbox" id="autismStepByStep" checked /> Step-by-step instructions</label>
                 <label><input type="checkbox" id="autismVisual" checked /> Visual supports</label>
@@ -1148,6 +1218,15 @@
               <button id="practiceResetBtn" class="ghost">Clear</button>
             </div>
             <div id="practiceOutput" class="call-analysis" style="margin-top:12px"></div>
+            <div class="coach-chat top-gap">
+              <h4><span class="icon icon-sm icon-ai"></span> Talk to your Coach</h4>
+              <p class="subtle">Just chat normally — ask for advice, feedback, or motivation. The coach uses your past sessions and stats.</p>
+              <div id="coachChat" class="chat-history" style="max-height:260px;overflow-y:auto;"></div>
+              <div class="inline top-gap">
+                <input id="coachChatInput" placeholder="e.g. How do I stay focused during my 25-min sprints?" />
+                <button id="coachChatSend">Send</button>
+              </div>
+            </div>
           </article>
           <article class="card top-gap" id="accessibilityCard">
             <h3><span class="icon icon-sm icon-voice"></span> Text-to-Speech &amp; Voice Tutor</h3>
@@ -1204,19 +1283,34 @@
           </article>
           <article class="card">
             <h3><span class="icon icon-sm icon-film"></span> Film Generator</h3>
-            <p class="subtle">Turn any concept into a short educational film: hook, scenes, narration, and visuals.</p>
+            <p class="subtle">Turn any concept into a short educational film: AI-written scenes, generated visuals, and narration you can play back.</p>
             <div class="inline top-gap">
               <input id="genFilmTopic" placeholder="e.g. Photosynthesis, The Industrial Revolution" />
-              <button id="genFilmBtn"><span class="icon icon-sm icon-film"></span> Write the Film</button>
+              <button id="genFilmBtn"><span class="icon icon-sm icon-film"></span> Make the Film</button>
             </div>
             <div id="genFilmOut" class="gen-film-out top-gap"></div>
+            <div id="filmPlayer" class="film-player hidden top-gap">
+              <div class="film-screen">
+                <div class="film-frame"><img id="filmFrameImg" alt="film scene" /></div>
+                <div class="film-caption">
+                  <div class="film-scene-label" id="filmSceneLabel">Scene 1</div>
+                  <p id="filmNarration"></p>
+                </div>
+              </div>
+              <div class="film-controls">
+                <button id="filmPrev" class="ghost" title="Previous scene"><span class="icon icon-sm icon-prev">◀</span></button>
+                <button id="filmPlay" class="ghost" title="Play / Pause"><span class="icon icon-sm icon-play">▶</span></button>
+                <button id="filmNext" class="ghost" title="Next scene"><span class="icon icon-sm icon-next">▶</span></button>
+                <span id="filmProgress" class="film-progress"></span>
+              </div>
+            </div>
           </article>
           <article class="card">
             <h3><span class="icon icon-sm icon-image"></span> Image Generator</h3>
-            <p class="subtle">Create a study illustration for any concept (uses the free Pollinations image API).</p>
+            <p class="subtle">Find real, high-quality photos and diagrams for any study topic (from Wikimedia Commons — no AI).</p>
             <div class="inline top-gap">
-              <input id="genImgTopic" placeholder="e.g. a diagram of a plant cell" />
-              <button id="genImgBtn"><span class="icon icon-sm icon-image"></span> Generate Image</button>
+              <input id="genImgTopic" placeholder="e.g. plant cell diagram, solar eclipse photo" />
+              <button id="genImgBtn"><span class="icon icon-sm icon-image"></span> Find Images</button>
             </div>
             <div id="genImgOut" class="top-gap"></div>
           </article>
@@ -1770,6 +1864,14 @@
                 <button class="theme-swatch" data-theme="red" title="Red">Red</button>
                 <button class="theme-swatch" data-theme="pink" title="Pink">Pink</button>
                 <button class="theme-swatch" data-theme="yellow" title="Yellow">Yellow</button>
+                <button class="theme-swatch custom" data-theme="custom" title="Your color" style="background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)"></button>
+              </div>
+              <div class="inline top-gap" style="margin-top:10px;align-items:center">
+                <label style="display:flex;align-items:center;gap:8px;font-weight:600">
+                  <input type="color" id="customColorInput" value="#0f766e" style="width:42px;height:34px;border:none;background:none;cursor:pointer" />
+                  Custom color
+                </label>
+                <input id="customColorHex" class="ghost" value="#0f766e" maxlength="7" style="width:90px" />
               </div>
             </article>
             <article class="card">
@@ -1780,48 +1882,18 @@
                 <option value="hu">Magyar (Hungarian)</option>
               </select>
             </article>
+            <article class="card">
+              <h3>Keyboard Shortcuts</h3>
+              <p class="subtle">Press a key on your keyboard to jump straight to a tab. Click a box below, then press the key you want.</p>
+              <div class="shortcut-grid top-gap" id="shortcutGrid"></div>
+              <p class="subtle" style="margin-top:8px">Shortcuts only work when you are not typing in a text box.</p>
+            </article>
           </div>
           <article class="card">
-            <h3>API & Integrations</h3>
-            <div class="stack">
-              <div class="info-line">
-                <span><strong>Groq AI API</strong></span>
-                <span id="geminiApiStatus" class="badge">Checking...</span>
-              </div>
-              <div class="info-line">
-                <span><strong>Supabase Cloud</strong></span>
-                <span id="supabaseStatus" class="badge">Checking...</span>
-              </div>
-              <div class="info-line">
-                <span><strong>Google Classroom</strong></span>
-                <span class="badge">Requires OAuth Setup</span>
-              </div>
-              <div class="info-line">
-                <span><strong>Google Calendar</strong></span>
-                <span class="badge">iCal Import Available</span>
-              </div>
-            </div>
             <label class="top-gap" style="display:flex;align-items:center;gap:8px;font-weight:600"><input type="checkbox" id="adhdModeToggle" /> <span class="icon icon-sm icon-brain"></span> ADHD Mode — shorter AI explanations everywhere</label>
-            <div class="top-gap google-oauth-section">
-              <h4><span class="icon icon-sm icon-gear"></span> Google OAuth Connection</h4>
-              <p class="subtle">Connect Google Classroom & Calendar via OAuth. You need a Google Cloud Project with OAuth 2.0 credentials.</p>
-              <input id="googleClientId" placeholder="Google OAuth Client ID" class="top-gap" />
-              <div class="inline wrap top-gap">
-                <label style="font-size:12px"><input type="checkbox" name="google-scope" value="https://www.googleapis.com/auth/classroom.courses.readonly" checked /> Classroom</label>
-                <label style="font-size:12px"><input type="checkbox" name="google-scope" value="https://www.googleapis.com/auth/calendar.events.readonly" checked /> Calendar</label>
-              </div>
-              <div class="inline wrap top-gap">
-                <button id="googleConnectBtn" class="ghost"><span class="icon icon-sm icon-gear"></span> Connect Google</button>
-                <button id="googleDisconnectBtn" class="ghost danger" style="display:none;">Disconnect</button>
-                <button id="googleFetchClassroom" class="ghost small" onclick="fetchGoogleClassroom()">Fetch Classroom</button>
-                <button id="googleFetchCalendar" class="ghost small" onclick="fetchGoogleCalendar()">Fetch Calendar</button>
-              </div>
-              <div id="googleStatus" class="top-gap"><span class="badge">Not connected</span></div>
-            </div>
-            <button id="runHealthCheckBtn" class="ghost top-gap">Run Health Check</button>
-            <div id="healthCheckResults" class="top-gap"></div>
-            <button id="showDebugLogsBtn" class="ghost top-gap">Show JS Errors</button>
-            <div id="debugLogs" class="top-gap" style="max-height:200px;overflow:auto"></div>
+          </article>
+          <article class="card">
+            <label class="top-gap" style="display:flex;align-items:center;gap:8px;font-weight:600"><input type="checkbox" id="hideMusicToggle" /> <span class="icon icon-sm icon-music"></span> Hide the music player from the bottom of the screen</label>
           </article>
           <article class="card">
             <h3>Backup and Data</h3>
@@ -1839,8 +1911,7 @@
       </main>
     </div>
 
-    <div id="toast" class="toast hidden"></div>
-
+    
     <!-- Music Player -->
     <div id="musicPlayer" class="music-player">
       <div class="music-info">

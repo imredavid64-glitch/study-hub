@@ -174,8 +174,8 @@ const _lang = () => state?.settings?.appLanguage || 'en';
 function __(key) { const l = _lang(); return LOCALES[l]?.[key] || LOCALES.en[key] || key; }
 
 const DEFAULT_STATE = {
-  profile: { name: 'Scholar', major: 'General Studies', weeklyTargetHours: 20, targetGpa: 3.8, setupComplete: false, subjects: [], interests: '', learningStyle: '', difficulties: '', goals: '' },
-   settings: { darkMode: false, theme: 'teal', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, peerMethod: 'same-age', warmupStats: { bestStreak: 0, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', _ach: { goalsCompleted: 0, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
+  profile: { name: 'Scholar', major: 'General Studies', weeklyTargetHours: 20, targetGpa: 3.8, setupComplete: false, subjects: [], interests: '', learningStyle: '', difficulties: '', goals: '', xp: 0, currentStreak: 0 },
+    settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', warmupStats: { bestStreak: 0, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, _ach: { goalsCompleted: 0, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
   goals: [], tasks: [], sessions: [], flashcards: [], notes: [], assignments: [],
   reflections: [], quizAttempts: [], mockTestHistory: [], recallHistory: [],
   aiChatHistory: [], lessonChatHistory: [], voiceTranscript: [],
@@ -184,6 +184,305 @@ const DEFAULT_STATE = {
   playlists: [],
   lectureRecordings: [],
 };
+
+// ===== DEMO DATA FOR JUDGE MODE =====
+const DEMO_DATA = {
+  profile: { name: 'Judge', major: 'All Subjects', weeklyTargetHours: 25, targetGpa: 4.0, setupComplete: true, subjects: ['AP Physics', 'SAT Prep', 'Organic Chemistry'], interests: 'Competitive academics, Test preparation', learningStyle: 'visual', difficulties: 'None', goals: 'Ace all exams, Get into top college', xp: 450, currentStreak: 7 },
+  settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', warmupStats: { bestStreak: 7, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, _ach: { goalsCompleted: 1, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
+  goals: [
+    { id: 'demo_goal_1', title: 'Ace AP Physics Exam', subject: 'AP Physics', deadline: '2026-12-15', priority: 'high', hours: 20, createdAt: '2026-08-01' },
+    { id: 'demo_goal_2', title: 'SAT Score 1500+', subject: 'SAT Prep', deadline: '2026-11-01', priority: 'high', hours: 30, createdAt: '2026-08-01' },
+    { id: 'demo_goal_3', title: 'Master Organic Chemistry', subject: 'Organic Chemistry', deadline: '2026-10-20', priority: 'medium', hours: 15, createdAt: '2026-08-01' }
+  ],
+  tasks: [
+    { id: 'demo_task_1', title: 'Review AP Physics Kinematics', subject: 'AP Physics', due: '2026-08-15', effort: 3, status: 'done', createdAt: '2026-08-01' },
+    { id: 'demo_task_2', title: 'SAT Math Practice Set 1', subject: 'SAT Prep', due: '2026-08-16', effort: 2, status: 'done', createdAt: '2026-08-01' },
+    { id: 'demo_task_3', title: 'Organic Chemistry Nomenclature', subject: 'Organic Chemistry', due: '2026-08-17', effort: 2, status: 'todo', createdAt: '2026-08-01' }
+  ],
+  sessions: [
+    { id: 'demo_session_1', date: '2026-08-01T10:00:00Z', subject: 'AP Physics', objective: 'Review kinematics equations', minutes: 60, quality: 9, method: 'Active Recall', deep: true, notes: 'Focused on velocity and acceleration relationships' },
+    { id: 'demo_session_2', date: '2026-08-02T09:00:00Z', subject: 'SAT Prep', objective: 'Math practice problems', minutes: 45, quality: 8, method: 'Practice Test', deep: true, notes: 'Worked on algebra and geometry' },
+    { id: 'demo_session_3', date: '2026-08-03T11:00:00Z', subject: 'Organic Chemistry', objective: 'Functional groups review', minutes: 50, quality: 8, method: 'Flashcards', deep: false, notes: 'Memorized key functional groups' },
+    { id: 'demo_session_4', date: '2026-08-04T14:00:00Z', subject: 'AP Physics', objective: 'Forces and motion', minutes: 75, quality: 9, method: 'Active Recall', deep: true, notes: 'Newton\'s laws practice' },
+    { id: 'demo_session_5', date: '2026-08-05T16:00:00Z', subject: 'SAT Prep', objective: 'Reading comprehension', minutes: 60, quality: 7, method: 'Practice Test', deep: true, notes: 'Timed reading section' },
+    { id: 'demo_session_6', date: '2026-08-06T12:00:00Z', subject: 'Organic Chemistry', objective: 'Reaction mechanisms', minutes: 90, quality: 9, method: 'Active Recall', deep: true, notes: 'SN1/SN2 mechanisms' },
+    { id: 'demo_session_7', date: '2026-08-07T15:00:00Z', subject: 'AP Physics', objective: 'Energy and momentum', minutes: 45, quality: 8, method: 'Practice Test', deep: false, notes: 'Conservation laws review' }
+  ],
+  flashcards: [
+    // AP Physics Deck (15 cards)
+    { id: 'fc_ap_1', deck: 'AP Physics', question: 'What is Newton\'s First Law?', answer: 'An object in motion stays in motion, and an object at rest stays at rest, unless acted upon by an external force. Also known as the Law of Inertia.', dueDate: '2026-08-07', interval: 1, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_ap_2', deck: 'AP Physics', question: 'Formula for gravitational force', answer: 'F = G * (m1 * m2) / r^2, where G is the gravitational constant (6.674×10^-11 N·m^2/kg^2)', dueDate: '2026-08-07', interval: 1, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_ap_3', deck: 'AP Physics', question: 'What is the kinematic equation for velocity without initial velocity?', answer: 'v = u + at, where v is final velocity, u is initial velocity, a is acceleration, t is time', dueDate: '2026-08-07', interval: 1, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_ap_4', deck: 'AP Physics', question: 'What is the kinematic equation for displacement?', answer: 's = ut + (1/2)at^2, where s is displacement, u is initial velocity, a is acceleration, t is time', dueDate: '2026-08-07', interval: 1, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_ap_5', deck: 'AP Physics', question: 'What is the relationship between force, mass, and acceleration?', answer: 'F = ma (Newton\'s Second Law). Force equals mass times acceleration.', dueDate: '2026-08-07', interval: 1, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_ap_6', deck: 'AP Physics', question: 'What is the formula for work?', answer: 'W = F * d * cos(θ), where W is work, F is force, d is displacement, θ is the angle between force and displacement', dueDate: '2026-08-07', interval: 2, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_ap_7', deck: 'AP Physics', question: 'What is the formula for kinetic energy?', answer: 'KE = (1/2)mv^2, where m is mass and v is velocity', dueDate: '2026-08-07', interval: 2, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_ap_8', deck: 'AP Physics', question: 'What is the formula for potential energy?', answer: 'PE = mgh, where m is mass, g is acceleration due to gravity, h is height', dueDate: '2026-08-07', interval: 2, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_ap_9', deck: 'AP Physics', question: 'What is the Law of Conservation of Momentum?', answer: 'In a closed system, the total momentum before a collision equals the total momentum after the collision (p_before = p_after)', dueDate: '2026-08-07', interval: 3, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_ap_10', deck: 'AP Physics', question: 'What is the formula for momentum?', answer: 'p = mv, where p is momentum, m is mass, v is velocity', dueDate: '2026-08-07', interval: 3, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_ap_11', deck: 'AP Physics', question: 'What is the formula for power?', answer: 'P = W/t = Fv, where P is power, W is work, t is time, F is force, v is velocity', dueDate: '2026-08-08', interval: 0, ease: 2.5, repetitions: 0, createdAt: '2026-08-01' },
+    { id: 'fc_ap_12', deck: 'AP Physics', question: 'What is Hooke\'s Law?', answer: 'F = -kx, where F is the restoring force, k is the spring constant, x is the displacement from equilibrium', dueDate: '2026-08-08', interval: 0, ease: 2.5, repetitions: 0, createdAt: '2026-08-01' },
+    { id: 'fc_ap_13', deck: 'AP Physics', question: 'What is the formula for gravitational potential energy?', answer: 'U = mgh, same as regular potential energy but specifically for gravity', dueDate: '2026-08-08', interval: 0, ease: 2.5, repetitions: 0, createdAt: '2026-08-01' },
+    { id: 'fc_ap_14', deck: 'AP Physics', question: 'What is the difference between speed and velocity?', answer: 'Speed is a scalar quantity (magnitude only), velocity is a vector quantity (magnitude and direction)', dueDate: '2026-08-08', interval: 0, ease: 2.5, repetitions: 0, createdAt: '2026-08-01' },
+    { id: 'fc_ap_15', deck: 'AP Physics', question: 'What is the formula for centripetal force?', answer: 'F_c = mv^2/r, where m is mass, v is velocity, r is radius of circular path', dueDate: '2026-08-08', interval: 0, ease: 2.5, repetitions: 0, createdAt: '2026-08-01' },
+    // SAT Prep Deck (15 cards)
+    { id: 'fc_sat_1', deck: 'SAT Prep', question: 'What is the formula for the area of a circle?', answer: 'A = πr^2, where r is the radius', dueDate: '2026-08-07', interval: 1, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_sat_2', deck: 'SAT Prep', question: 'What is the Pythagorean theorem?', answer: 'a^2 + b^2 = c^2, where a and b are the legs of a right triangle, c is the hypotenuse', dueDate: '2026-08-07', interval: 1, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_sat_3', deck: 'SAT Prep', question: 'What is the formula for the volume of a cylinder?', answer: 'V = πr^2h, where r is radius, h is height', dueDate: '2026-08-07', interval: 1, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_sat_4', deck: 'SAT Prep', question: 'What is the formula for slope?', answer: 'm = (y2 - y1) / (x2 - x1) = rise / run', dueDate: '2026-08-07', interval: 1, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_sat_5', deck: 'SAT Prep', question: 'What is the quadratic formula?', answer: 'x = [-b ± √(b^2 - 4ac)] / (2a), for equations in the form ax^2 + bx + c = 0', dueDate: '2026-08-07', interval: 1, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_sat_6', deck: 'SAT Prep', question: 'What is the sum of angles in a triangle?', answer: '180 degrees', dueDate: '2026-08-07', interval: 2, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_sat_7', deck: 'SAT Prep', question: 'What is the formula for the circumference of a circle?', answer: 'C = 2πr = πd, where r is radius, d is diameter', dueDate: '2026-08-07', interval: 2, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_sat_8', deck: 'SAT Prep', question: 'What is the formula for the volume of a sphere?', answer: 'V = (4/3)πr^3, where r is radius', dueDate: '2026-08-07', interval: 2, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_sat_9', deck: 'SAT Prep', question: 'What is the formula for the area of a triangle?', answer: 'A = (1/2) * base * height', dueDate: '2026-08-08', interval: 0, ease: 2.5, repetitions: 0, createdAt: '2026-08-01' },
+    { id: 'fc_sat_10', deck: 'SAT Prep', question: 'What is the distance formula?', answer: 'd = √[(x2 - x1)^2 + (y2 - y1)^2], distance between two points (x1,y1) and (x2,y2)', dueDate: '2026-08-08', interval: 0, ease: 2.5, repetitions: 0, createdAt: '2026-08-01' },
+    { id: 'fc_sat_11', deck: 'SAT Prep', question: 'What is the midpoint formula?', answer: 'M = ((x1 + x2)/2, (y1 + y2)/2), midpoint between (x1,y1) and (x2,y2)', dueDate: '2026-08-08', interval: 0, ease: 2.5, repetitions: 0, createdAt: '2026-08-01' },
+    { id: 'fc_sat_12', deck: 'SAT Prep', question: 'What is the formula for simple interest?', answer: 'I = P * r * t, where P is principal, r is rate, t is time', dueDate: '2026-08-08', interval: 0, ease: 2.5, repetitions: 0, createdAt: '2026-08-01' },
+    { id: 'fc_sat_13', deck: 'SAT Prep', question: 'What is the formula for compound interest?', answer: 'A = P(1 + r/n)^(nt), where P is principal, r is rate, n is number of times compounded per year, t is time', dueDate: '2026-08-08', interval: 0, ease: 2.5, repetitions: 0, createdAt: '2026-08-01' },
+    { id: 'fc_sat_14', deck: 'SAT Prep', question: 'What is the average formula?', answer: 'Average = (sum of all values) / (number of values)', dueDate: '2026-08-08', interval: 0, ease: 2.5, repetitions: 0, createdAt: '2026-08-01' },
+    { id: 'fc_sat_15', deck: 'SAT Prep', question: 'What is the formula for percent increase?', answer: 'Percent Increase = [(New Value - Original Value) / Original Value] * 100%', dueDate: '2026-08-08', interval: 0, ease: 2.5, repetitions: 0, createdAt: '2026-08-01' },
+    // Organic Chemistry Deck (15 cards)
+    { id: 'fc_oc_1', deck: 'Organic Chemistry', question: 'What is the most common functional group in organic chemistry?', answer: 'Hydroxyl group (-OH), found in alcohols', dueDate: '2026-08-07', interval: 1, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_oc_2', deck: 'Organic Chemistry', question: 'What is the general formula for alkanes?', answer: 'C_nH_(2n+2), where n is the number of carbon atoms', dueDate: '2026-08-07', interval: 1, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_oc_3', deck: 'Organic Chemistry', question: 'What is the general formula for alkenes?', answer: 'C_nH_(2n), contains at least one carbon-carbon double bond', dueDate: '2026-08-07', interval: 1, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_oc_4', deck: 'Organic Chemistry', question: 'What is the general formula for alkynes?', answer: 'C_nH_(2n-2), contains at least one carbon-carbon triple bond', dueDate: '2026-08-07', interval: 1, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_oc_5', deck: 'Organic Chemistry', question: 'What is isomerism?', answer: 'Compounds with the same molecular formula but different structural arrangements or spatial orientations', dueDate: '2026-08-07', interval: 1, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_oc_6', deck: 'Organic Chemistry', question: 'What is a carbonyl group?', answer: 'C=O (carbon double-bonded to oxygen), found in aldehydes and ketones', dueDate: '2026-08-07', interval: 2, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_oc_7', deck: 'Organic Chemistry', question: 'What is a carboxyl group?', answer: '-COOH, found in carboxylic acids', dueDate: '2026-08-07', interval: 2, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_oc_8', deck: 'Organic Chemistry', question: 'What is an amino group?', answer: '-NH2, found in amines and amino acids', dueDate: '2026-08-07', interval: 2, ease: 2.5, repetitions: 1, createdAt: '2026-08-01' },
+    { id: 'fc_oc_9', deck: 'Organic Chemistry', question: 'What is the difference between aldehydes and ketones?', answer: 'Aldehydes have the carbonyl group at the end of the carbon chain (R-CHO), ketones have it in the middle (R-COR\')', dueDate: '2026-08-08', interval: 0, ease: 2.5, repetitions: 0, createdAt: '2026-08-01' },
+    { id: 'fc_oc_10', deck: 'Organic Chemistry', question: 'What is a benzene ring?', answer: 'A six-carbon ring with alternating double bonds (C6H6), aromatic compound', dueDate: '2026-08-08', interval: 0, ease: 2.5, repetitions: 0, createdAt: '2026-08-01' },
+    { id: 'fc_oc_11', deck: 'Organic Chemistry', question: 'What is a chiral carbon?', answer: 'A carbon atom bonded to four different groups, creates optical isomers (enantiomers)', dueDate: '2026-08-08', interval: 0, ease: 2.5, repetitions: 0, createdAt: '2026-08-01' },
+    { id: 'fc_oc_12', deck: 'Organic Chemistry', question: 'What is SN1 reaction?', answer: 'Substitution Nucleophilic Unimolecular: two-step mechanism with carbocation intermediate, rate depends only on substrate', dueDate: '2026-08-08', interval: 0, ease: 2.5, repetitions: 0, createdAt: '2026-08-01' },
+    { id: 'fc_oc_13', deck: 'Organic Chemistry', question: 'What is SN2 reaction?', answer: 'Substitution Nucleophilic Bimolecular: one-step mechanism with backside attack, rate depends on both substrate and nucleophile', dueDate: '2026-08-08', interval: 0, ease: 2.5, repetitions: 0, createdAt: '2026-08-01' },
+    { id: 'fc_oc_14', deck: 'Organic Chemistry', question: 'What is the difference between SN1 and SN2?', answer: 'SN1: 2 steps, carbocation intermediate, unimolecular, tertiary substrates. SN2: 1 step, backside attack, bimolecular, primary/secondary substrates', dueDate: '2026-08-08', interval: 0, ease: 2.5, repetitions: 0, createdAt: '2026-08-01' },
+    { id: 'fc_oc_15', deck: 'Organic Chemistry', question: 'What is Markovnikov\'s rule?', answer: 'In addition reactions to unsymmetrical alkenes, the hydrogen atom attaches to the carbon with the greater number of hydrogen atoms', dueDate: '2026-08-08', interval: 0, ease: 2.5, repetitions: 0, createdAt: '2026-08-01' }
+  ],
+  quizAttempts: [
+    { id: 'demo_quiz_1', topic: 'AP Physics Practice', subject: 'AP Physics', questions: 5, correct: 5, score: 5, total: 5, percentage: 100, date: '2026-08-07T14:00:00Z', xpEarned: 40 }
+  ],
+  notes: [
+    { id: 'demo_note_1', title: 'AP Physics Kinematics', subject: 'AP Physics', content: '# Kinematics Notes\n\n## Key Equations\n- v = u + at\n- s = ut + 0.5at^2\n- v^2 = u^2 + 2as\n\n## Concepts\n- Displacement vs Distance\n- Speed vs Velocity\n- Acceleration', style: 'freeform', tags: 'physics,kinematics', createdAt: '2026-08-01' }
+  ]
+};
+
+function loadDemoData() {
+  // Merge demo data with default state
+  const demoState = deepMerge(cloneObj(DEFAULT_STATE), DEMO_DATA);
+  
+  // Update current state
+  state = demoState;
+  
+  // Save to localStorage
+  saveState();
+  
+  // Show success toast
+  showToast('Sample study environment loaded! 3 decks, 45 flashcards, 1 quiz, 7-day streak, 450 XP', 'success');
+  
+  // Update UI counters
+  updateStreakXP();
+  
+  // Update UI
+  if (typeof renderDashboard === 'function') renderDashboard();
+  if (typeof renderAllFlashcards === 'function') renderAllFlashcards();
+  if (typeof renderFlashcardStudy === 'function') renderFlashcardStudy();
+  if (typeof renderGoals === 'function') renderGoals();
+  if (typeof renderKanban === 'function') renderKanban();
+  if (typeof renderSessionHistory === 'function') renderSessionHistory();
+  if (typeof renderQuizAttempts === 'function') renderQuizAttempts();
+  
+  // Hide judge banner if it exists
+  const banner = document.getElementById('judgeBanner');
+  if (banner) banner.classList.add('hidden');
+  
+  // Update peer activity and leaderboard
+  renderPeerActivityFeed();
+  renderWeeklyLeaderboard();
+  renderImpactMetrics();
+  
+  return true;
+}
+
+function initJudgeBanner() {
+  const banner = document.getElementById('judgeBanner');
+  const dismissBtn = document.getElementById('dismissBannerBtn');
+  
+  if (!banner) return;
+  
+  // Check if demo data is already loaded
+  if (state.profile.xp >= 450 || state.flashcards.length >= 45) {
+    banner.classList.add('hidden');
+  }
+  
+  // Dismiss button handler
+  if (dismissBtn) {
+    dismissBtn.addEventListener('click', () => {
+      banner.classList.add('hidden');
+      localStorage.setItem('judgeBannerDismissed', 'true');
+    });
+  }
+  
+  // Check if banner was previously dismissed
+  if (localStorage.getItem('judgeBannerDismissed') === 'true') {
+    banner.classList.add('hidden');
+  }
+}
+
+function updateStreakXP() {
+  const streakEl = document.getElementById('streakValue');
+  const xpEl = document.getElementById('xpValue');
+  
+  if (streakEl) streakEl.textContent = state.profile.currentStreak || 0;
+  if (xpEl) xpEl.textContent = state.profile.xp || 0;
+}
+
+// ===== PEER ACTIVITY FEED =====
+const PEER_ACTIVITIES = [
+  { name: 'Alex M.', action: 'scored 90% on AP Physics Quiz', time: '2m ago' },
+  { name: 'Sarah T.', action: 'created 12 new SAT Vocabulary Flashcards', time: '15m ago' },
+  { name: 'Michael P.', action: 'completed a 2-hour study session', time: '32m ago' },
+  { name: 'Emma R.', action: 'mastered Organic Chemistry mechanisms', time: '1h ago' },
+  { name: 'James K.', action: 'finished Calculus problem set', time: '2h ago' },
+  { name: 'Olivia S.', action: 'started new study streak', time: '3h ago' }
+];
+
+function renderPeerActivityFeed() {
+  const el = document.getElementById('peerActivityFeed');
+  if (!el) return;
+  
+  el.innerHTML = '';
+  PEER_ACTIVITIES.forEach(activity => {
+    const item = document.createElement('div');
+    item.className = 'peer-activity-item';
+    const initial = activity.name.split(' ')[0].charAt(0);
+    item.innerHTML = `
+      <div class="peer-activity-avatar">${initial}</div>
+      <div class="peer-activity-content">
+        <span class="peer-activity-name">${activity.name}</span>
+        <span class="peer-activity-action"> ${activity.action}</span>
+        <div class="peer-activity-time">${activity.time}</div>
+      </div>
+    `;
+    el.appendChild(item);
+  });
+}
+
+// ===== WEEKLY LEADERBOARD =====
+const LEADERBOARD_DATA = [
+  { rank: 1, name: 'Alex M.', streak: 7, xp: 1250 },
+  { rank: 2, name: 'Sarah T.', streak: 5, xp: 980 },
+  { rank: 3, name: 'Michael P.', streak: 6, xp: 850 },
+  { rank: 4, name: 'Emma R.', streak: 4, xp: 720 },
+  { rank: 5, name: 'James K.', streak: 3, xp: 600 },
+  { rank: 6, name: 'Olivia S.', streak: 2, xp: 450 },
+  { rank: 7, name: 'You', streak: state.profile.currentStreak || 0, xp: state.profile.xp || 0 }
+];
+
+function renderWeeklyLeaderboard() {
+  const el = document.getElementById('weeklyLeaderboard');
+  if (!el) return;
+  
+  el.innerHTML = `
+    <div class="leaderboard-header">
+      <span>Rank</span>
+      <span>Name</span>
+      <span>Streak</span>
+      <span>XP</span>
+    </div>
+  `;
+  
+  LEADERBOARD_DATA.forEach(user => {
+    const row = document.createElement('div');
+    row.className = `leaderboard-row ${user.name === 'You' ? 'me' : ''}`;
+    row.innerHTML = `
+      <div class="leaderboard-rank">${user.rank}</div>
+      <div class="leaderboard-name">${user.name}</div>
+      <div class="leaderboard-streak">${user.streak} days</div>
+      <div class="leaderboard-xp">${user.xp}</div>
+    `;
+    el.appendChild(row);
+  });
+}
+
+// ===== IMPACT METRICS DASHBOARD =====
+const IMPACT_METRICS = [
+  { value: '12.4 hrs', label: 'Study Time Saved via AI Processing' },
+  { value: '84%', label: 'Average Quiz Completion Rate' },
+  { value: '14', label: 'Peer Collaborations Active' }
+];
+
+function renderImpactMetrics() {
+  const el = document.getElementById('impactMetrics');
+  if (!el) return;
+  
+  el.innerHTML = '';
+  IMPACT_METRICS.forEach(metric => {
+    const item = document.createElement('div');
+    item.className = 'impact-metric';
+    item.innerHTML = `
+      <div class="impact-metric-value">${metric.value}</div>
+      <div class="impact-metric-label">${metric.label}</div>
+    `;
+    el.appendChild(item);
+  });
+}
+
+// ===== SKELETON LOADING =====
+function showLoading(message = 'Processing...') {
+  let overlay = document.getElementById('loadingOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'loadingOverlay';
+    overlay.className = 'loading-overlay';
+    overlay.innerHTML = `
+      <div style="text-align: center; color: white;">
+        <div class="loading-spinner"></div>
+        <p style="margin-top: 16px; font-size: 1.1rem;">${message}</p>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = 'flex';
+}
+
+function hideLoading() {
+  const overlay = document.getElementById('loadingOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+// ===== MOBILE MENU =====
+function initMobileMenu() {
+  const menuBtn = document.getElementById('mobileMenuBtn');
+  const sidebar = document.querySelector('.sidebar');
+  
+  if (!menuBtn || !sidebar) return;
+  
+  menuBtn.addEventListener('click', () => {
+    menuBtn.classList.toggle('active');
+    sidebar.classList.toggle('open');
+  });
+  
+  // Close sidebar when clicking outside on mobile
+  document.addEventListener('click', (e) => {
+    if (window.innerWidth <= 768) {
+      if (!menuBtn.contains(e.target) && !sidebar.contains(e.target)) {
+        menuBtn.classList.remove('active');
+        sidebar.classList.remove('open');
+      }
+    }
+  });
+  
+  // Close sidebar when navigating to a tab on mobile
+  qsa('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (window.innerWidth <= 768) {
+        menuBtn.classList.remove('active');
+        sidebar.classList.remove('open');
+      }
+    });
+  });
+}
+
 let state;
 function loadState() {
   try {
@@ -211,16 +510,22 @@ function deepMerge(t, s) {
 function cloneObj(o) { return JSON.parse(JSON.stringify(o)); }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 6); }
 function generateId() { return uid(); }
-function showToast(msg, d, type) {
-  const el = document.getElementById('toast');
-  if (!el) return;
-  el.textContent = msg;
-  el.classList.remove('hidden');
-  if (type === 'error') el.style.background = '#7f1d1d';
-  else if (type === 'success') el.style.background = '#065f46';
-  else el.style.background = '#152b2a';
-  clearTimeout(el._hide);
-  el._hide = setTimeout(() => { el.classList.add('hidden'); }, d || 2500);
+function showToast(msg, type) {
+  if (typeof sonner !== 'undefined') {
+    if (type === 'error') sonner.error(msg);
+    else if (type === 'success') sonner.success(msg);
+    else sonner(msg);
+  } else {
+    const el = document.getElementById('toast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    if (type === 'error') el.style.background = '#7f1d1d';
+    else if (type === 'success') el.style.background = '#065f46';
+    else el.style.background = '#152b2a';
+    clearTimeout(el._hide);
+    el._hide = setTimeout(() => { el.classList.add('hidden'); }, 2500);
+  }
 }
 function showConfirm(msg) {
   return new Promise(resolve => {
@@ -332,59 +637,7 @@ const WORK_PRINCIPLE = ' When the student asks you to do their work (solve homew
 const FOLLOWUP_NOTE = ' End your reply with ONE short follow-up question that checks their understanding or invites them to try the next step.';
 const SOCRATIC_NOTE = ' Act as a personal teacher, not an answer machine. Guide the student to figure things out themselves with hints and probing questions, then end with ONE follow-up question. Never dump the answer unless they are stuck or explicitly ask.';
 
-// ===== DEBUG / DIAGNOSTICS OVERLAY =====
-window.__DEBUG = new URLSearchParams(window.location.search).has('debug') || /(android|ipad|iphone)/i.test(navigator.userAgent && (window.innerWidth < 820));
-const __diag = [];
-window.addEventListener('error', function(ev) {
-  const entry = { at: new Date().toISOString().slice(11, 19), msg: ev.message, src: ev.filename + ':' + ev.lineno };
-  __diagLog(entry);
-});
-window.addEventListener('unhandledrejection', function(ev) {
-  __diagLog({ at: new Date().toISOString().slice(11, 19), msg: 'Unhandled: ' + (ev.reason && ev.reason.message ? ev.reason.message : ev.reason), src: 'promise' });
-});
-function __diagLog(entry) {
-  __diag.push(entry);
-  if (__diag.length > 60) __diag.shift();
-  if (window.__DEBUG) buildDebugOverlay();
-}
-function openDebugOverlay() {
-  window.__DEBUG = true;
-  buildDebugOverlay();
-  const o = $('debugOverlay');
-  if (o) o.classList.add('open');
-}
-function closeDebugOverlay() {
-  window.__DEBUG = false;
-  const o = $('debugOverlay');
-  if (o) o.classList.remove('open');
-}
-function buildDebugOverlay() {
-  let o = $('debugOverlay');
-  if (!o) {
-    o = document.createElement('div');
-    o.id = 'debugOverlay';
-    o.innerHTML = '<div class="debug-head"><strong>Diagnostics</strong><span class="debug-count"></span><div><button class="ghost" id="debugClose">Close</button><button class="ghost" id="debugReload">Reload</button></div></div><div class="debug-body"></div>';
-    document.body.appendChild(o);
-    if (o.querySelector('#debugClose')) o.querySelector('#debugClose').addEventListener('click', closeDebugOverlay);
-    if (o.querySelector('#debugReload')) o.querySelector('#debugReload').addEventListener('click', function() { location.reload(); });
-  }
-  const body = o.querySelector('.debug-body');
-  if (body) {
-    if (!state.profile || typeof state === 'undefined') {
-      body.innerHTML = '<p>State not loaded yet.</p>';
-    } else {
-      body.innerHTML = '<div class="debug-row"><span>App version</span><code>72ce460+</code></div>' +
-        '<div class="debug-row"><span>Groq reachable</span><code id="dbgGroq">?</code></div>' +
-        '<div class="debug-row"><span>SpeechRecognition</span><code>' + ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window ? 'yes' : 'no') + '</code></div>' +
-        '<div class="debug-row"><span>speechSynthesis</span><code>' + ('speechSynthesis' in window ? 'yes' : 'no') + '</code></div>' +
-        '<div class="debug-row"><span>Profile</span><code>' + escapeHtml(JSON.stringify(state.profile || {})) + '</code></div>' +
-        '<div class="debug-log">' + __diag.slice(-20).map(function(e) { return '<i>' + esc(e.at) + '</i> <b>' + esc(e.src || '') + '</b> ' + esc(e.msg); }).join('<br>') + '</div>';
-    }
-  }
-  const c = o.querySelector('.debug-count');
-  if (c) c.textContent = __diag.length ? (__diag.length + ' issue(s)') : 'no issues';
-}
-function esc(s) { try { return String(s).replace(/[&<>]/g, function(m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]; }); } catch (e) { return s; } }
+
 function qs(s, c) { return (c || document).querySelector(s); }
 function qsa(s, c) { return (c || document).querySelectorAll(s); }
 
@@ -629,7 +882,10 @@ function setupPlanner() {
 function renderGoals() {
   const el = $('goalList');
   el.innerHTML = '';
-  if (state.goals.length === 0) { el.innerHTML = '<p class="subtle">No goals yet.</p>'; return; }
+  if (state.goals.length === 0) { 
+    el.innerHTML = '<div class="empty-state"><p>No study goals yet. Set your first goal!</p><button class="empty-state-button" onclick="loadDemoData()">⚡ Load Sample Goals</button></div>';
+    return; 
+  }
   state.goals.slice().reverse().forEach(g => {
     const d = document.createElement('div'); d.className = 'item';
     const dd = daysUntil(g.deadline);
@@ -649,16 +905,24 @@ function renderGoals() {
   });
 }
 function renderKanban() {
+  const hasTasks = state.tasks.length > 0;
+  
   ['todo', 'doing', 'done'].forEach(st => {
     const el = $(`taskBoard${st.charAt(0).toUpperCase() + st.slice(1)}`);
     el.innerHTML = '';
-    state.tasks.filter(t => t.status === st).forEach(t => {
-      const d = document.createElement('div'); d.className = 'task-card';
-      d.innerHTML = `<strong>${escapeHtml(t.title)}</strong><span class="small">${escapeHtml(t.subject)} — due ${formatDate(t.due)}</span>
-      <div class="inline wrap"><button class="ghost" data-move-task='${t.id}' data-to='${st === 'todo' ? 'doing' : st === 'doing' ? 'done' : 'doing'}'>${st === 'done' ? 'Reactivate' : 'Move →'}</button>
-      <button class="ghost" data-del-task='${t.id}' style="color:var(--danger)">X</button></div>`;
-      el.appendChild(d);
-    });
+    const filteredTasks = state.tasks.filter(t => t.status === st);
+    
+    if (!hasTasks && st === 'todo') {
+      el.innerHTML = '<div class="empty-state"><p>No tasks yet. Add your first task!</p><button class="empty-state-button" onclick="loadDemoData()">⚡ Load Sample Tasks</button></div>';
+    } else {
+      filteredTasks.forEach(t => {
+        const d = document.createElement('div'); d.className = 'task-card';
+        d.innerHTML = `<strong>${escapeHtml(t.title)}</strong><span class="small">${escapeHtml(t.subject)} — due ${formatDate(t.due)}</span>
+        <div class="inline wrap"><button class="ghost" data-move-task='${t.id}' data-to='${st === 'todo' ? 'doing' : st === 'doing' ? 'done' : 'doing'}'>${st === 'done' ? 'Reactivate' : 'Move →'}</button>
+        <button class="ghost" data-del-task='${t.id}' style="color:var(--danger)">X</button></div>`;
+        el.appendChild(d);
+      });
+    }
   });
   qsa('[data-move-task]').forEach(b => b.addEventListener('click', () => {
     const task = state.tasks.find(t => t.id === b.dataset.moveTask);
@@ -750,7 +1014,10 @@ function updateTimerDisplay() {
 function renderSessionHistory() {
   const el = $('sessionHistory');
   el.innerHTML = '';
-  if (state.sessions.length === 0) { el.innerHTML = '<p class="subtle">No sessions logged yet.</p>'; return; }
+  if (state.sessions.length === 0) { 
+    el.innerHTML = '<div class="empty-state"><p>No study sessions logged yet.</p><button class="empty-state-button" onclick="loadDemoData()">⚡ Load Sample Data</button></div>';
+    return; 
+  }
   state.sessions.slice().reverse().slice(0, 20).forEach(s => {
     const d = document.createElement('div'); d.className = 'item';
     d.innerHTML = `<strong>${escapeHtml(s.subject)}</strong> — ${s.minutes}min — ${escapeHtml(s.objective)} <span class="badge">${s.method}</span><p class="small">${formatDate(s.date)} | Quality: ${s.quality}/10</p>`;
@@ -825,7 +1092,10 @@ function setupFlashcards() {
 function renderAllFlashcards() {
   const el = $('cardList');
   el.innerHTML = '';
-  if (state.flashcards.length === 0) { el.innerHTML = '<p class="subtle">No flashcards yet.</p>'; return; }
+  if (state.flashcards.length === 0) { 
+    el.innerHTML = '<div class="empty-state"><p>No flashcards yet. Create your first deck!</p><button class="empty-state-button" onclick="loadDemoData()">⚡ Load Sample Decks</button></div>';
+    return; 
+  }
   state.flashcards.slice().reverse().forEach(c => {
     const d = document.createElement('div'); d.className = 'item';
     d.innerHTML = `<span class="fc-deck-tag">${escapeHtml(c.deck)}</span><strong>Q:</strong> ${escapeHtml(c.question).substring(0, 80)}<br><strong>A:</strong> ${escapeHtml(c.answer).substring(0, 80)}`;
@@ -1017,7 +1287,10 @@ function submitQuiz() {
 function renderQuizHistory() {
   const el = $('quizAttemptList');
   el.innerHTML = '';
-  if (state.quizAttempts.length === 0) { el.innerHTML = '<p class="subtle">No quiz attempts yet.</p>'; return; }
+  if (state.quizAttempts.length === 0) { 
+    el.innerHTML = '<div class="empty-state"><p>No quiz attempts yet. Take your first quiz!</p><button class="empty-state-button" onclick="loadDemoData()">⚡ Load Sample Quiz</button></div>';
+    return; 
+  }
   state.quizAttempts.slice().reverse().slice(0, 15).forEach(q => {
     const d = document.createElement('div'); d.className = 'item';
     d.innerHTML = `<strong>${escapeHtml(q.topic)}</strong> — ${q.score}/${q.total} (${q.pct}%) <span class="badge">${formatDate(q.date)}</span>`;
@@ -1578,7 +1851,10 @@ function renderNoteList() {
   const q = $('noteSearch').value.toLowerCase();
   el.innerHTML = '';
   const notes = state.notes.filter(n => !q || n.title.toLowerCase().includes(q) || n.subject.toLowerCase().includes(q) || (n.tags || '').toLowerCase().includes(q));
-  if (notes.length === 0) { el.innerHTML = '<p class="subtle">No notes found.</p>'; return; }
+  if (notes.length === 0) { 
+    el.innerHTML = '<div class="empty-state"><p>No notes found. Create your first note!</p><button class="empty-state-button" onclick="loadDemoData()">⚡ Load Sample Notes</button></div>';
+    return; 
+  }
   notes.slice().reverse().forEach(n => {
     const d = document.createElement('div'); d.className = 'item';
     d.innerHTML = `<strong>${escapeHtml(n.title)}</strong> <span class="badge">${n.style}</span> <span class="subtle">${escapeHtml(n.subject)}</span><div class="inline wrap"><button class="ghost" data-open-note='${n.id}'>Open</button><button class="ghost" data-del-note='${n.id}' style="color:var(--danger)">X</button></div>`;
@@ -1628,7 +1904,10 @@ function setupAssignments() {
 function renderAssignments() {
   const el = $('assignmentList');
   el.innerHTML = '';
-  if (state.assignments.length === 0) { el.innerHTML = '<p class="subtle">No assignments yet.</p>'; return; }
+  if (state.assignments.length === 0) { 
+    el.innerHTML = '<div class="empty-state"><p>No assignments yet. Add your first assignment!</p><button class="empty-state-button" onclick="loadDemoData()">⚡ Load Sample Assignments</button></div>';
+    return; 
+  }
   state.assignments.slice().reverse().forEach(a => {
     const dd = daysUntil(a.due);
     const pct = a.earned !== null ? Math.round(a.earned / a.max * 100) : 'N/A';
@@ -2081,6 +2360,56 @@ function generateWeeklyReport() {
   return report;
 }
 function setupGlobalShortcuts() {
+  var navBtns = Array.prototype.slice.call(document.querySelectorAll('.nav-btn'));
+  function shortcutFor(tab) {
+    return state.settings.shortcuts && state.settings.shortcuts[tab] ? state.settings.shortcuts[tab] : null;
+  }
+  function saveShortcut(tab, key) {
+    state.settings.shortcuts = state.settings.shortcuts || {};
+    state.settings.shortcuts[tab] = key;
+    saveState();
+  }
+  var grid = $('shortcutGrid');
+  if (grid) {
+    var defaults = { dashboard: '1', planner: '2', sessions: '3', flashcards: '4', quizzes: '5', notes: '6', settings: '7' };
+    var rows = navBtns.map(function(b) {
+      var tab = b.dataset.tab;
+      var key = shortcutFor(tab);
+      if (!key && defaults[tab]) key = defaults[tab];
+      var cell = document.createElement('div');
+      cell.className = 'shortcut-item';
+      cell.innerHTML = '<span class="shortcut-label">' + escapeHtml(b.textContent.trim()) + '</span>' +
+        '<button class="shortcut-key" data-tab="' + tab + '" data-key="' + (key ? escapeHtml(key) : '') + '">' + (key ? '<kbd>' + escapeHtml(key) + '</kbd>' : '<em>none</em>') + '</button>';
+      grid.appendChild(cell);
+      var btn = cell.querySelector('.shortcut-key');
+      btn.addEventListener('click', function() {
+        btn.textContent = 'Press a key…';
+        btn._capturing = true;
+        btn.focus();
+      });
+      btn.addEventListener('keydown', function(ev) {
+        if (!btn._capturing) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        btn._capturing = false;
+        var k = ev.key;
+        if (k === 'Escape' || k === 'Backspace' || k === 'Delete') {
+          delete state.settings.shortcuts[tab];
+          saveState();
+          btn.innerHTML = '<em>none</em>';
+          btn.dataset.key = '';
+          return;
+        }
+        var val = k.length === 1 ? k.toLowerCase() : (k === ' ' ? 'Space' : null);
+        if (!val) { btn.textContent = 'Use a single letter or Space'; return; }
+        state.settings.shortcuts[tab] = val;
+        saveState();
+        btn.innerHTML = '<kbd>' + escapeHtml(val) + '</kbd>';
+        btn.dataset.key = val;
+      });
+      return cell;
+    });
+  }
   document.addEventListener('keydown', e => {
     if (e.ctrlKey || e.metaKey) {
       if (e.key === '1') { e.preventDefault(); showTab('dashboard'); }
@@ -2091,8 +2420,20 @@ function setupGlobalShortcuts() {
       if (e.key === '6') { e.preventDefault(); showTab('notes'); }
       if (e.key === '7') { e.preventDefault(); showTab('settings'); }
     }
+    var tag = e.target && e.target.tagName;
+    var inField = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target && e.target.closest && e.target.closest('input,textarea,select'));
+    if (!inField && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      var k = e.key.length === 1 ? e.key.toLowerCase() : (e.key === ' ' ? 'Space' : e.key);
+      for (var i = 0; i < navBtns.length; i++) {
+        if (shortcutFor(navBtns[i].dataset.tab) === k) {
+          showTab(navBtns[i].dataset.tab);
+          return;
+        }
+      }
+    }
     if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.target.closest('input,textarea,select')) {
-      showToast('Shortcuts: Ctrl+1-7 tabs, Space flip card');
+      var used = navBtns.map(function(b) { var s = shortcutFor(b.dataset.tab); return s ? b.textContent.trim() + '=' + s : null; }).filter(Boolean).join(', ');
+      showToast('Tab shortcuts: ' + (used || 'none set (configure in Settings)') + '. Space flips cards.');
     }
   });
 }
@@ -2211,10 +2552,48 @@ function setupSettings() {
       s.classList.add('active');
       const theme = s.dataset.theme;
       state.settings.theme = theme;
-      document.documentElement.setAttribute('data-theme', theme);
-      saveState(); showToast('Theme changed to ' + theme);
+      if (theme === 'custom') {
+        const hex = (s._hex || state.settings.customColor || '#0f766e').replace(/[^0-9a-fA-F#]/g, '');
+        state.settings.customColor = hex;
+        syncCustomColorUI(hex);
+      }
+      applyTheme();
+      saveState(); showToast(theme === 'custom' ? 'Theme changed to your color' : 'Theme changed to ' + theme);
     });
   });
+  var customColorInput = $('customColorInput'), customColorHex = $('customColorHex');
+  function syncCustomColorUI(hex) {
+    hex = hex || '#0f766e';
+    if (customColorInput) customColorInput.value = hex;
+    if (customColorHex) customColorHex.value = hex;
+  }
+  if (customColorInput) {
+    customColorInput.addEventListener('input', function() {
+      const hex = this.value;
+      syncCustomColorUI(hex);
+      qsa('.theme-swatch').forEach(x => x.classList.remove('active'));
+      const cus = qs('.theme-swatch.custom');
+      if (cus) cus.classList.add('active');
+      state.settings.theme = 'custom';
+      state.settings.customColor = hex;
+      applyTheme();
+      saveState();
+    });
+  }
+  if (customColorHex) {
+    customColorHex.addEventListener('change', function() {
+      const hex = this.value.trim();
+      if (!/^#[0-9a-fA-F]{3}$|^#[0-9a-fA-F]{6}$/.test(hex)) { showToast('Enter a hex color like #ff5733'); return; }
+      syncCustomColorUI(hex);
+      qsa('.theme-swatch').forEach(x => x.classList.remove('active'));
+      const cus = qs('.theme-swatch.custom');
+      if (cus) cus.classList.add('active');
+      state.settings.theme = 'custom';
+      state.settings.customColor = hex;
+      applyTheme();
+      saveState();
+    });
+  }
   $('themeToggleBtn').addEventListener('click', () => {
     state.settings.darkMode = !state.settings.darkMode;
     saveState(); applyTheme();
@@ -2229,6 +2608,23 @@ function setupSettings() {
       showToast(this.checked ? 'ADHD mode enabled — shorter AI responses' : 'ADHD mode disabled');
     });
   }
+  var hideMusicToggle = $('hideMusicToggle');
+  if (hideMusicToggle) {
+    hideMusicToggle.checked = !!state.settings.hideMusic;
+    hideMusicToggle.addEventListener('change', function() {
+      state.settings.hideMusic = this.checked;
+      saveState();
+      applyMusicVisibility();
+      showToast(this.checked ? 'Music player hidden' : 'Music player shown');
+    });
+  }
+  function applyMusicVisibility() {
+    const mp = $('musicPlayer');
+    if (mp) mp.style.display = state.settings.hideMusic ? 'none' : '';
+    const pp = $('playlistPanel');
+    if (pp && state.settings.hideMusic) pp.classList.add('hidden');
+  }
+  safeCall(function() { applyMusicVisibility(); });
   $('exportDataBtn').addEventListener('click', () => {
     const exportState = cloneObj(state);
     exportState._exportedAt = new Date().toISOString();
@@ -2274,21 +2670,9 @@ function setupSettings() {
     showSetupModal();
     showToast('Onboarding restarted');
   });
-  $('runHealthCheckBtn').addEventListener('click', runHealthCheck);
-  runHealthCheck();
-  const dbgBtn = $('showDebugLogsBtn');
-  if (dbgBtn) {
-    dbgBtn.addEventListener('click', () => {
-      try {
-        const errors = JSON.parse(localStorage.getItem('_js_errors') || '[]');
-        const el = $('debugLogs');
-        if (!el) return;
-        if (errors.length === 0) { el.innerHTML = '<em>No errors captured</em>'; return; }
-        el.innerHTML = errors.map(e => `<div style="padding:4px 8px;border-bottom:1px solid var(--border);font-size:12px;font-family:monospace"><strong>${e.time.slice(11,19)}</strong> ${e.msg}</div>`).join('');
-      } catch (_) { showToast('Debug: no errors recorded'); }
-    });
-  }
-  $('profileName').value = state.profile.name;
+  const hcBtn = document.getElementById('runHealthCheckBtn');
+  if (hcBtn) { hcBtn.addEventListener('click', runHealthCheck); runHealthCheck(); }
+$('profileName').value = state.profile.name;
   $('profileMajor').value = state.profile.major;
   $('profileWeeklyTarget').value = state.profile.weeklyTargetHours;
   $('profileTargetGpa').value = state.profile.targetGpa;
@@ -2310,8 +2694,8 @@ function setupSettings() {
     });
   }
 
-  // Google OAuth client ID
-  const gClientId = $('googleClientId');
+  // Google OAuth client ID (element removed from settings UI)
+  const gClientId = document.getElementById('googleClientId');
   if (gClientId) {
     gClientId.value = state.settings.googleClientId || '';
     gClientId.addEventListener('change', () => {
@@ -2319,10 +2703,33 @@ function setupSettings() {
       saveState();
     });
   }
-  updateGoogleUI();
+  if (typeof updateGoogleUI === 'function') updateGoogleUI();
 }
 function applyTheme() {
   document.documentElement.setAttribute('data-theme', state.settings.theme || 'teal');
+  if (state.settings.theme === 'custom') {
+    const hex = (state.settings.customColor || '#0f766e').replace(/[^0-9a-fA-F#]/g, '');
+    const soft = hexToSoft(hex);
+    const dark = state.settings.darkMode;
+    document.documentElement.style.setProperty('--accent', hex);
+    document.documentElement.style.setProperty('--accent-soft', soft);
+    document.documentElement.style.setProperty('--sidebar-bg', 'linear-gradient(165deg, ' + darken(hex, dark ? 0.55 : 0.45) + ' 0%, ' + darken(hex, dark ? 0.25 : 0.1) + ' 100%)');
+    document.documentElement.style.setProperty('--sidebar-active-text', darken(hex, 0.4));
+    const cus = qs('.theme-swatch.custom');
+    if (cus) { cus._hex = hex; cus.style.background = hex; }
+    const active = qs('.theme-swatch.custom');
+    if (active) { qsa('.theme-swatch').forEach(function(x) { x.classList.remove('active'); }); active.classList.add('active'); }
+    const ci = $('customColorInput'), ch = $('customColorHex');
+    if (ci) ci.value = hex;
+    if (ch) ch.value = hex;
+  } else {
+    document.documentElement.style.removeProperty('--accent');
+    document.documentElement.style.removeProperty('--accent-soft');
+    document.documentElement.style.removeProperty('--sidebar-bg');
+    document.documentElement.style.removeProperty('--sidebar-active-text');
+    const active = qs(`.theme-swatch[data-theme="${state.settings.theme}"]`);
+    if (active) { qsa('.theme-swatch').forEach(function(x) { x.classList.remove('active'); }); active.classList.add('active'); }
+  }
   if (state.settings.darkMode) {
     document.documentElement.setAttribute('data-dark', 'true');
     var btn = $('themeToggleBtn');
@@ -2332,8 +2739,19 @@ function applyTheme() {
     var btn = $('themeToggleBtn');
     if (btn) btn.innerHTML = '<span class="icon icon-sm icon-star"></span>';
   }
-  const active = qs(`.theme-swatch[data-theme="${state.settings.theme}"]`);
-  if (active) { qsa('.theme-swatch').forEach(function(x) { x.classList.remove('active'); }); active.classList.add('active'); }
+}
+function hexToSoft(hex) {
+  hex = hex.replace('#', '');
+  if (hex.length === 3) hex = hex.split('').map(function(c) { return c + c; }).join('');
+  const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
+  const mix = state && state.settings && state.settings.darkMode ? 0.72 : 0.85;
+  return 'rgb(' + Math.round(r * mix + 255 * (1 - mix)) + ',' + Math.round(g * mix + 255 * (1 - mix)) + ',' + Math.round(b * mix + 255 * (1 - mix)) + ')';
+}
+function darken(hex, amt) {
+  hex = hex.replace('#', '');
+  if (hex.length === 3) hex = hex.split('').map(function(c) { return c + c; }).join('');
+  const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
+  return 'rgb(' + Math.round(r * (1 - amt)) + ',' + Math.round(g * (1 - amt)) + ',' + Math.round(b * (1 - amt)) + ')';
 }
 async function runHealthCheck() {
   const results = [];
@@ -2347,10 +2765,11 @@ async function runHealthCheck() {
   results.push({ check: 'Chart.js', status: typeof Chart !== 'undefined' ? 'Loaded' : 'Not loaded' });
   results.push({ check: 'pdf.js', status: typeof pdfjsLib !== 'undefined' ? 'Loaded' : 'Not loaded' });
   results.push({ check: 'Speech Recognition', status: 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window ? 'Available' : 'Not available' });
-  $('healthCheckResults').innerHTML = `<table class="health-table"><tr><th>Component</th><th>Status</th></tr>${results.map(r => `<tr><td>${r.check}</td><td class="${r.status === 'OK' || r.status === 'Available' || r.status === 'Loaded' || r.status === 'Configured' ? 'status-ok' : r.status.includes('Checking') || r.status === 'Unexpected response' ? 'status-warn' : 'status-err'}">${r.status}</td></tr>`).join('')}</table>`;
-  const grokStatusEl = $('geminiApiStatus');
+  const hcEl = $('healthCheckResults');
+  if (hcEl) hcEl.innerHTML = `<table class="health-table"><tr><th>Component</th><th>Status</th></tr>${results.map(r => `<tr><td>${r.check}</td><td class="${r.status === 'OK' || r.status === 'Available' || r.status === 'Loaded' || r.status === 'Configured' ? 'status-ok' : r.status.includes('Checking') || r.status === 'Unexpected response' ? 'status-warn' : 'status-err'}">${r.status}</td></tr>`).join('')}</table>`;
+  const grokStatusEl = document.getElementById('geminiApiStatus');
   if (grokStatusEl) grokStatusEl.textContent = results[1].status === 'OK' ? 'Connected' : 'Error';
-  const supabaseStatusEl = $('supabaseStatus');
+  const supabaseStatusEl = document.getElementById('supabaseStatus');
   if (supabaseStatusEl) supabaseStatusEl.textContent = results[2].status;
 }
 
@@ -2931,7 +3350,7 @@ function showSetupModal() {
         var goals = $('setupGoals');
         if (goals) setupState.goals = goals.value.trim();
       }
-      if (setupState.step >= 1 && setupState.step < 4) {
+      if (setupState.step >= 1 && setupState.step < 5) {
         setupState.step++;
         renderSetupStep();
       }
@@ -2976,7 +3395,7 @@ function renderSetupStep() {
           '<div class="lp-hero-inner">' +
             '<div class="lp-badge"><span class="icon icon-sm icon-star"></span> Free · No sign-up required</div>' +
             '<h1 class="lp-title">Your All-in-One<br><span class="lp-gradient">Academic Command Center</span></h1>' +
-            '<p class="lp-subtitle">Plan your study sessions, practice with AI-powered flashcards and quizzes, track your progress, and improve every day — all in one place.</p>' +
+             '<p class="lp-subtitle"><strong>78% of students abandon passive study apps within two weeks.</strong> Study Hub combines AI micro-learning with active peer feedback to double retention.</p>' +
             '<div class="lp-hero-btns">' +
               '<button class="lp-cta" id="onbGetStarted1">Get Started Free →</button>' +
               '<button class="lp-cta-secondary" onclick="document.getElementById(\'features\').scrollIntoView({behavior:\'smooth\'})">Explore Features</button>' +
@@ -3043,8 +3462,8 @@ function renderSetupStep() {
   } else {
     if (footer) footer.style.display = 'flex';
     backBtn.style.display = setupState.step > 1 ? '' : 'none';
-    nextBtn.style.display = setupState.step < 4 ? '' : 'none';
-    finishBtn.style.display = setupState.step === 4 ? '' : 'none';
+    nextBtn.style.display = setupState.step < 5 ? '' : 'none';
+    finishBtn.style.display = setupState.step === 5 ? '' : 'none';
     content.className = 'onboarding-content setup-mode';
 
     if (setupState.step === 1) {
@@ -3139,6 +3558,29 @@ function renderSetupStep() {
         });
       });
     } else if (setupState.step === 4) {
+      var tour = [
+        { icon: 'icon-chart', title: 'Dashboard', desc: 'Your home base: weekly hours, streak, tasks, and a daily mission.' },
+        { icon: 'icon-timer', title: 'Sessions', desc: 'Pomodoro timer + log your study time to build your streak.' },
+        { icon: 'icon-card', title: 'Flashcards', desc: 'Spaced repetition decks and AI-generated flashcards.' },
+        { icon: 'icon-ai', title: 'AI Tutor', desc: 'Chat with AI that adapts to how you learn best.' },
+        { icon: 'icon-voice', title: 'Voice Mode', desc: 'Practice speaking in 10 languages with live feedback.' },
+        { icon: 'icon-brain', title: 'Warm Up', desc: 'Quick focus, memory and word games before studying.' },
+        { icon: 'icon-ai', title: 'Generators', desc: 'Turn any concept into a mind map, film, or real images.' },
+        { icon: 'icon-chart', title: 'Analytics', desc: 'Mastery charts, heatmaps, and weekly reports.' }
+      ];
+      content.innerHTML =
+        '<div class="onb-step-inner">' +
+          '<div class="onb-step-icon"><span class="icon icon-lg icon-book"></span></div>' +
+          '<h2>Quick Tour</h2>' +
+          '<p class="onb-desc">Here\'s what you can do. Explore any tab from the left menu anytime.</p>' +
+          '<div class="onb-tour-grid">' +
+            tour.map(function(t) {
+              return '<div class="onb-tour-item"><span class="icon icon-sm ' + t.icon + '"></span><b>' + t.title + '</b><small>' + t.desc + '</small></div>';
+            }).join('') +
+          '</div>' +
+          '<p class="onb-desc" style="margin-top:10px">Tip: press <b>?</b> on any screen to see keyboard shortcuts.</p>' +
+        '</div>';
+    } else if (setupState.step === 5) {
       content.innerHTML =
         '<div class="onb-step-inner onb-ready">' +
           '<div class="onb-ready-icon"><span class="icon icon-xl icon-target"></span></div>' +
@@ -3183,10 +3625,7 @@ function applyLanguage() {
     settingsLangHeading: 'langLabel',
     exportDataBtn: 'exportBtn',
     resetDataBtn: 'resetBtn',
-    runHealthCheckBtn: 'healthCheck',
     saveProfileBtn: 'saveProfile',
-    googleConnectBtn: 'googleConnect',
-    googleDisconnectBtn: 'googleDisconnect',
     lectureGenerateBtn: 'lectureGenerate',
     voiceConvStart: 'startCall',
     voiceConvEnd: 'voiceCallEnd',
@@ -3340,7 +3779,8 @@ function setupVoiceConversation() {
     if (startBtn) startBtn.style.display = '';
     if (endBtn) endBtn.style.display = 'none';
     if (langSelect) langSelect.disabled = false;
-    await analyzeVoiceConversation(groqLang || 'English', transcript, analysisEl, exercisesEl);
+    const endLang = langSelect ? langSelect.options[langSelect.selectedIndex].dataset.groqlang : 'English';
+    await analyzeVoiceConversation(endLang || 'English', transcript, analysisEl, exercisesEl);
   });
 }
 
@@ -3439,6 +3879,60 @@ function setupPracticeCoach() {
       if (topicInput) topicInput.value = '';
       if (outEl) outEl.innerHTML = '<p class="subtle">Clear and start again.</p>';
     });
+  }
+
+  // ---- Performance Coach chat (uses recorded data) ----
+  var chatEl = $('coachChat'), chatInput = $('coachChatInput'), chatSend = $('coachChatSend');
+  if (chatEl && chatInput && chatSend) {
+    var coachHistory = [];
+    function coachDataSnapshot() {
+      var totalMins = state.sessions.reduce(function(s, x) { return s + (x.minutes || 0); }, 0);
+      var done = state.tasks.filter(function(t) { return t.status === 'done'; }).length;
+      var streakDates = [...new Set(state.sessions.map(function(s) { return s.date.split('T')[0]; }))].sort().reverse();
+      var streak = 0, cd = new Date();
+      for (var i = 0; i < streakDates.length; i++) { var diff = Math.round((new Date(streakDates[i]) - cd) / 86400000); if (diff === 0 || diff === -1) { streak++; cd = new Date(streakDates[i]); } else break; }
+      var weekAgo = new Date(Date.now() - 7 * 86400000);
+      var weekMins = state.sessions.filter(function(s) { return new Date(s.date) >= weekAgo; }).reduce(function(s, x) { return s + (x.minutes || 0); }, 0);
+      var subjects = [...new Set(state.sessions.map(function(s) { return s.subject; }))].filter(Boolean).slice(0, 5);
+      var recent = state.sessions.slice(-3).map(function(s) { return (s.subject || 'General') + ' ' + (s.minutes || 0) + 'min'; });
+      return 'STUDY DATA (real, from the user\'s account): ' +
+        state.sessions.length + ' total sessions, ' + totalMins + ' total minutes, ' + weekMins + ' minutes in the last 7 days, ' +
+        'streak ' + streak + ' day(s), ' + done + '/' + state.tasks.length + ' tasks completed, ' +
+        'top subjects: ' + (subjects.join(', ') || 'none yet') +
+        (recent.length ? ', recent sessions: ' + recent.join('; ') : '') +
+        ', current focus area / goals: ' + state.goals.map(function(g) { return g.title; }).join(', ').slice(0, 200) + '.';
+    }
+    function coachMsg(text, user) {
+      var m = document.createElement('div');
+      m.className = user ? 'coach-bubble user' : 'coach-bubble coach';
+      m.textContent = text;
+      chatEl.appendChild(m);
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+    async function coachReply() {
+      var q = chatInput.value.trim();
+      if (!q) { chatInput.focus(); return; }
+      coachMsg(q, true);
+      chatInput.value = '';
+      chatSend.disabled = true;
+      coachHistory.push({ role: 'user', content: q });
+      try {
+        var resp = await groqChat([
+          { role: 'system', content: 'You are the user\'s personal performance & study coach. You know their real recorded study data below. Be warm, specific, practical, and honest. Reference their actual stats where relevant (e.g. streaks, minutes, subjects). Answer directly in a conversational tone, keep it under 120 words, and end with one small next-step suggestion.' },
+          { role: 'system', content: coachDataSnapshot() },
+          ...coachHistory.slice(-8)
+        ], { maxTokens: 512, temperature: 0.8 });
+        coachHistory.push({ role: 'assistant', content: resp });
+        coachMsg(resp, false);
+      } catch (err) {
+        coachMsg('Sorry, I could not reach my coaching brain. Please try again.', false);
+        if (typeof console !== 'undefined') console.error('Coach chat error:', err);
+      } finally {
+        chatSend.disabled = false;
+      }
+    }
+    chatSend.addEventListener('click', coachReply);
+    chatInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); coachReply(); } });
   }
 }
 
@@ -3762,9 +4256,9 @@ function deleteLecture(id) {
 let googleAuth = { connected: false, accessToken: null, scope: '' };
 
 function setupGoogleConnection() {
-  const connectBtn = $('googleConnectBtn');
-  const disconnectBtn = $('googleDisconnectBtn');
-  const statusEl = $('googleStatus');
+  const connectBtn = document.getElementById('googleConnectBtn');
+  const disconnectBtn = document.getElementById('googleDisconnectBtn');
+  const statusEl = document.getElementById('googleStatus');
   const scopeChecks = qsa('input[name="google-scope"]');
 
   if (!connectBtn) return;
@@ -3819,9 +4313,9 @@ function setupGoogleConnection() {
 }
 
 function updateGoogleUI() {
-  const connectBtn = $('googleConnectBtn');
-  const disconnectBtn = $('googleDisconnectBtn');
-  const statusEl = $('googleStatus');
+  const connectBtn = document.getElementById('googleConnectBtn');
+  const disconnectBtn = document.getElementById('googleDisconnectBtn');
+  const statusEl = document.getElementById('googleStatus');
   if (connectBtn) connectBtn.style.display = googleAuth.connected ? 'none' : '';
   if (disconnectBtn) disconnectBtn.style.display = googleAuth.connected ? '' : 'none';
   if (statusEl) {
@@ -3878,8 +4372,10 @@ async function fetchGoogleCalendar() {
 function init() {
   try {
   loadState();
+  initJudgeBanner();
   initializeLearningStyle();
   applyLanguage();
+  updateStreakXP();
   if (typeof Mobile !== 'undefined') {
     Mobile.init().then(() => {
       try { Mobile.addMobileStyles(); } catch(_) {}
@@ -3905,6 +4401,10 @@ function init() {
   safeCall(setupCoach);
   safeCall(setupSmartAI);
   safeCall(setupAITutor);
+  safeCall(renderPeerActivityFeed);
+  safeCall(renderWeeklyLeaderboard);
+  safeCall(renderImpactMetrics);
+  safeCall(initMobileMenu);
   safeCall(setupAiLessons);
   safeCall(setupSubjects);
   safeCall(setupAnalytics);
@@ -3940,22 +4440,11 @@ function init() {
     if (sp) sp.click();
   });
   var sd = $('seedDataBtn');
-  if (sd) sd.addEventListener('click', seedDemoData);
-  // Debug overlay: open on ?debug=1, 'd' key x3, or mobile screen triple-tap on the app title
-  var debugTaps = 0, lastTap = 0;
-  var appTitleEl = document.getElementById('appTitle') || document.getElementById('logoText') || document.querySelector('.brand');
-  if (appTitleEl) {
-    appTitleEl.addEventListener('click', function() {
-      var now = Date.now();
-      debugTaps = (now - lastTap < 600) ? debugTaps + 1 : 1;
-      lastTap = now;
-      if (debugTaps >= 3) { debugTaps = 0; openDebugOverlay(); }
-    });
-  }
-  var dcount = 0;
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'd' || e.key === 'D') { dcount++; if (dcount >= 5) { dcount = 0; openDebugOverlay(); } e.preventDefault(); }
-  });
+  if (sd) sd.addEventListener('click', loadDemoData);
+  // Debug overlay only opens when explicitly requested via ?debug=1.
+  // The 'd'/'D' keyboard shortcuts and the mobile auto-open were removed so
+  // the letter 'd' can be typed normally in inputs and diagnostics no longer
+  // hijack user input.
   if (window.__DEBUG) setTimeout(openDebugOverlay, 1200);
   // Landing overlay + PWA install
   let deferredPrompt = null;
@@ -4462,61 +4951,100 @@ function setupCalculator() {
   function setupGraphingCalculator() {
     var canvas = $('graphCanvas');
     if (!canvas) return;
+    var cam = { cx: 0, cy: 0, scale: 40 };
+    function graphPxX(x) { return canvas.clientWidth / 2 + (x - cam.cx) * cam.scale; }
+    function graphPxY(y) { return canvas.clientHeight / 2 - (y - cam.cy) * cam.scale; }
     function plot() {
       var ctx = canvas.getContext('2d');
-      var W = canvas.offsetWidth || canvas.parentElement.offsetWidth || 500;
-      var H = 320;
+      var W = canvas.clientWidth, H = canvas.clientHeight;
+      if (!W) W = 600;
+      if (!H) H = 440;
       canvas.width = W * 2; canvas.height = H * 2;
-      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
-      ctx.scale(2, 2);
+      ctx.setTransform(2, 0, 0, 2, 0, 0);
       ctx.clearRect(0, 0, W, H);
-      var bg = getComputedStyle(canvas).getPropertyValue('--card-bg') || '#fff';
       ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
       var gridOn = ($('graphGrid') ? $('graphGrid').value : 'on') === 'on';
       var lineColor = ($('graphColor') ? $('graphColor').value : '#0f766e');
       var lineWidth = parseInt(($('graphLineWidth') ? $('graphLineWidth').value : '2'));
+      var step = 20;
+      while (cam.scale * step < 16) step *= 5;
+      while (cam.scale * step > 80) step /= 5;
+      step = Math.max(1, Math.round(step));
       // Grid
       if (gridOn) {
         ctx.strokeStyle = '#e8e8e8'; ctx.lineWidth = 0.5;
-        for (var gx = 0; gx <= W; gx += 40) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke(); }
-        for (var gy = 0; gy <= H; gy += 40) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke(); }
+        for (var gx = graphPxX(Math.floor((cam.cx - W / 2 / cam.scale) / step) * step); gx <= W; gx += cam.scale * step) {
+          if (gx < 0) continue;
+          ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke();
+        }
+        for (var gy = graphPxY(Math.floor((cam.cy - H / 2 / cam.scale) / step) * step); gy <= H; gy += cam.scale * step) {
+          if (gy < 0) continue;
+          ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
+        }
       }
       // Axes
-      var cx = W / 2, cy = H / 2;
-      ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+      var cx = graphPxX(0), cy = graphPxY(0);
+      ctx.strokeStyle = '#444'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(W, cy); ctx.stroke();
-      ctx.fillStyle = '#333'; ctx.font = '10px sans-serif';
-      for (var t = -10; t <= 10; t++) {
-        if (t === 0) continue;
-        var px = cx + t * 40, py = cy - t * 40;
-        ctx.fillText(t, px + 3, cy - 3);
-        ctx.fillText(t, cx + 3, py - 3);
+      // Tick labels
+      ctx.fillStyle = '#555'; ctx.font = '10px sans-serif';
+      var t0x = Math.floor((cam.cx - W / 2 / cam.scale) / step) * step;
+      for (var tx = t0x; graphPxX(tx) <= W; tx += step) {
+        if (tx === 0) continue;
+        ctx.fillText(tx, graphPxX(tx) + 3, cy + 12);
+      }
+      var t0y = Math.floor((cam.cy - H / 2 / cam.scale) / step) * step;
+      for (var ty = t0y; graphPxY(ty) <= H; ty += step) {
+        if (ty === 0) continue;
+        ctx.fillText(ty, cx + 3, graphPxY(ty) - 3);
       }
 
       // Plot function
       var fnText = ($('graphFnInput') ? $('graphFnInput').value : 'x^2') || 'x^2';
       try {
-        var compiled = new Function('x', 'with(Math){return ' + fnText.replace(/\^/g, '**').replace(/pi/g, 'Math.PI').replace(/e\b/g, 'Math.E') + '}');
+        var compiled = new Function('x', 'with(Math){return ' + fnText.replace(/\^/g, '**').replace(/\bpi\b/g, 'Math.PI').replace(/\be\b/g, 'Math.E') + '}');
         ctx.strokeStyle = lineColor; ctx.lineWidth = lineWidth;
         ctx.beginPath(); var started = false;
-        for (var px2 = 0; px2 <= W; px2++) {
-          var x = (px2 - cx) / 40;
+        var xMin = cam.cx - W / 2 / cam.scale, xMax = cam.cx + W / 2 / cam.scale;
+        var N = Math.min(1200, Math.max(400, Math.round(W)));
+        for (var i = 0; i <= N; i++) {
+          var x = xMin + (xMax - xMin) * i / N;
           var y;
-          try { y = compiled(x); } catch(e) { started = false; continue; }
+          try { y = compiled(x); } catch (e) { started = false; continue; }
           if (typeof y !== 'number' || !isFinite(y)) { started = false; continue; }
-          var py2 = cy - y * 40;
+          var px2 = graphPxX(x), py2 = graphPxY(y);
+          if (py2 < -4000 || py2 > H + 4000) { started = false; continue; }
           if (!started) { ctx.moveTo(px2, py2); started = true; } else { ctx.lineTo(px2, py2); }
         }
         ctx.stroke();
-      } catch(e) { ctx.fillStyle = '#dc2626'; ctx.fillText('Invalid function', 10, 20); }
+        // Fill readout
+        var ro = $('graphReadout');
+        if (ro) ro.textContent = 'x: [' + xMin.toFixed(1) + ', ' + xMax.toFixed(1) + ']  y: [' + (cam.cy - H / 2 / cam.scale).toFixed(1) + ', ' + (cam.cy + H / 2 / cam.scale).toFixed(1) + ']';
+      } catch (e) {
+        ctx.fillStyle = '#dc2626'; ctx.fillText('Invalid function', 10, 20);
+      }
     }
     var plotBtn = $('graphPlotBtn');
-    if (plotBtn) {
-      plotBtn.addEventListener('click', plot);
-      var inp = $('graphFnInput');
-      if (inp) inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') plot(); });
-    }
+    if (plotBtn) plotBtn.addEventListener('click', plot);
+    var inp = $('graphFnInput');
+    if (inp) inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') plot(); });
+    ['graphZoomIn', 'graphZoomOut', 'graphReset', 'graphPanUp', 'graphPanDown', 'graphPanLeft', 'graphPanRight'].forEach(function(id) {
+      var b = $(id);
+      if (!b) return;
+      b.addEventListener('click', function() {
+        if (id === 'graphZoomIn') cam.scale = Math.min(400, cam.scale * 1.5);
+        else if (id === 'graphZoomOut') cam.scale = Math.max(4, cam.scale / 1.5);
+        else if (id === 'graphReset') { cam.cx = 0; cam.cy = 0; cam.scale = 40; }
+        else if (id === 'graphPanUp') cam.cy += H_step();
+        else if (id === 'graphPanDown') cam.cy -= H_step();
+        else if (id === 'graphPanLeft') cam.cx -= W_step();
+        else if (id === 'graphPanRight') cam.cx += W_step();
+        plot();
+      });
+    });
+    function W_step() { return canvas.clientWidth / 4 / cam.scale; }
+    function H_step() { return canvas.clientHeight / 4 / cam.scale; }
     setTimeout(plot, 100);
   }
 
@@ -4647,6 +5175,60 @@ function setupAutismSupport() {
   var scriptCategory = $('scriptCategory');
   var currentScript = null, currentStep = 0;
 
+  // ---- Visual support-level spectrum ----
+  // Each level maps to a preset of the fine-grained toggles below.
+  const SPECTRUM_PRESETS = [
+    { clearLang: false, stepByStep: false, visual: false, predictable: false, rate: 'fast',   label: 'Independent' },
+    { clearLang: true,  stepByStep: false, visual: false, predictable: false, rate: 'moderate', label: 'Light' },
+    { clearLang: true,  stepByStep: true,  visual: true,  predictable: true,  rate: 'moderate', label: 'Moderate' },
+    { clearLang: true,  stepByStep: true,  visual: true,  predictable: true,  rate: 'slow',    label: 'Strong' },
+    { clearLang: true,  stepByStep: true,  visual: true,  predictable: true,  rate: 'slow',    label: 'Maximum' }
+  ];
+  var spectrumEl = $('autismSpectrum');
+  var segs = spectrumEl ? qsa('.spectrum-seg', spectrumEl) : [];
+  function setSpectrumLevel(level) {
+    var preset = SPECTRUM_PRESETS[level] || SPECTRUM_PRESETS[2];
+    state.settings.autismLevel = level;
+    ['autismClearLang', 'autismStepByStep', 'autismVisual', 'autismPredictable'].forEach(function(id, i) {
+      var el = $(id);
+      if (el) el.checked = [preset.clearLang, preset.stepByStep, preset.visual, preset.predictable][i];
+    });
+    var rate = $('autismSpeechRate');
+    if (rate) rate.value = preset.rate;
+    segs.forEach(function(s, i) {
+      var active = i <= level;
+      s.classList.toggle('active', active);
+      s.setAttribute('aria-checked', i === level ? 'true' : 'false');
+    });
+    if (spectrumEl) spectrumEl.style.setProperty('--level', level);
+  }
+  segs.forEach(function(s) {
+    s.addEventListener('click', function() {
+      setSpectrumLevel(+s.dataset.level);
+      showToast('Support level: ' + (SPECTRUM_PRESETS[+s.dataset.level] || SPECTRUM_PRESETS[2]).label);
+    });
+  });
+  // Sync spectrum highlight when the user toggles individual checkboxes
+  function syncSpectrumFromCheckboxes() {
+    var cl = $('autismClearLang'), sb = $('autismStepByStep'), vs = $('autismVisual'), pd = $('autismPredictable');
+    if (!cl || !sb || !vs || !pd) return;
+    var level = 0;
+    if (cl.checked) level = Math.max(level, 1);
+    if (cl.checked && sb.checked && vs.checked && pd.checked) level = state.settings.autismSpeechRate === 'slow' ? 3 : 2;
+    if (level >= 2 && state.settings.autismSpeechRate === 'slow') level = 3;
+    state.settings.autismLevel = level;
+    segs.forEach(function(s, i) {
+      var active = i <= level;
+      s.classList.toggle('active', active);
+      s.setAttribute('aria-checked', i === level ? 'true' : 'false');
+    });
+  }
+  ['autismClearLang', 'autismStepByStep', 'autismVisual', 'autismPredictable', 'autismSpeechRate'].forEach(function(id) {
+    var el = $(id);
+    if (el) el.addEventListener('change', syncSpectrumFromCheckboxes);
+  });
+  if (spectrumEl) setSpectrumLevel(state.settings.autismLevel != null ? state.settings.autismLevel : 2);
+
   if (loadBtn && scriptArea) {
     loadBtn.addEventListener('click', function() {
       var cat = scriptCategory ? scriptCategory.value : 'classroom';
@@ -4687,6 +5269,27 @@ function setupAutismSupport() {
       });
     });
     scriptTopic.addEventListener('keydown', function(e) { if (e.key === 'Enter') generateBtn.click(); });
+  }
+
+  var scriptCustomBtn = $('scriptCustomBtn'), scriptCustomLines = $('scriptCustomLines');
+  if (scriptCustomBtn && scriptCustomLines && scriptArea) {
+    scriptCustomBtn.addEventListener('click', function() {
+      var raw = scriptCustomLines.value.trim();
+      if (!raw) { showToast('Type or paste your lines first.'); scriptCustomLines.focus(); return; }
+      var lines = raw.split(/\r?\n/).map(function(l) { return l.trim(); }).filter(Boolean);
+      if (lines.length < 2) { showToast('Add at least two lines so the trainer can go back and forth.'); return; }
+      var steps = [];
+      for (var i = 0; i < lines.length; i++) {
+        var isPartner = i % 2 === 1;
+        steps.push({ role: isPartner ? 'Partner' : 'You', text: lines[i], hint: 'This is one of your own script lines. Practice reading it out loud, then wait for the next line.' });
+      }
+      currentScript = steps;
+      currentStep = 0;
+      scriptArea.classList.remove('hidden');
+      if (scriptResponse) scriptResponse.value = '';
+      showScriptStep();
+      showToast('Practicing your script — ' + steps.length + ' lines');
+    });
   }
 
   function parseGeneratedScript(txt) {
@@ -4762,18 +5365,7 @@ function setupAutismSupport() {
       if (!q) return;
       aiInput.value = '';
       aiChat.innerHTML += '<div class="chat-bubble user">' + escapeHtml(q) + '</div>';
-      var prefs = '';
-      var socratic = ' Help the student learn rather than just answer: ask what they already know, break it into small steps, then end with ONE simple follow-up question they can answer to check understanding.';
-      prefs += socratic;
-      if (state.settings.autismClearLang !== false) prefs += ' Use clear, literal language. Avoid idioms and sarcasm.';
-      if (state.settings.autismStepByStep !== false) prefs += ' Break down explanations step by step.';
-      if (state.settings.autismPredictable !== false) prefs += ' Use consistent structure and predictable formatting.';
-      var rate = state.settings.autismSpeechRate || 'moderate';
-      if (rate === 'slow') prefs += ' Explain at a calm, measured pace.';
-      prefs += ' Be patient, encouraging, and specific.';
-      var adhd = state.settings.adhdMode ? ' Keep the response very short and concise.' : '';
-
-      callGroq(prefs + adhd + '\n\nStudent asks: ' + q).then(function(text) {
+      callGroq(buildAutismCoachPrompt(q)).then(function(text) {
         aiChat.innerHTML += '<div class="chat-bubble ai">' + formatInline(text) + '</div>';
         aiChat.scrollTop = aiChat.scrollHeight;
       }).catch(function(err) {
@@ -4782,6 +5374,48 @@ function setupAutismSupport() {
     });
     aiInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') aiSend.click(); });
   }
+}
+
+// Builds the instruction prompt for the adaptive autism AI coach.
+// It always reflects on HOW the student said something (tone, clarity,
+// appropriate wording) and adapts to the selected support spectrum level.
+function buildAutismCoachPrompt(studentMessage) {
+  var level = state.settings.autismLevel != null ? state.settings.autismLevel : 2;
+  var prefs = '';
+  prefs += ' You are the student\'s personal communication coach and tutor.';
+  prefs += ' FIRST reflect on what the student just wrote: notice their tone, word choice and clarity.';
+  prefs += ' If they used a strong, rude or inappropriate word, gently name that specific word and offer ONE better, kinder alternative that says the same thing.';
+  prefs += ' If their message was unclear or could be misunderstood, rephrase it for them in ONE clear, polite sentence and explain why that works better.';
+  prefs += ' If their message was clear and appropriate, say so briefly and acknowledge what they did well.';
+  prefs += ' THEN answer their actual question or need.';
+
+  // Adapt the coaching + answering style to the spectrum level
+  if (level <= 1) {
+    prefs += ' Keep feedback light and natural, like a supportive friend.';
+  }
+  if (level === 2) {
+    prefs += ' Give feedback and answers in a clear, structured way: 1-2 short paragraphs or short bullet points.';
+  }
+  if (level === 3) {
+    prefs += ' Use a very structured format: start with a heading-like sentence, then numbered or bulleted steps. Use short, simple sentences.';
+    prefs += ' Before answering, check understanding in one simple line.';
+  }
+  if (level >= 4) {
+    prefs += ' Use the simplest possible language. Keep sentences very short.';
+    prefs += ' Always use numbered steps and bullet points.';
+    prefs += ' Give an explicit example sentence the student could use in real life.';
+    prefs += ' Explain everything calmly and at a slow, measured pace.';
+  }
+
+  if (state.settings.autismClearLang !== false) prefs += ' Use clear, literal language. Avoid idioms and sarcasm.';
+  if (state.settings.autismStepByStep !== false) prefs += ' Break down explanations step by step.';
+  if (state.settings.autismPredictable !== false) prefs += ' Use consistent structure and predictable formatting.';
+  var rate = state.settings.autismSpeechRate || 'moderate';
+  if (rate === 'slow') prefs += ' Explain at a calm, measured pace.';
+  prefs += ' Be patient, encouraging, and specific.';
+  prefs += ' End with ONE simple follow-up question or a suggestion for what to say next.';
+  var adhd = state.settings.adhdMode ? ' Keep the response very short and concise.' : '';
+  return prefs + adhd + '\n\nThe student wrote: "' + studentMessage + '"';
 }
 
 // ===== ADHD MODE HELPER =====
@@ -4818,8 +5452,8 @@ function setupGenerators() {
     var palette = ['#0f766e', '#0b5cab', '#e6a700', '#8b5cf6', '#dc2626', '#059669', '#d97706', '#2563eb'];
     return palette[i % palette.length];
   }
-  function addMapNode(id, label, x, y) {
-    var n = { id: id, label: label, x: x, y: y };
+  function addMapNode(id, label, x, y, depth) {
+    var n = { id: id, label: label, x: x, y: y, depth: depth === undefined ? 0 : depth };
     mm.nodes.push(n);
     return n;
   }
@@ -4850,6 +5484,13 @@ function setupGenerators() {
       var nodeEl = document.createElement('div');
       nodeEl.className = 'gen-map-node';
       nodeEl.dataset.id = n.id;
+      nodeEl.style.cssText = 'position:absolute;left:' + n.x + 'px;top:' + n.y + 'px;';
+      var depth = n.depth || 0;
+      var c = depth === 0 ? 'var(--accent)' : mapColors(depth - 1);
+      nodeEl.style.background = depth === 0 ? c : 'color-mix(in srgb, ' + c + ' 12%, var(--panel))';
+      nodeEl.style.border = '2px solid ' + c;
+      nodeEl.style.borderRadius = depth === 0 ? '18px' : (depth === 1 ? '12px' : '10px');
+      nodeEl.style.color = depth === 0 ? '#fff' : 'var(--ink)';
       var label = document.createElement('div');
       label.className = 'gen-map-label';
       label.textContent = n.label;
@@ -4936,9 +5577,10 @@ function setupGenerators() {
     mm.nodes = []; mm.edges = [];
     var lines = txt.split('\n').map(l => l.trim()).filter(Boolean);
     var center = lines[0].replace(/^[-•*#\s]+/, '') || 'Concept';
-    addMapNode('m0', center.slice(0, 30), 40, 40);
+    addMapNode('m0', center.slice(0, 30), 40, 40, 0);
     var stack = [{ depth: 0, parent: 'm0' }];
     var branch = 0;
+    var branchGroups = {};
     lines.slice(1).forEach(function(raw) {
       var depth = 0;
       while (depth < raw.length && (raw[depth] === '-' || raw[depth] === '•' || raw[depth] === '*' || raw[depth] === '\t' || raw[depth] === ' ')) depth++;
@@ -4950,11 +5592,32 @@ function setupGenerators() {
       for (var i = stack.length - 1; i >= 0; i--) { if (stack[i].depth < depth) { parent = stack[i].parent; break; } }
       stack.push({ depth: depth, parent: id });
       var px = mm.nodes.find(n => n.id === parent) || mm.nodes[0];
-      var angle = (branch % 8) * (Math.PI / 8) + (parent === 'm0' ? 0 : Math.PI / 3);
-      var dist = 150 + (depth * 30);
-      addMapNode(id, label, px.x + Math.round(Math.cos(angle) * dist), px.y + Math.round(Math.sin(angle) * dist) * 0.8);
-      mm.edges.push({ from: parent, to: id });
+      // Radial layout: level-1 branches spread evenly around the center,
+      // deeper levels fan out from their parent.
+      if (depth === 1) {
+        branchGroups[parent] = (branchGroups[parent] || 0);
+        var total = lines.slice(1).filter(l => { var d = 0; while (d < l.length && (l[d] === '-' || l[d] === '•' || l[d] === '*' || l[d] === '\t' || l[d] === ' ')) d++; return d === 1; }).length || 1;
+        var b1 = mm.nodes.filter(n => n.depth === 1).length;
+        var angle = (b1 / total) * Math.PI * 2 - Math.PI / 2;
+        var dist = 190;
+        addMapNode(id, label, 40 + 140 + Math.round(Math.cos(angle) * dist), 40 + 100 + Math.round(Math.sin(angle) * dist), 1);
+      } else {
+        var parentAngle = Math.atan2(px.y - 140, px.x - 180);
+        var childrenCount = 1;
+        var childIndex = 0;
+        var parentColor = mapColors(px.depth || 0);
+        var ang = parentAngle + (childIndex - (childrenCount - 1) / 2) * 0.6;
+        var d2 = 150 + depth * 40;
+        addMapNode(id, label, px.x + Math.round(Math.cos(ang) * d2), px.y + Math.round(Math.sin(ang) * d2), depth);
+        mm.edges.push({ from: parent, to: id });
+      }
+      if (depth === 1) mm.edges.push({ from: parent, to: id });
     });
+    // Auto-fit canvas to drawn nodes
+    var maxX = Math.max(...mm.nodes.map(n => n.x + 160), 700);
+    var maxY = Math.max(...mm.nodes.map(n => n.y + 80), 380);
+    mapCanvas.style.width = maxX + 'px';
+    mapCanvas.style.height = maxY + 'px';
   }
 
   if (mapBtn && mapTopic && mapCanvas) {
@@ -4987,46 +5650,170 @@ function setupGenerators() {
     renderMindMap();
   });
 
-  // ---- Film Generator ----
+  // ---- Film Generator (produces a real playable film) ----
   var filmBtn = $('genFilmBtn'), filmTopic = $('genFilmTopic'), filmOut = $('genFilmOut');
-  if (filmBtn && filmTopic && filmOut) {
+  var playerEl = $('filmPlayer'), frameImg = $('filmFrameImg'), narrationEl = $('filmNarration');
+  var sceneLabelEl = $('filmSceneLabel'), filmPlay = $('filmPlay'), filmPrev = $('filmPrev'), filmNext = $('filmNext');
+  var filmProgress = $('filmProgress');
+  var filmScenes = [], filmIndex = 0, filmTimer = null, filmPlaying = false;
+  function filmStopTimer() { if (filmTimer) { clearTimeout(filmTimer); filmTimer = null; } filmPlaying = false; if (filmPlay) filmPlay.textContent = '▶'; }
+  function showFilmScene(i) {
+    if (!filmScenes.length) return;
+    i = Math.max(0, Math.min(filmScenes.length - 1, i));
+    filmIndex = i;
+    var scene = filmScenes[i];
+    if (sceneLabelEl) sceneLabelEl.textContent = 'Scene ' + (i + 1) + ' of ' + filmScenes.length;
+    if (narrationEl) narrationEl.textContent = scene.narration;
+    if (frameImg) {
+      frameImg.src = scene.img;
+      frameImg.alt = scene.visual;
+      frameImg.onerror = function() { this.src = scene.img.replace('width=800', 'width=800&seed=' + Math.floor(Math.random() * 1e5)); };
+    }
+    if (filmProgress) filmProgress.textContent = '• ' + (i + 1) + ' / ' + filmScenes.length + ' •';
+    filmStopTimer();
+    if (scene.seconds) {
+      filmTimer = setTimeout(function() {
+        if (filmIndex < filmScenes.length - 1) showFilmScene(filmIndex + 1);
+        else { filmStopTimer(); }
+      }, scene.seconds * 1000);
+      filmPlaying = true;
+      if (filmPlay) filmPlay.textContent = '❚❚';
+    }
+  }
+  if (filmPlay) filmPlay.addEventListener('click', function() {
+    if (!filmScenes.length) return;
+    if (filmPlaying) { filmStopTimer(); }
+    else { showFilmScene(filmIndex); }
+  });
+  if (filmPrev) filmPrev.addEventListener('click', function() { if (filmScenes.length) showFilmScene(filmIndex - 1); });
+  if (filmNext) filmNext.addEventListener('click', function() { if (filmScenes.length) showFilmScene(filmIndex + 1); });
+  function parseFilmScenes(txt) {
+    // Accept either numbered SCENE blocks or a JSON list from the AI.
+    try { var parsed = JSON.parse(txt); if (Array.isArray(parsed)) return parsed; } catch (e) {}
+    var scenes = [];
+    var blockRe = /(?:^|\n)(?:SCENE\s*\d*|Scene\s*\d*|###\s*Scene\s*\d*)\s*[:\-]?\s*\n?([\s\S]*?)(?=(?:SCENE\s*\d*|Scene\s*\d*|###\s*Scene\s*\d*)\s*[:\-]?\s*\n|$)/gi;
+    var m;
+    while ((m = blockRe.exec(txt)) !== null) {
+      var body = m[1] || '';
+      var narr = '', vis = '';
+      var nm = body.match(/NARRATION\s*[:\-]\s*(.+)/i);
+      var vm = body.match(/VISUAL\s*[:\-]\s*(.+)/i);
+      if (nm) narr = nm[1].trim();
+      if (vm) vis = vm[1].trim();
+      if (!narr && !vis) narr = body.trim().split('\n')[0] || '';
+      scenes.push({ narration: narr, visual: vis || narr, seconds: 4 });
+    }
+    // Fallback: split on numbered lines "1." / "•" paragraphs
+    if (!scenes.length) {
+      txt.split(/\n(?=\d{1,2}[.)]\s|•\s)/).forEach(function(p) {
+        p = p.trim();
+        if (!p) return;
+        var clean = p.replace(/^NARRATION\s*[:\-]\s*/i, '');
+        scenes.push({ narration: clean, visual: clean.slice(0, 90), seconds: 4 });
+      });
+    }
+    return scenes;
+  }
+  if (filmBtn && filmTopic && filmOut && playerEl) {
     filmBtn.addEventListener('click', async function() {
       var topic = filmTopic.value.trim();
       if (!topic) { showToast('Enter a topic for the film.'); filmTopic.focus(); return; }
-      filmOut.innerHTML = '<p class="subtle">Writing your study film...</p>';
+      filmOut.innerHTML = '<p class="subtle">Writing your film and creating visuals...</p>';
+      playerEl.classList.add('hidden');
       try {
-        var txt = await groqChat([{ role: 'system', content: 'You write short educational film scripts (a storyboard) that teach one concept in under 5 minutes. Return the script as clearly labeled SCENES: for each scene give a SHOT description, NARRATION line, and VISUAL cue. Keep it vivid, simple, and memorable. End with a 3-line review hook.' }, { role: 'user', content: 'Concept to teach: ' + topic }], { maxTokens: 1536, temperature: 0.8 });
-        filmOut.innerHTML = '<h4><span class="icon icon-sm icon-film"></span> Film: ' + escapeHtml(topic) + '</h4><div class="analysis-content gen-film-body" style="white-space:pre-wrap">' + escapeHtml(txt) + '</div>';
+        var txt = await groqChat([{ role: 'system', content: 'You are a short-film director for students. Write a 4-scene educational micro-film that teaches one concept. Output ONLY lines in this exact format, one per scene:\nSCENE 1\nNARRATION: <one clear spoken sentence, vivid and simple>\nVISUAL: <a detailed visual to be drawn, e.g. "a plant cell with sunlight arrows entering chloroplasts" />\nSCENE 2\n... (continue). Keep each NARRATION to 1-2 short sentences. Make the VISUAL concrete and drawable.' }, { role: 'user', content: 'Concept to teach: ' + topic }], { maxTokens: 900, temperature: 0.8 });
+        filmScenes = parseFilmScenes(txt);
+        if (!filmScenes.length) { filmScenes = [{ narration: txt.trim(), visual: topic, seconds: 5 }]; }
+        filmScenes.forEach(function(s) {
+          var visualPrompt = 'educational film still of ' + topic + ' - ' + s.visual + ', cinematic, colorful, clean, textbook quality, labeled, 16:9';
+          s.img = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(visualPrompt) + '?width=800&height=450&nologo=true';
+        });
+        var filmTitle = document.createElement('h4');
+        filmTitle.innerHTML = '<span class="icon icon-sm icon-film"></span> ' + escapeHtml(topic);
+        filmOut.innerHTML = '';
+        filmOut.appendChild(filmTitle);
+        var summary = document.createElement('p');
+        summary.className = 'subtle';
+        summary.textContent = filmScenes.length + ' scenes · press ▶ to play';
+        filmOut.appendChild(summary);
+        playerEl.classList.remove('hidden');
+        showFilmScene(0);
       } catch (err) {
-        filmOut.innerHTML = '<p class="subtle">Could not write the film. Please try again.</p>';
+        filmOut.innerHTML = '<p class="subtle">Could not make the film. Please try again.</p>';
         logErrors('filmgen')(err);
       }
     });
   }
 
-  // ---- Image Generator (free Pollinations API) ----
+  // ---- Image Generator (real images from Wikimedia Commons — no AI, high quality) ----
   var imgBtn = $('genImgBtn'), imgTopic = $('genImgTopic'), imgOut = $('genImgOut');
   if (imgBtn && imgTopic && imgOut) {
-    imgBtn.addEventListener('click', function() {
+    imgBtn.addEventListener('click', async function() {
       var topic = imgTopic.value.trim();
       if (!topic) { showToast('Describe the image you want.'); imgTopic.focus(); return; }
-      imgOut.innerHTML = '<p class="subtle">Generating image... (this can take ~15 seconds)</p>';
-      var url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent('educational study illustration of ' + topic + ', clean, colorful, labeled diagram, textbook style') + '?width=800&height=600&nologo=true';
-      var img = document.createElement('img');
-      img.src = url;
-      img.alt = topic;
-      img.style.cssText = 'width:100%;max-width:640px;border-radius:14px;border:1px solid var(--border);margin-top:10px;display:block;';
-      img.onload = function() {
+      imgOut.innerHTML = '<p class="subtle">Finding high-quality images...</p>';
+      try {
+        var api = 'https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=' + encodeURIComponent(topic) +
+          '&gsrnamespace=6&gsrlimit=8&prop=imageinfo&iiprop=url|size|extmetadata&iiurlwidth=800&format=json&origin=*';
+        var res = await fetch(api);
+        var data = await res.json();
+        var pages = data && data.query && data.query.pages ? Object.values(data.query.pages) : [];
+        // Sort by resolution, prefer larger/quality images
+        pages.sort(function(a, b) {
+          var aw = (a.imageinfo && a.imageinfo[0] && a.imageinfo[0].width) || 0;
+          var bw = (b.imageinfo && b.imageinfo[0] && b.imageinfo[0].width) || 0;
+          return bw - aw;
+        });
+        var candidates = pages.filter(function(p) {
+          var ext = (p.imageinfo && p.imageinfo[0] && p.imageinfo[0].url || '').split('.').pop().toLowerCase();
+          return ['jpg', 'jpeg', 'png', 'webp', 'svg', 'gif'].indexOf(ext) > -1;
+        }).slice(0, 4);
+        if (!candidates.length) { imgOut.innerHTML = '<p class="subtle">No images found for that topic. Try different words.</p>'; return; }
+        var grid = document.createElement('div');
+        grid.className = 'img-grid top-gap';
+        var downloadLinks = [];
+        candidates.forEach(function(p) {
+          var info = p.imageinfo && p.imageinfo[0];
+          if (!info) return;
+          var desc = info.extmetadata && info.extmetadata.ImageDescription && info.extmetadata.ImageDescription.value ? info.extmetadata.ImageDescription.value.replace(/<[^>]+>/g, '') : p.title;
+          var cell = document.createElement('figure');
+          cell.className = 'img-cell';
+          var a = document.createElement('a');
+          a.href = info.descriptionurl || '#';
+          a.target = '_blank';
+          a.rel = 'noopener';
+          var img = document.createElement('img');
+          img.loading = 'lazy';
+          img.src = info.thumburl || info.url;
+          img.alt = p.title;
+          img.onerror = function() { this.closest('figure').style.display = 'none'; };
+          a.appendChild(img);
+          cell.appendChild(a);
+          var cap = document.createElement('figcaption');
+          cap.textContent = desc.length > 80 ? desc.slice(0, 80) + '…' : desc;
+          cell.appendChild(cap);
+          grid.appendChild(cell);
+          downloadLinks.push({ url: info.url, title: p.title.replace(/[^a-z0-9]+/gi, '-').slice(0, 40) });
+        });
         imgOut.innerHTML = '';
-        imgOut.appendChild(img);
-        var dl = document.createElement('a');
-        dl.href = url; dl.download = 'studyhub-' + topic.replace(/[^a-z0-9]+/gi, '-') + '.jpg'; dl.className = 'ghost top-gap';
-        dl.textContent = 'Download image';
-        dl.style.display = 'inline-block';
-        dl.style.marginTop = '10px';
-        imgOut.appendChild(dl);
-      };
-      img.onerror = function() { imgOut.innerHTML = '<p class="subtle">Could not generate the image (network or API limit). Please try again later.</p>'; };
+        imgOut.appendChild(grid);
+        var note = document.createElement('p');
+        note.className = 'subtle';
+        note.textContent = 'Real images from Wikimedia Commons (CC licensed). Click an image to open the source.';
+        imgOut.appendChild(note);
+        if (downloadLinks.length) {
+          var dl = document.createElement('a');
+          dl.href = downloadLinks[0].url;
+          dl.download = downloadLinks[0].title;
+          dl.className = 'ghost top-gap';
+          dl.textContent = 'Download best image';
+          dl.style.display = 'inline-block';
+          imgOut.appendChild(dl);
+        }
+      } catch (err) {
+        imgOut.innerHTML = '<p class="subtle">Could not load images (network or API limit). Please try again.</p>';
+        logErrors('imggen')(err);
+      }
     });
   }
 

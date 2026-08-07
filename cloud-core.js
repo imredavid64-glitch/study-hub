@@ -142,11 +142,13 @@ class CloudSyncManager {
 
   setupEventListeners() {
     // Listen for state changes and queue them for sync
+    if (typeof saveState !== 'function' || saveState.__cloudWrapped) return;
     const originalSaveState = saveState;
     saveState = () => {
       originalSaveState();
       this.queueStateChange();
     };
+    saveState.__cloudWrapped = true;
 
     // Listen for user actions
     window.addEventListener('beforeunload', () => {
@@ -657,11 +659,16 @@ async function initializeCloudSystem() {
     realTimeDashboard.userManager = userManager;
 
     // Replace original saveState to enable cloud sync
-    const originalSaveState = saveState;
-    saveState = function() {
-      originalSaveState();
-      cloudSyncManager.queueStateChange();
-    };
+    if (typeof saveState !== 'function' || saveState.__cloudWrapped) {
+      console.log('saveState already wrapped — skipping duplicate wrap');
+    } else {
+      const originalSaveState = saveState;
+      saveState = function() {
+        originalSaveState();
+        cloudSyncManager.queueStateChange();
+      };
+      saveState.__cloudWrapped = true;
+    }
 
     // Expose globally for other modules
     window.studyHub = {
