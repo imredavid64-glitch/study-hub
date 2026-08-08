@@ -374,13 +374,15 @@ const LEADERBOARD_DATA = [
   { rank: 3, name: 'Michael P.', streak: 6, xp: 850 },
   { rank: 4, name: 'Emma R.', streak: 4, xp: 720 },
   { rank: 5, name: 'James K.', streak: 3, xp: 600 },
-  { rank: 6, name: 'Olivia S.', streak: 2, xp: 450 },
-  { rank: 7, name: 'You', streak: state.profile.currentStreak || 0, xp: state.profile.xp || 0 }
+  { rank: 6, name: 'Olivia S.', streak: 2, xp: 450 }
 ];
 
 function renderWeeklyLeaderboard() {
   const el = document.getElementById('weeklyLeaderboard');
   if (!el) return;
+  
+  const me = state ? { rank: 7, name: 'You', streak: state.profile.currentStreak || 0, xp: state.profile.xp || 0 } : null;
+  const data = me ? LEADERBOARD_DATA.concat([me]) : LEADERBOARD_DATA;
   
   el.innerHTML = `
     <div class="leaderboard-header">
@@ -391,7 +393,7 @@ function renderWeeklyLeaderboard() {
     </div>
   `;
   
-  LEADERBOARD_DATA.forEach(user => {
+  data.forEach(user => {
     const row = document.createElement('div');
     row.className = `leaderboard-row ${user.name === 'You' ? 'me' : ''}`;
     row.innerHTML = `
