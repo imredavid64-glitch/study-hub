@@ -1,0 +1,114 @@
+name: Build desktop installers
+
+# Builds the macOS, Windows and Linux desktop apps on every v* release tag and
+# publishes them to the public installers repo so the Downloads tab keeps working.
+#
+# Publishing needs a PAT with "Contents: write" on imredavid64-glitch/study-hub-installers
+# stored as the INSTALLERS_PAT repository secret. Without it, the build still runs
+# and the installers are saved as workflow artifacts, but the publish step is skipped.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-latest
+            args: --mac dmg zip --universal
+          - name: Windows
+            os: windows-latest
+            args: --win zip
+          - name: Linux
+            os: ubuntu-latest
+            args: --linux AppImage deb
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build installer (${{ matrix.name }})
+        run: npx electron-builder ${{ matrix.args }} --publish never -c.extraMetadata.version=${GITHUB_REF_NAME#v}
+        shell: bash
+        env:
+          # No code-signing certificates on CI; macOS gets ad-hoc signing only.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.name }}
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.AppImage
+            release/*.deb
+          if-no-files-found: error
+
+  publish:
+    name: Publish to installers repo
+    needs: build
+    # Only runs when the PAT secret is configured (secrets are available in job-level if).
+    if: ${{ secrets.INSTALLERS_PAT != '' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.INSTALLERS_PAT }}
+      INSTALLERS_REPO: imredavid64-glitch/study-hub-installers
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installers-*
+          merge-multiple: true
+          path: dist-assets
+
+      - name: Rename artifacts to stable download names
+        run: |
+          set -euo pipefail
+          cd dist-assets
+          # mac universal zip ends with -mac-universal.zip; the Windows zip is plain <name>-<version>.zip
+          find . -maxdepth 1 -name '*.dmg'             -exec mv {} Study-Hub-mac.dmg \;          || true
+          find . -maxdepth 1 -name '*-mac-universal.zip' -exec mv {} Study-Hub-mac.zip \;        || true
+          find . -maxdepth 1 -name 'Study Hub-*.zip'   -exec mv {} Study-Hub-Windows.zip \;       || true
+          find . -maxdepth 1 -name '*.AppImage'        -exec mv {} Study-Hub-Linux.AppImage \;    || true
+          find . -maxdepth 1 -name '*.deb'             -exec mv {} Study-Hub-Linux.deb \;         || true
+          ls -la
+
+      - name: Create or refresh release
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          # Refresh in place so the "latest" links always point at the newest tag.
+          gh release delete "$TAG" --repo "$INSTALLERS_REPO" --yes 2>/dev/null || true
+          gh release create "$TAG" dist-assets/* \
+            --repo "$INSTALLERS_REPO" \
+            --title "Study Hub $TAG" \
+            --notes "Desktop installers for Study Hub $TAG, built automatically by GitHub Actions." \
+            --latest
+
+  summary:
+    name: Summary
+    needs: build
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Note where to find the installers
+        run: |
+          echo "Installers were built for this tag: ${{ github.ref_name }}"
+          if [ -n "${{ secrets.INSTALLERS_PAT }}" ]; then
+            echo "Published to https://github.com/imredavid64-glitch/study-hub-installers/releases/latest"
+          else
+            echo "Publish skipped (no INSTALLERS_PAT secret). Download the installers from the build job artifacts above."
+          fi
