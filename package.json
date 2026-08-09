@@ -22,7 +22,7 @@
     "productivity",
     "ai"
   ],
-  "author": "",
+  "author": { "name": "Study Hub", "email": "30dimrekatai@student.aisb.hu" },
   "license": "ISC",
   "dependencies": {
     "@capacitor/android": "^8.4.2",
@@ -79,7 +79,8 @@
         "deb"
       ],
       "icon": "assets/icon.png",
-      "category": "Education"
+      "category": "Education",
+      "maintainer": "Study Hub <30dimrekatai@student.aisb.hu>"
     }
   }
 }
