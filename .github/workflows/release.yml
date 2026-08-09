@@ -61,10 +61,10 @@ jobs:
   publish:
     name: Publish to installers repo
     needs: build
-    # Only runs when the PAT secret is configured (secrets are available in job-level if).
-    if: ${{ secrets.INSTALLERS_PAT != '' }}
     runs-on: ubuntu-latest
     env:
+      # The PAT must have "Contents: write" on imredavid64-glitch/study-hub-installers.
+      # Without it the build still runs and artifacts stay on the workflow run.
       GH_TOKEN: ${{ secrets.INSTALLERS_PAT }}
       INSTALLERS_REPO: imredavid64-glitch/study-hub-installers
     steps:
@@ -87,6 +87,7 @@ jobs:
           ls -la
 
       - name: Create or refresh release
+        if: ${{ env.GH_TOKEN != '' }}
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
@@ -98,16 +99,22 @@ jobs:
             --notes "Desktop installers for Study Hub $TAG, built automatically by GitHub Actions." \
             --latest
 
+      - name: Skip notice
+        if: ${{ env.GH_TOKEN == '' }}
+        run: echo "::warning::INSTALLERS_PAT secret is not set — installers were not published. Download them from the build job artifacts."
+
   summary:
     name: Summary
     needs: build
     if: ${{ always() }}
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.INSTALLERS_PAT }}
     steps:
       - name: Note where to find the installers
         run: |
           echo "Installers were built for this tag: ${{ github.ref_name }}"
-          if [ -n "${{ secrets.INSTALLERS_PAT }}" ]; then
+          if [ -n "$GH_TOKEN" ]; then
             echo "Published to https://github.com/imredavid64-glitch/study-hub-installers/releases/latest"
           else
             echo "Publish skipped (no INSTALLERS_PAT secret). Download the installers from the build job artifacts above."
