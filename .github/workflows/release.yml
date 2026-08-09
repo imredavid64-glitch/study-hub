@@ -43,7 +43,15 @@ jobs:
         run: npm ci
 
       - name: Build installer (${{ matrix.name }})
-        run: npx electron-builder ${{ matrix.args }} --publish never -c.extraMetadata.version=${GITHUB_REF_NAME#v}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="$(node -p "require('./package.json').version")"
+          fi
+          echo "Building version ${VERSION}"
+          npx electron-builder ${{ matrix.args }} --publish never -c.extraMetadata.version="${VERSION}"
         shell: bash
         env:
           # No code-signing certificates on CI; macOS gets ad-hoc signing only.
