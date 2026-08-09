@@ -9,7 +9,8 @@ const LOCALES = {
     tabCoach: 'Coach', tabVoice: 'Voice', tabSubjects: 'Subjects', tabAnalytics: 'Analytics',
     tabSettings: 'Settings', tabRecalls: 'Recalls', tabCalendar: 'Calendar', tabSocial: 'Social',
     tabAI: 'AI Tutor', tabSmartAI: 'Smart AI', tabLessons: 'AI Lessons',
-    tabWarmup: 'Warm Up', tabStudyGuide: 'Study Guide',
+    tabWarmup: 'Warm Up',     tabStudyGuide: 'Study Guide',
+    tabStudyroom: 'Study Room', tabResources: 'Resources',
     tabCalculator: 'Calculator', tabTutorial: 'Tutorial', tabAutism: 'Autism Support',
     settingsTitle: 'Settings', profileLabel: 'Profile', themeLabel: 'Theme', langLabel: 'App Language',
     darkMode: 'Dark Mode', lightMode: 'Light Mode', exportBtn: 'Export JSON', importBtn: 'Import JSON',
@@ -175,9 +176,10 @@ function __(key) { const l = _lang(); return LOCALES[l]?.[key] || LOCALES.en[key
 
 const DEFAULT_STATE = {
   profile: { name: 'Scholar', major: 'General Studies', weeklyTargetHours: 20, targetGpa: 3.8, setupComplete: false, subjects: [], interests: '', learningStyle: '', difficulties: '', goals: '', xp: 0, currentStreak: 0 },
-    settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', warmupStats: { bestStreak: 0, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, _ach: { goalsCompleted: 0, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
+    settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', font: 'default', density: 'comfortable', radius: 'soft', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', stickyNotes: [], warmupStats: { bestStreak: 0, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, _ach: { goalsCompleted: 0, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
   goals: [], tasks: [], sessions: [], flashcards: [], notes: [], assignments: [],
   reflections: [], quizAttempts: [], mockTestHistory: [], recallHistory: [],
+  resources: [],
   aiChatHistory: [], lessonChatHistory: [], voiceTranscript: [],
   musicTrackIndex: 0, musicVolume: 70, musicPlaying: false,
   calendarEvents: [],
@@ -188,7 +190,7 @@ const DEFAULT_STATE = {
 // ===== DEMO DATA FOR JUDGE MODE =====
 const DEMO_DATA = {
   profile: { name: 'Judge', major: 'All Subjects', weeklyTargetHours: 25, targetGpa: 4.0, setupComplete: true, subjects: ['AP Physics', 'SAT Prep', 'Organic Chemistry'], interests: 'Competitive academics, Test preparation', learningStyle: 'visual', difficulties: 'None', goals: 'Ace all exams, Get into top college', xp: 450, currentStreak: 7 },
-  settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', warmupStats: { bestStreak: 7, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, _ach: { goalsCompleted: 1, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
+  settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', font: 'default', density: 'comfortable', radius: 'soft', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', stickyNotes: [], warmupStats: { bestStreak: 7, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, _ach: { goalsCompleted: 1, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
   goals: [
     { id: 'demo_goal_1', title: 'Ace AP Physics Exam', subject: 'AP Physics', deadline: '2026-12-15', priority: 'high', hours: 20, createdAt: '2026-08-01' },
     { id: 'demo_goal_2', title: 'SAT Score 1500+', subject: 'SAT Prep', deadline: '2026-11-01', priority: 'high', hours: 30, createdAt: '2026-08-01' },
@@ -289,7 +291,6 @@ function loadDemoData() {
   if (typeof renderGoals === 'function') renderGoals();
   if (typeof renderKanban === 'function') renderKanban();
   if (typeof renderSessionHistory === 'function') renderSessionHistory();
-  if (typeof renderQuizAttempts === 'function') renderQuizAttempts();
   
   // Hide judge banner if it exists
   const banner = document.getElementById('judgeBanner');
@@ -377,12 +378,20 @@ const LEADERBOARD_DATA = [
   { rank: 6, name: 'Olivia S.', streak: 2, xp: 450 }
 ];
 
+// Live leaderboard rows come from the cloud (send-only). We never save
+// other students' rankings into local state.
+let liveLeaderboardRows = null;
+
 function renderWeeklyLeaderboard() {
   const el = document.getElementById('weeklyLeaderboard');
   if (!el) return;
   
-  const me = state ? { rank: 7, name: 'You', streak: state.profile.currentStreak || 0, xp: state.profile.xp || 0 } : null;
-  const data = me ? LEADERBOARD_DATA.concat([me]) : LEADERBOARD_DATA;
+  const rows = liveLeaderboardRows && liveLeaderboardRows.length
+    ? liveLeaderboardRows.map((r, i) => ({ rank: i + 1, name: r.name || 'Scholar', streak: r.streak || 0, xp: r.xp || 0 }))
+    : LEADERBOARD_DATA.slice();
+  
+  const me = state ? { rank: rows.length + 1, name: 'You', streak: state.profile.currentStreak || 0, xp: state.profile.xp || 0 } : null;
+  const data = me ? rows.concat([me]) : rows;
   
   el.innerHTML = `
     <div class="leaderboard-header">
@@ -398,13 +407,19 @@ function renderWeeklyLeaderboard() {
     row.className = `leaderboard-row ${user.name === 'You' ? 'me' : ''}`;
     row.innerHTML = `
       <div class="leaderboard-rank">${user.rank}</div>
-      <div class="leaderboard-name">${user.name}</div>
+      <div class="leaderboard-name">${escapeHtml(user.name)}</div>
       <div class="leaderboard-streak">${user.streak} days</div>
       <div class="leaderboard-xp">${user.xp}</div>
     `;
     el.appendChild(row);
   });
 }
+
+// Called by cloud-core realtime subscription (or once after a fetch)
+window.onLeaderboardUpdate = function(rows) {
+  liveLeaderboardRows = Array.isArray(rows) ? rows : null;
+  safeCall(renderWeeklyLeaderboard);
+};
 
 // ===== IMPACT METRICS DASHBOARD =====
 const IMPACT_METRICS = [
@@ -700,25 +715,6 @@ function updateAppForLearningStyle() {
     });
   }
 }
-function showAIThoughtProcess(assistantReply, context) {
-  var thinkEl = document.createElement('div');
-  thinkEl.className = 'ai-thought';
-  thinkEl.innerHTML = `
-    <details class="details-think">
-      <summary><span class="icon icon-sm icon-ai"></span> What the AI is thinking / process</summary>
-      <div class="think-content">
-        <p><strong>Context used:</strong> ${context || '(user profile and current topic)'}</p>
-        <p><strong>Reasoning:</strong> The AI analyzed the student's question and applied the Socratic method — checking what they already know, breaking down the problem, offering hints, and preparing a follow-up question.</p>
-        <p><strong>How the answer is structured:</strong> The reply is concise (~80 words), ends with a follow-up question to guide the student, and uses the student's learning style (${studentLearningStyle || 'default'}) to tailor the approach.</p>
-        <div class="adjust-logic">
-          <button class="ghost">Adjust Logic</button>
-          <textarea class="hidden logic-textarea" placeholder="Modify AI reasoning here..."></textarea>
-        </div>
-      </div>
-    </details>
-  `;
-  return thinkEl;
-}
 function setupSampleLesson() {
   var sampleBtn = $('sampleLessonBtn');
   var sampleOutput = $('sampleLessonOutput');
@@ -811,11 +807,18 @@ function renderDashboard() {
     return d >= twoWeeksAgo && d < oneWeekAgo;
   }).reduce((sum, x) => sum + (x.minutes || 0), 0);
   const trend = prevWeekMins > 0 ? Math.round((weekMins - prevWeekMins) / prevWeekMins * 100) : 0;
-  const trendEl = document.createElement('span');
-  trendEl.className = 'small';
-  trendEl.style.cssText = `font-size:0.75rem;color:${trend > 0 ? 'var(--success)' : trend < 0 ? 'var(--danger)' : 'var(--muted)'}`;
-  trendEl.textContent = trend > 0 ? `↑ ${trend}% vs last week` : trend < 0 ? `↓ ${Math.abs(trend)}% vs last week` : '→ Same as last week';
-  $('metricHours').parentElement.appendChild(trendEl);
+  const metricHoursEl = $('metricHours');
+  const parent = metricHoursEl ? metricHoursEl.parentElement : null;
+  if (parent) {
+    // Remove existing trend span to prevent accumulation
+    const existingTrend = parent.querySelector('.metric-trend');
+    if (existingTrend) existingTrend.remove();
+    const trendEl = document.createElement('span');
+    trendEl.className = 'metric-trend small';
+    trendEl.style.cssText = `font-size:0.75rem;color:${trend > 0 ? 'var(--success)' : trend < 0 ? 'var(--danger)' : 'var(--muted)'}`;
+    trendEl.textContent = trend > 0 ? `↑ ${trend}% vs last week` : trend < 0 ? `↓ ${Math.abs(trend)}% vs last week` : '→ Same as last week';
+    parent.appendChild(trendEl);
+  }
   const ach = $('achievementList');
   ach.innerHTML = '';
   var streakCache = streak;
@@ -2171,9 +2174,10 @@ async function sendAiChat() {
     const recentContext = recentMessages.map(m => `${m.role}: ${m.content.substring(0, 200)}`).join('\n');
     const subjects = [...new Set(state.sessions.map(s => s.subject))].slice(0, 3).join(', ') || 'General';
     const peerPrompt = getPeerTutoringPrompt();
+    const resourceCtx = buildResourceContext();
     const adhdNote = state.settings.adhdMode ? ' Keep responses VERY short and concise — 2-3 sentences max. The student has ADHD and needs brief, focused answers.' : '';
     const profileCtx = [state.profile.interests && ('Interests: ' + state.profile.interests + '.'), state.profile.learningStyle && ('Preferred learning style: ' + state.profile.learningStyle + '.'), state.profile.difficulties && ('Known difficulties to handle patiently: ' + state.profile.difficulties + '.'), state.profile.goals && ('Goals to motivate them with: ' + state.profile.goals + '.')].filter(Boolean).join(' ');
-     const systemPrompt = `You are a skilled Socratic tutor for ${state.profile.name} (${state.profile.major}). Response style: ${style}. Study mode: ${mode}. ${peerPrompt}${adhdNote} Pedagogical rules you ALWAYS follow: (1) Act like a personal teacher, not an answer machine — your goal is to build the student's understanding. (2) When the student asks a question, first help them THINK: check what they already know, break the problem into smaller steps, and give hints before solutions. (3) After you explain something, ALWAYS end your reply with exactly ONE clear follow-up question that checks understanding or pushes them a step further. (4) Connect ideas with analogies and real-world examples, and praise correct reasoning. Only give a direct answer when the student explicitly asks to be shown the full solution or is clearly stuck. If the student asks for direct instruction, start with "Let's think through this step by step..." Context: recent subjects include ${subjects}. Student profile: ${profileCtx}`;
+     const systemPrompt = `You are a skilled Socratic tutor for ${state.profile.name} (${state.profile.major}). Response style: ${style}. Study mode: ${mode}. ${peerPrompt}${adhdNote} Pedagogical rules you ALWAYS follow: (1) Act like a personal teacher, not an answer machine — your goal is to build the student's understanding. (2) When the student asks a question, first help them THINK: check what they already know, break the problem into smaller steps, and give hints before solutions. (3) After you explain something, ALWAYS end your reply with exactly ONE clear follow-up question that checks understanding or pushes them a step further. (4) Connect ideas with analogies and real-world examples, and praise correct reasoning. Only give a direct answer when the student explicitly asks to be shown the full solution or is clearly stuck. If the student asks for direct instruction, start with "Let's think through this step by step..." Context: recent subjects include ${subjects}. Student profile: ${profileCtx}${resourceCtx ? '\n\nStudent\'s saved study resources (reference these when relevant):\n' + resourceCtx : ''}`;
      const includeThinking = state.settings.showAiThinking;
      const thinkPrompt = includeThinking ? `\n\nFirst, silently reason through your approach in a <thinking> block (do not show this to the student). Then, when responding, briefly narrate your pedagogical reasoning in a concise "Teaching thought:" line that the student CAN see, so they understand how you're guiding them. Format the teaching thought as: _Teaching thought: <brief reasoning>_` : '';
      const txt = await groqChat([
@@ -2322,44 +2326,6 @@ function setupLearningTools() {
       }
     });
   });
-}
-function exportSessionData() {
-  const data = {
-    exportedAt: new Date().toISOString(),
-    profile: state.profile,
-    stats: {
-      totalSessions: state.sessions.length,
-      totalMinutes: state.sessions.reduce((s, x) => s + (x.minutes || 0), 0),
-      totalFlashcards: state.flashcards.length,
-      totalTasks: state.tasks.length,
-      completedTasks: state.tasks.filter(t => t.status === 'done').length,
-      totalQuizzes: state.quizAttempts.length,
-      averageQuizScore: state.quizAttempts.length > 0
-        ? Math.round(state.quizAttempts.reduce((s, q) => s + q.pct, 0) / state.quizAttempts.length)
-        : 0
-    }
-  };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `studyhub-report-${todayStr()}.json`; a.click();
-  URL.revokeObjectURL(url);
-  showToast('Report exported');
-}
-function generateWeeklyReport() {
-  const weekAgo = new Date(Date.now() - 7 * 86400000);
-  const weekSessions = state.sessions.filter(s => new Date(s.date) >= weekAgo);
-  const weekMinutes = weekSessions.reduce((s, x) => s + (x.minutes || 0), 0);
-  const weekTasks = state.tasks.filter(t => new Date(t.createdAt) >= weekAgo || (t.due && new Date(t.due) >= weekAgo));
-  const completed = weekTasks.filter(t => t.status === 'done').length;
-  const report = `Week Report (${formatDate(weekAgo)} - ${todayStr()})\n` +
-    `Study: ${weekSessions.length} sessions, ${Math.round(weekMinutes / 60 * 10) / 10}h\n` +
-    `Tasks: ${completed}/${weekTasks.length} completed\n` +
-    `Flashcards: ${state.flashcards.length} total\n` +
-    `Quizzes: ${state.quizAttempts.length} attempts`;
-  showToast('Report generated. Check console.');
-  console.log(report);
-  return report;
 }
 function setupGlobalShortcuts() {
   var navBtns = Array.prototype.slice.call(document.querySelectorAll('.nav-btn'));
@@ -2696,6 +2662,23 @@ $('profileName').value = state.profile.name;
     });
   }
 
+  // Appearance customization (font / density / radius)
+  var fontSelect = $('fontSelect');
+  if (fontSelect) {
+    fontSelect.value = state.settings.font || 'default';
+    fontSelect.addEventListener('change', () => { state.settings.font = fontSelect.value; saveState(); applyAppearance(); showToast('Font updated'); });
+  }
+  var densitySelect = $('densitySelect');
+  if (densitySelect) {
+    densitySelect.value = state.settings.density || 'comfortable';
+    densitySelect.addEventListener('change', () => { state.settings.density = densitySelect.value; saveState(); applyAppearance(); showToast('Layout density updated'); });
+  }
+  var radiusSelect = $('radiusSelect');
+  if (radiusSelect) {
+    radiusSelect.value = state.settings.radius || 'soft';
+    radiusSelect.addEventListener('change', () => { state.settings.radius = radiusSelect.value; saveState(); applyAppearance(); showToast('Corner radius updated'); });
+  }
+
   // Google OAuth client ID (element removed from settings UI)
   const gClientId = document.getElementById('googleClientId');
   if (gClientId) {
@@ -2709,6 +2692,7 @@ $('profileName').value = state.profile.name;
 }
 function applyTheme() {
   document.documentElement.setAttribute('data-theme', state.settings.theme || 'teal');
+  applyAppearance();
   if (state.settings.theme === 'custom') {
     const hex = (state.settings.customColor || '#0f766e').replace(/[^0-9a-fA-F#]/g, '');
     const soft = hexToSoft(hex);
@@ -2740,6 +2724,24 @@ function applyTheme() {
     document.documentElement.removeAttribute('data-dark');
     var btn = $('themeToggleBtn');
     if (btn) btn.innerHTML = '<span class="icon icon-sm icon-star"></span>';
+  }
+}
+function applyAppearance() {
+  const s = state.settings;
+  const root = document.documentElement;
+  root.setAttribute('data-font', s.font || 'default');
+  root.setAttribute('data-density', s.density || 'comfortable');
+  root.setAttribute('data-radius', s.radius || 'soft');
+  const radiusMap = { sharp: '8px', soft: '18px', round: '26px' };
+  root.style.setProperty('--radius', radiusMap[s.radius] || '18px');
+  if (s.font === 'serif') {
+    root.style.setProperty('--font-ui', '"Crimson Pro", Georgia, serif');
+  } else if (s.font === 'mono') {
+    root.style.setProperty('--font-ui', 'ui-monospace, "SF Mono", Menlo, Consolas, monospace');
+  } else if (s.font === 'rounded') {
+    root.style.setProperty('--font-ui', '"Baloo 2", "Nunito", "Space Grotesk", sans-serif');
+  } else {
+    root.style.removeProperty('--font-ui');
   }
 }
 function hexToSoft(hex) {
@@ -2852,58 +2854,375 @@ function renderMusicTrackList() {
   });
 }
 
-// ===== SEED DATA =====
-function seedDemoData() {
-  if (state.sessions.length > 0 && !confirm('This will add demo data to your existing data. Continue?')) return;
-  const subjects = ['Mathematics', 'Biology', 'History', 'Physics', 'Literature'];
-  const methods = ['Active Recall', 'Practice Test', 'Flashcards', 'Concept Mapping', 'Pomodoro', 'Feynman Technique'];
-  for (let i = 0; i < 14; i++) {
-    const d = new Date(); d.setDate(d.getDate() - i);
-    if (i % 2 === 0) {
-      state.sessions.push({ id: uid(), date: d.toISOString(), subject: subjects[i % subjects.length], objective: `Review ${subjects[i % subjects.length]} concepts`, minutes: 25 + Math.floor(Math.random() * 50), quality: 6 + Math.floor(Math.random() * 5), method: methods[Math.floor(Math.random() * methods.length)], deep: Math.random() > 0.5, notes: 'Focused demo session.' });
+
+// ===== RESOURCES (AI scout + uploads) =====
+function buildResourceContext() {
+  const list = state.resources || [];
+  if (list.length === 0) return '';
+  return list.slice(-6).map(r => {
+    const title = r.title || 'Untitled';
+    const meta = r.type ? ('[' + r.type + ']') : '';
+    const content = r.content ? String(r.content).slice(0, 300) : '';
+    const url = r.url ? (' (' + r.url + ')') : '';
+    return meta + ' ' + title + ': ' + content + url;
+  }).join('\n');
+}
+
+function setupResources() {
+  const scoutBtn = $('resourceScoutBtn');
+  if (scoutBtn) scoutBtn.addEventListener('click', scoutResources);
+  const uploadForm = $('resourceUploadForm');
+  if (uploadForm) uploadForm.addEventListener('submit', saveUserResource);
+  renderResourceLibrary();
+}
+
+async function scoutResources() {
+  const topic = $('resourceScoutTopic');
+  const status = $('resourceScoutStatus');
+  const results = $('resourceScoutResults');
+  const topicText = topic ? topic.value.trim() : '';
+  if (!topicText) { if (status) status.textContent = 'Enter a topic to scout first.'; return; }
+  if (status) status.textContent = 'Scouting the web for ' + topicText + '...';
+  if (results) results.innerHTML = '<div class="loading-skeleton" style="height:60px"></div>';
+  try {
+    const profile = state.profile || {};
+    const resp = await groqChat([
+      { role: 'system', content: 'You are a study resource scout for ' + (profile.major || 'a student') + '. Find genuinely useful, free, high-quality learning resources (official docs, open courses, interactive practice, PDFs, video series, Wikipedia, Khan Academy, MIT OpenCourseWare, etc.) for the given topic. Return a JSON array ONLY, no prose, in this exact shape: [{"title":"...","url":"https://...","type":"video|article|practice|course|book|reference","description":"1 sentence why it helps"}] . Include 5-8 resources. If you cannot verify a real URL, still give the best-known resource and mark description clearly.' },
+      { role: 'user', content: 'Scout resources for: ' + topicText }
+    ], { maxTokens: 1200, temperature: 0.4 });
+    let items = [];
+    try {
+      const cleaned = resp.trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim();
+      items = JSON.parse(cleaned);
+      if (!Array.isArray(items)) items = [];
+    } catch (e) {
+      // Fallback: if AI didn't return valid JSON, show raw text as a single "reference" item
+      items = [{ title: 'AI scout response', url: '', type: 'reference', description: resp.slice(0, 400) }];
+    }
+    if (items.length === 0) items = [{ title: 'No resources found', url: '', type: 'reference', description: 'Try a more specific topic.' }];
+    if (results) {
+      results.innerHTML = '';
+      items.forEach((it, i) => {
+        const row = document.createElement('div');
+        row.className = 'resource-scout-item';
+        row.innerHTML = `
+          <div class="resource-scout-head">
+            <strong>${escapeHtml(it.title || 'Resource ' + (i + 1))}</strong>
+            <span class="badge">${escapeHtml(it.type || 'link')}</span>
+          </div>
+          <p class="subtle">${escapeHtml(it.description || '')}</p>
+          <div class="inline">
+            ${it.url ? '<a class="ghost" href="' + escapeHtml(it.url) + '" target="_blank" rel="noopener">Open ↗</a>' : ''}
+            <button class="ghost resource-add" data-title="${escapeHtml(it.title || 'Resource ' + (i + 1))}" data-url="${escapeHtml(it.url || '')}" data-type="${escapeHtml(it.type || 'link')}" data-desc="${escapeHtml(it.description || '')}">Add to Library</button>
+          </div>
+        `;
+        results.appendChild(row);
+      });
+      results.querySelectorAll('.resource-add').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.resources.push({
+            id: uid(),
+            title: btn.dataset.title || 'Resource',
+            url: btn.dataset.url || '',
+            type: btn.dataset.type || 'link',
+            content: btn.dataset.desc || '',
+            subject: '',
+            source: 'ai-scout',
+            createdAt: new Date().toISOString()
+          });
+          saveState();
+          renderResourceLibrary();
+          btn.textContent = '✓ Added';
+          btn.disabled = true;
+          showToast('Resource added to library');
+        });
+      });
+    }
+    if (status) status.textContent = 'Found ' + items.length + ' resources for "' + topicText + '".';
+  } catch (e) {
+    if (status) status.textContent = 'Scout failed: ' + e.message;
+  }
+}
+
+function saveUserResource(e) {
+  e.preventDefault();
+  const titleEl = $('resourceTitle');
+  const subjEl = $('resourceSubject');
+  const contentEl = $('resourceContent');
+  const fileEl = $('resourceFile');
+  const title = titleEl ? titleEl.value.trim() : '';
+  if (!title) return;
+  const subject = subjEl ? subjEl.value : '';
+  let text = contentEl ? contentEl.value.trim() : '';
+  const file = fileEl && fileEl.files && fileEl.files[0] ? fileEl.files[0] : null;
+  if (file) {
+    text = '[file: ' + file.name + '] ' + text;
+    if (file.size <= 2000000) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        state.resources.push({ id: uid(), title, subject, content: text, url: '', type: file.type || 'file', source: 'upload', fileName: file.name, fileData: String(reader.result), createdAt: new Date().toISOString() });
+        saveState(); renderResourceLibrary();
+        if (titleEl) titleEl.value = ''; if (subjEl) subjEl.value = ''; if (contentEl) contentEl.value = ''; if (fileEl) fileEl.value = '';
+        showToast('Resource saved');
+      };
+      reader.readAsDataURL(file);
+      return;
     }
   }
-  const goalTemplates = [
-    { title: 'Ace Calculus Final', subject: 'Mathematics', deadline: 30, priority: 'high', hours: 20 },
-    { title: 'Biology Lab Report', subject: 'Biology', deadline: 14, priority: 'medium', hours: 12 },
-    { title: 'History Essay Draft', subject: 'History', deadline: 21, priority: 'medium', hours: 10 },
-    { title: 'Physics Problem Set', subject: 'Physics', deadline: 10, priority: 'high', hours: 8 },
-    { title: 'Literature Review', subject: 'Literature', deadline: 45, priority: 'low', hours: 15 },
-  ];
-  goalTemplates.forEach(g => {
-    const d = new Date(); d.setDate(d.getDate() + g.deadline);
-    state.goals.push({ id: uid(), title: g.title, subject: g.subject, deadline: d.toISOString().split('T')[0], priority: g.priority, hours: g.hours, createdAt: todayStr(), progress: 0 });
+  state.resources.push({ id: uid(), title, subject, content: text, url: (/^https?:\/\//i.test(text) ? text : ''), type: file ? (file.type || 'file') : (urlOrText(text)), source: 'upload', fileName: file ? file.name : '', fileData: '', createdAt: new Date().toISOString() });
+  saveState(); renderResourceLibrary();
+  if (titleEl) titleEl.value = ''; if (subjEl) subjEl.value = ''; if (contentEl) contentEl.value = ''; if (fileEl) fileEl.value = '';
+  showToast('Resource saved');
+}
+function urlOrText(t) {
+  return /^https?:\/\//i.test(t) ? 'link' : 'note';
+}
+
+function renderResourceLibrary() {
+  const el = $('resourceLibrary');
+  if (!el) return;
+  const list = state.resources || [];
+  el.innerHTML = '';
+  if (list.length === 0) {
+    el.innerHTML = '<p class="subtle">No resources yet. Scout with AI or upload your own — they are used as AI context.</p>';
+    return;
+  }
+  list.slice().reverse().forEach(r => {
+    const row = document.createElement('div');
+    row.className = 'resource-item';
+    const hasData = !!(r.fileData);
+    row.innerHTML = `
+      <div class="resource-head">
+        <strong>${escapeHtml(r.title || 'Untitled')}</strong>
+        <span class="badge">${escapeHtml(r.type || 'resource')}</span>
+      </div>
+      <p class="subtle">${escapeHtml((r.subject ? r.subject + ' · ' : '') + (r.content ? String(r.content).slice(0, 90) : (r.url || '')) + (r.fileName ? ' · ' + r.fileName : ''))}</p>
+      <div class="inline">
+        ${r.url ? '<a class="ghost" href="' + escapeHtml(r.url) + '" target="_blank" rel="noopener">Open ↗</a>' : ''}
+        ${hasData ? '<button class="ghost resource-preview" data-id="' + r.id + '">Preview</button>' : ''}
+        ${r.content ? '<button class="ghost resource-view" data-id="' + r.id + '">View</button>' : ''}
+        <button class="ghost danger-text resource-delete" data-id="' + r.id + '">Delete</button>
+      </div>
+    `;
+    el.appendChild(row);
   });
-  const taskActions = ['Read chapter', 'Solve problems', 'Review notes', 'Complete worksheet', 'Write summary', 'Create mindmap'];
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(); d.setDate(d.getDate() + i - 3);
-    const allSubs = ['Chemistry', 'English', 'Computer Science', ...subjects];
-    state.tasks.push({ id: uid(), title: `${taskActions[i % taskActions.length]} for ${allSubs[i % allSubs.length]}`, subject: allSubs[i % allSubs.length], due: d.toISOString().split('T')[0], effort: 1 + Math.floor(Math.random() * 4), status: i < 4 ? 'done' : i < 8 ? 'doing' : 'todo', createdAt: todayStr() });
-  }
-  const decks = ['Biology Terms', 'Math Formulas', 'History Dates', 'Chemistry Concepts'];
-  decks.forEach(deck => {
-    for (let i = 0; i < 4; i++) {
-      const dd = new Date(); dd.setDate(dd.getDate() - Math.floor(Math.random() * 5));
-      state.flashcards.push({ id: uid(), deck, question: `What is ${deck} concept ${i + 1}?`, answer: `This explains ${deck} concept ${i + 1} with key details and examples to aid understanding.`, dueDate: dd.toISOString().split('T')[0], interval: Math.floor(Math.random() * 5), ease: 2.5, repetitions: Math.floor(Math.random() * 3), createdAt: todayStr() });
-    }
+  el.querySelectorAll('.resource-delete').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.resources = state.resources.filter(r => r.id !== btn.dataset.id);
+      saveState(); renderResourceLibrary();
+      showToast('Resource deleted');
+    });
   });
-  for (let i = 0; i < 6; i++) {
-    const d = new Date(); d.setDate(d.getDate() + 7 + i * 5);
-    state.assignments.push({ id: uid(), title: `${['Homework Set', 'Lab Report', 'Essay Draft', 'Group Project', 'Quiz Prep', 'Final Paper'][i]}`, subject: subjects[i % subjects.length], due: d.toISOString().split('T')[0], weight: 10 + Math.floor(Math.random() * 15), earned: i < 3 ? 80 + Math.floor(Math.random() * 20) : null, max: 100, createdAt: todayStr() });
-  }
-  for (let i = 0; i < 3; i++) {
-    const d = new Date(); d.setDate(d.getDate() - i);
-    state.reflections.push({ id: uid(), date: d.toISOString().split('T')[0], mood: 6 + Math.floor(Math.random() * 5), energy: 5 + Math.floor(Math.random() * 5), stress: 3 + Math.floor(Math.random() * 5), sleep: 6 + Math.floor(Math.random() * 3), wins: 'Completed study tasks for the day', blockers: 'Managing time effectively' });
-  }
-  for (let i = 0; i < 3; i++) {
-    state.quizAttempts.push({ id: uid(), date: new Date(Date.now() - i * 86400000).toISOString().split('T')[0], topic: subjects[i % subjects.length], score: 5 + Math.floor(Math.random() * 5), total: 10, pct: 50 + Math.floor(Math.random() * 50), type: 'multiple' });
-  }
-  saveState();
-  showToast('Demo data loaded! All sections updated.');
-  init();
+  el.querySelectorAll('.resource-view').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const r = state.resources.find(x => x.id === btn.dataset.id);
+      if (!r) return;
+      const modal = document.createElement('div');
+      modal.className = 'modal-backdrop';
+      modal.innerHTML = `<div class="modal-card"><div class="row-between"><h3>${escapeHtml(r.title)}</h3><button class="ghost modal-close">&times;</button></div><pre class="resource-preview-content">${escapeHtml(r.content || r.url || '')}</pre></div>`;
+      document.body.appendChild(modal);
+      modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
+      modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+    });
+  });
+  el.querySelectorAll('.resource-preview').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const r = state.resources.find(x => x.id === btn.dataset.id);
+      if (!r || !r.fileData) return;
+      const modal = document.createElement('div');
+      modal.className = 'modal-backdrop';
+      modal.innerHTML = `<div class="modal-card"><div class="row-between"><h3>${escapeHtml(r.title)}</h3><button class="ghost modal-close">&times;</button></div><div class="resource-preview-content">${r.fileData && String(r.fileData).startsWith('data:image') ? '<img style="max-width:100%" src="' + r.fileData + '" alt="' + escapeHtml(r.title) + '" />' : '<pre>' + escapeHtml(r.content || r.fileData || '') + '</pre>'}</div></div>`;
+      document.body.appendChild(modal);
+      modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
+      modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+    });
+  });
 }
 
 
+// ===== STUDY ROOM / WHITEBOARD =====
+let wbTool = 'pen';
+let wbColor = '#0f766e';
+let wbSize = 4;
+let wbDrawing = false;
+let wbLastX = 0, wbLastY = 0;
+let wbSaved = null;
+
+function setupStudyRoom() {
+  const canvas = $('whiteboardCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  function resizeCanvas() {
+    const wrap = canvas.parentElement;
+    if (!wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    const ratio = canvas.height / canvas.width;
+    const w = rect.width;
+    if (Math.abs(w - canvas.offsetWidth) > 2) {
+      canvas.style.width = w + 'px';
+      canvas.style.height = Math.round(w * ratio) + 'px';
+    }
+  }
+  window.addEventListener('resize', () => { resizeCanvas(); redrawSaved(); });
+
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const t = e.touches ? e.touches[0] : e;
+    return { x: (t.clientX - rect.left) * scaleX, y: (t.clientY - rect.top) * scaleY };
+  }
+
+  function start(e) {
+    e.preventDefault();
+    wbDrawing = true;
+    const p = getPos(e);
+    wbLastX = p.x; wbLastY = p.y;
+    drawSegment(p.x, p.y, p.x, p.y);
+  }
+  function move(e) {
+    if (!wbDrawing) return;
+    e.preventDefault();
+    const p = getPos(e);
+    drawSegment(wbLastX, wbLastY, p.x, p.y);
+    wbLastX = p.x; wbLastY = p.y;
+  }
+  function stop() { wbDrawing = false; saveBoard(); }
+
+  function drawSegment(x1, y1, x2, y2) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    if (wbTool === 'eraser') {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.strokeStyle = 'rgba(0,0,0,1)';
+      ctx.lineWidth = Math.max(wbSize * 4, 16);
+    } else if (wbTool === 'highlighter') {
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.strokeStyle = wbColor;
+      ctx.globalAlpha = 0.35;
+      ctx.lineWidth = Math.max(wbSize * 3, 12);
+    } else {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = wbColor;
+      ctx.lineWidth = wbSize;
+    }
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  canvas.addEventListener('mouseup', stop);
+  canvas.addEventListener('mouseleave', stop);
+  canvas.addEventListener('touchstart', start, { passive: false });
+  canvas.addEventListener('touchmove', move, { passive: false });
+  canvas.addEventListener('touchend', stop);
+
+  qsa('.wb-tool').forEach(btn => {
+    btn.addEventListener('click', () => {
+      qsa('.wb-tool').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      wbTool = btn.dataset.tool;
+    });
+  });
+  const colorEl = $('wbColor');
+  if (colorEl) colorEl.addEventListener('input', () => { wbColor = colorEl.value; if (wbTool === 'pen' || wbTool === 'highlighter') wbTool = 'pen'; qsa('.wb-tool').forEach(b => b.classList.toggle('active', b.dataset.tool === 'pen')); });
+  const sizeEl = $('wbSize');
+  if (sizeEl) sizeEl.addEventListener('input', () => { wbSize = parseInt(sizeEl.value, 10) || 4; });
+  const clearBtn = $('wbClearBtn');
+  if (clearBtn) clearBtn.addEventListener('click', () => {
+    if (confirm('Clear the whiteboard?')) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      wbSaved = null;
+      localStorage.removeItem('studyhub_whiteboard');
+    }
+  });
+  const dlBtn = $('wbDownloadBtn');
+  if (dlBtn) dlBtn.addEventListener('click', () => {
+    const url = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = url; a.download = 'study-hub-whiteboard.png'; a.click();
+  });
+
+  // Sticky notes
+  const addBtn = $('wbStickyAddBtn');
+  if (addBtn) addBtn.addEventListener('click', addStickyNote);
+  const stickyInput = $('wbStickyInput');
+  if (stickyInput) stickyInput.addEventListener('keydown', e => { if (e.key === 'Enter') addStickyNote(); });
+  renderStickyNotes();
+
+  // Load saved board
+  try { wbSaved = localStorage.getItem('studyhub_whiteboard'); } catch (e) {}
+  if (wbSaved) {
+    const img = new Image();
+    img.onload = () => { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); };
+    img.src = wbSaved;
+  }
+  renderWbFocusSummary();
+  setTimeout(resizeCanvas, 50);
+}
+
+function addStickyNote() {
+  const input = $('wbStickyInput');
+  const text = input ? input.value.trim() : '';
+  if (!text) return;
+  state.settings.stickyNotes = state.settings.stickyNotes || [];
+  state.settings.stickyNotes.push({ id: uid(), text, createdAt: new Date().toISOString() });
+  saveState();
+  if (input) input.value = '';
+  renderStickyNotes();
+}
+function renderStickyNotes() {
+  const el = $('wbStickyList');
+  if (!el) return;
+  const notes = (state.settings.stickyNotes || []);
+  el.innerHTML = '';
+  if (notes.length === 0) { el.innerHTML = '<p class="subtle">No sticky notes yet.</p>'; return; }
+  notes.slice().reverse().forEach(n => {
+    const d = document.createElement('div');
+    d.className = 'wb-sticky';
+    d.innerHTML = `<span>${escapeHtml(n.text)}</span><button title="Delete" data-id="${n.id}">&times;</button>`;
+    d.querySelector('button').addEventListener('click', () => {
+      state.settings.stickyNotes = state.settings.stickyNotes.filter(x => x.id !== n.id);
+      saveState(); renderStickyNotes();
+    });
+    el.appendChild(d);
+  });
+}
+function renderWbFocusSummary() {
+  const el = $('wbFocusSummary');
+  if (!el) return;
+  const today = todayStr();
+  const todaySessions = (state.sessions || []).filter(s => (s.date || '').startsWith(today));
+  const todayMinutes = todaySessions.reduce((s, x) => s + (x.minutes || 0), 0);
+  const dueCards = (state.flashcards || []).filter(c => c.dueDate && c.dueDate <= today).length;
+  const openTasks = (state.tasks || []).filter(t => t.status !== 'done').length;
+  el.innerHTML = `
+    <div class="leaderboard-row"><span>Today's focus</span><strong>${todayMinutes} min</strong></div>
+    <div class="leaderboard-row"><span>Cards due</span><strong>${dueCards}</strong></div>
+    <div class="leaderboard-row"><span>Open tasks</span><strong>${openTasks}</strong></div>
+    <div class="leaderboard-row"><span>Current streak</span><strong>${state.profile.currentStreak || 0} days</strong></div>
+  `;
+}
+function saveBoard() {
+  const canvas = $('whiteboardCanvas');
+  if (!canvas) return;
+  try { wbSaved = canvas.toDataURL('image/png'); localStorage.setItem('studyhub_whiteboard', wbSaved); } catch (e) {}
+}
+function redrawSaved() {
+  const canvas = $('whiteboardCanvas');
+  if (!canvas || !wbSaved) return;
+  const ctx = canvas.getContext('2d');
+  const img = new Image();
+  img.onload = () => { ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(img, 0, 0, canvas.width, canvas.height); };
+  img.src = wbSaved;
+}
 
 
 // ===== SUBJECTS TAB =====
@@ -4409,6 +4728,8 @@ function init() {
   safeCall(initMobileMenu);
   safeCall(setupAiLessons);
   safeCall(setupSubjects);
+  safeCall(setupResources);
+  safeCall(setupStudyRoom);
   safeCall(setupAnalytics);
   safeCall(setupSettings);
   safeCall(setupMusicPlayer);
@@ -4443,11 +4764,6 @@ function init() {
   });
   var sd = $('seedDataBtn');
   if (sd) sd.addEventListener('click', loadDemoData);
-  // Debug overlay only opens when explicitly requested via ?debug=1.
-  // The 'd'/'D' keyboard shortcuts and the mobile auto-open were removed so
-  // the letter 'd' can be typed normally in inputs and diagnostics no longer
-  // hijack user input.
-  if (window.__DEBUG) setTimeout(openDebugOverlay, 1200);
   // Landing overlay + PWA install
   let deferredPrompt = null;
   window.addEventListener('beforeinstallprompt', function(e) {
@@ -4873,10 +5189,6 @@ function formatInline(text) {
   text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
   text = text.replace(/`(.+?)`/g, '<code style="background:var(--accent-soft);padding:2px 6px;border-radius:4px;font-size:0.85em">$1</code>');
   return text;
-}
-
-function escapeHtml(str) {
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 // ===== PEER TUTORING =====
@@ -5418,19 +5730,6 @@ function buildAutismCoachPrompt(studentMessage) {
   prefs += ' End with ONE simple follow-up question or a suggestion for what to say next.';
   var adhd = state.settings.adhdMode ? ' Keep the response very short and concise.' : '';
   return prefs + adhd + '\n\nThe student wrote: "' + studentMessage + '"';
-}
-
-// ===== ADHD MODE HELPER =====
-function adhdShorten(text) {
-  if (!state.settings.adhdMode) return text;
-  // Shorten by keeping only the first paragraph and summarizing
-  var parts = text.split('\n\n');
-  if (parts.length <= 1) {
-    var sentences = text.split(/(?<=[.!?])\s+/);
-    if (sentences.length > 3) return sentences.slice(0, 3).join(' ') + ' [...]';
-    return text;
-  }
-  return parts[0] + '\n\n[...]';
 }
 
 function callGroq(prompt) {

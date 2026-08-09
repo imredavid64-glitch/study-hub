@@ -13,6 +13,7 @@
     <link rel="icon" type="image/svg+xml" href="favicon-dark.svg" media="(prefers-color-scheme:dark)" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;700&family=Nunito:wght@400;600;700&display=swap" />
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.7.1/dist/umd/supabase.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -52,11 +53,13 @@
           <button class="nav-btn" data-tab="ai-voice">Voice Mode</button>
           <button class="nav-btn" data-tab="warmup"><span class="icon icon-sm icon-brain"></span> Warm Up</button>
           <button class="nav-btn" data-tab="studyguide"><span class="icon icon-sm icon-note"></span> Study Guide</button>
+          <button class="nav-btn" data-tab="studyroom"><span class="icon icon-sm icon-chart"></span> Study Room</button>
           <button class="nav-btn" data-tab="generators"><span class="icon icon-sm icon-ai"></span> Generators</button>
           <button class="nav-btn" data-tab="calculator"><span class="icon icon-sm icon-card"></span> Calculator</button>
           <button class="nav-btn" data-tab="tutorial"><span class="icon icon-sm icon-book"></span> Tutorial</button>
           <button class="nav-btn" data-tab="autism"><span class="icon icon-sm icon-star"></span> Autism Support</button>
           <button class="nav-btn" data-tab="subjects">Subjects</button>
+          <button class="nav-btn" data-tab="resources">Resources</button>
           <button class="nav-btn" data-tab="calendar">Calendar</button>
           <button class="nav-btn" data-tab="social">Social</button>
           <button class="nav-btn" data-tab="analytics">Analytics</button>
@@ -901,6 +904,50 @@
           <div id="spOutput" class="study-output hidden"></div>
         </section>
 
+        <!-- ===== STUDY ROOM / WHITEBOARD ===== -->
+        <section id="studyroom" class="tab">
+          <article class="card">
+            <div class="row-between">
+              <h3><span class="icon icon-sm icon-chart"></span> Interactive Study Room</h3>
+              <div class="inline wrap">
+                <button id="wbDownloadBtn" class="ghost">Download Board</button>
+                <button id="wbClearBtn" class="ghost">Clear Board</button>
+              </div>
+            </div>
+            <p class="subtle">Draw, write, and brainstorm on your whiteboard. Everything stays on your device.</p>
+            <div class="whiteboard-toolbar top-gap">
+              <div class="wb-tools inline wrap">
+                <button class="wb-tool active" data-tool="pen" title="Pen">✏️ Pen</button>
+                <button class="wb-tool" data-tool="highlighter" title="Highlighter">🖍️ Highlighter</button>
+                <button class="wb-tool" data-tool="eraser" title="Eraser">🧹 Eraser</button>
+                <input type="color" id="wbColor" value="#0f766e" title="Color" style="width:42px;height:34px;border:none;background:none;cursor:pointer" />
+                <label style="font-size:0.8rem;color:var(--muted);align-self:center">Size</label>
+                <input id="wbSize" type="range" min="1" max="40" value="4" style="width:110px;align-self:center" />
+              </div>
+            </div>
+            <div class="whiteboard-wrap top-gap">
+              <canvas id="whiteboardCanvas" width="900" height="520"></canvas>
+              <div class="whiteboard-hint">Draw here with your mouse, finger, or pen.</div>
+            </div>
+          </article>
+          <div class="split-grid">
+            <article class="card">
+              <h3>Whiteboard Sticky Notes</h3>
+              <p class="subtle">Type quick ideas to keep beside your board.</p>
+              <div class="inline top-gap">
+                <input id="wbStickyInput" placeholder="Type a sticky note..." style="flex:1" />
+                <button id="wbStickyAddBtn">Add</button>
+              </div>
+              <div id="wbStickyList" class="stack top-gap"></div>
+            </article>
+            <article class="card">
+              <h3>Focus Check</h3>
+              <p class="subtle">Your current session context.</p>
+              <div id="wbFocusSummary" class="stack top-gap"></div>
+            </article>
+          </div>
+        </section>
+
         <!-- ===== CALCULATOR ===== -->
         <section id="calculator" class="tab">
           <div class="mascot-area"><div class="mascot mascot-warmup"><span class="icon icon-lg icon-timer"></span></div></div>
@@ -1374,8 +1421,7 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
                     <button class="calc-btn calc-fn" data-v="tan">tan</button>
                     <button class="calc-btn calc-fn" data-v="log">log</button>
                   </div>
-                </div>
-                </div>
+</div>
               </article>
               <article class="card">
                 <h3><span class="icon icon-sm icon-chart"></span> Graph Plotter</h3>
@@ -1685,6 +1731,48 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
             </article>
           </div>
         </section>
+        <!-- ===== RESOURCES ===== -->
+        <section id="resources" class="tab">
+          <div class="split-grid">
+            <article class="card">
+              <h3><span class="icon icon-sm icon-ai"></span> Scout Resources with AI</h3>
+              <p class="subtle">AI scans the web for study resources on a topic. Add the good ones to your library.</p>
+              <div class="inline top-gap">
+                <input id="resourceScoutTopic" placeholder="e.g. AP Physics Kinematics, SAT Vocabulary, Organic Chemistry mechanisms" style="flex:1;" />
+                <button id="resourceScoutBtn">Scout</button>
+              </div>
+              <div id="resourceScoutStatus" class="subtle top-gap"></div>
+              <div id="resourceScoutResults" class="stack top-gap"></div>
+            </article>
+            <article class="card">
+              <h3><span class="icon icon-sm icon-note"></span> Upload Your Own Resources</h3>
+              <p class="subtle">Add notes, links, or files. The AI can use these when answering you.</p>
+              <form id="resourceUploadForm" class="stack top-gap">
+                <input id="resourceTitle" placeholder="Resource title (e.g. Chapter 5 Notes)" required />
+                <select id="resourceSubject">
+                  <option value="">Subject (optional)</option>
+                  <option value="Math">Math</option>
+                  <option value="Physics">Physics</option>
+                  <option value="Chemistry">Chemistry</option>
+                  <option value="Biology">Biology</option>
+                  <option value="History">History</option>
+                  <option value="English">English</option>
+                  <option value="Languages">Languages</option>
+                  <option value="Computer Science">Computer Science</option>
+                  <option value="Other">Other</option>
+                </select>
+                <textarea id="resourceContent" rows="4" placeholder="Paste text content, or a URL like https://..."></textarea>
+                <input id="resourceFile" type="file" accept=".txt,.md,.pdf,.png,.jpg,.jpeg,.webp" />
+                <button type="submit">Save Resource</button>
+              </form>
+            </article>
+          </div>
+          <article class="card">
+            <h3>My Resource Library</h3>
+            <p class="subtle">Saved resources are included as context when the AI helps you.</p>
+            <div id="resourceLibrary" class="stack top-gap"></div>
+          </article>
+        </section>
         <!-- ===== CALENDAR ===== -->
         <section id="calendar" class="tab">
           <div class="split-grid">
@@ -1876,6 +1964,37 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
               </div>
             </article>
             <article class="card">
+              <h3 id="settingsAppearanceHeading">Appearance</h3>
+              <p class="subtle">Customize fonts, spacing, and corner radius.</p>
+              <div class="stack top-gap">
+                <div class="inline" style="align-items:center;gap:10px;flex-wrap:wrap">
+                  <label for="fontSelect" style="font-weight:600">Font</label>
+                  <select id="fontSelect" style="flex:1;min-width:160px">
+                    <option value="default">Default (Space Grotesk)</option>
+                    <option value="serif">Serif (Crimson Pro)</option>
+                    <option value="mono">Monospace</option>
+                    <option value="rounded">Rounded</option>
+                  </select>
+                </div>
+                <div class="inline" style="align-items:center;gap:10px;flex-wrap:wrap">
+                  <label for="densitySelect" style="font-weight:600">Density</label>
+                  <select id="densitySelect" style="flex:1;min-width:160px">
+                    <option value="compact">Compact</option>
+                    <option value="comfortable">Comfortable</option>
+                    <option value="roomy">Roomy</option>
+                  </select>
+                </div>
+                <div class="inline" style="align-items:center;gap:10px;flex-wrap:wrap">
+                  <label for="radiusSelect" style="font-weight:600">Corners</label>
+                  <select id="radiusSelect" style="flex:1;min-width:160px">
+                    <option value="sharp">Sharp</option>
+                    <option value="soft">Soft</option>
+                    <option value="round">Round</option>
+                  </select>
+                </div>
+              </div>
+            </article>
+            <article class="card">
               <h3 id="settingsLangHeading">App Language</h3>
               <p class="subtle">Choose the app interface language.</p>
               <select id="appLanguageSelect" class="top-gap">
@@ -1994,6 +2113,5 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
     <button id="landingOpenApp" class="landing-open-app"><span class="icon icon-sm icon-star"></span> Open Study Hub Dashboard</button>
   </div>
 </div>
- <script>(function(){var d=document.createElement('div');d.id='diag';d.style.cssText='display:none';document.body.appendChild(d);})();</script>
 </body>
 </html>

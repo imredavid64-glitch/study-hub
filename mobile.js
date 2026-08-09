@@ -251,7 +251,7 @@ const Mobile = (() => {
     });
   }
 
-  const TAB_ORDER = ['dashboard','planner','sessions','flashcards','recalls','quizzes','notes','assignments','coach','ai-content-generator','ai-tutor','ai-lessons','ai-voice','warmup','studyguide','generators','calculator','tutorial','autism','subjects','calendar','social','analytics','settings'];
+  const TAB_ORDER = ['dashboard','planner','sessions','flashcards','recalls','quizzes','notes','assignments','coach','ai-content-generator','ai-tutor','ai-lessons','ai-voice','warmup','studyguide','studyroom','resources','generators','calculator','tutorial','autism','subjects','calendar','social','analytics','settings'];
 
   function setupSwipeNavigation() {
     // Snapchat-style: swipe left/right across the app to move between tabs.

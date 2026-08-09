@@ -636,6 +636,82 @@ class RealTimeDashboard {
   }
 }
 
+// ===== LIVE LEADERBOARD (send-only) =====
+// Your stats are pushed to the cloud so peers can see live rankings.
+// The leaderboard read-back is never written into your local state.
+class LeaderboardManager {
+  constructor() {
+    this.weekStart = this.getWeekStart();
+    this.realtimeChannel = null;
+  }
+
+  getWeekStart() {
+    const now = new Date();
+    const day = (now.getDay() + 6) % 7; // Monday = 0
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
+    return d.toISOString().split('T')[0];
+  }
+
+  async submitStats() {
+    if (!supabase || !state) return { ok: false, reason: 'unavailable' };
+    try {
+      const weekSessions = state.sessions.filter(s => {
+        const d = new Date(s.date);
+        return d >= new Date(this.weekStart);
+      });
+      const entry = {
+        user_id: localStorage.getItem('studyhub_user_id') || 'anon_' + Math.random().toString(36).substr(2, 8),
+        name: (state.profile && state.profile.name) || 'Scholar',
+        week_start: this.weekStart,
+        xp: (state.profile && state.profile.xp) || 0,
+        streak: (state.profile && state.profile.currentStreak) || 0,
+        study_minutes: weekSessions.reduce((s, x) => s + (x.minutes || 0), 0),
+        quizzes_taken: (state.quizAttempts || []).length,
+        updated_at: new Date().toISOString()
+      };
+      const { error } = await supabase
+        .from('leaderboard_entries')
+        .upsert(entry, { onConflict: 'user_id,week_start' });
+      if (error) throw error;
+      return { ok: true };
+    } catch (e) {
+      console.warn('[Leaderboard] Submit failed:', e.message);
+      return { ok: false, reason: e.message };
+    }
+  }
+
+  async fetchLeaderboard() {
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('leaderboard_entries')
+        .select('*')
+        .eq('week_start', this.weekStart)
+        .order('xp', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    } catch (e) {
+      console.warn('[Leaderboard] Fetch failed:', e.message);
+      return [];
+    }
+  }
+
+  subscribe(onUpdate) {
+    if (!supabase) return;
+    try {
+      this.realtimeChannel = supabase
+        .channel('leaderboard_' + this.weekStart)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'leaderboard_entries', filter: 'week_start=eq.' + this.weekStart }, () => {
+          this.fetchLeaderboard().then(onUpdate);
+        })
+        .subscribe();
+    } catch (e) {
+      console.warn('[Leaderboard] Realtime subscribe failed:', e.message);
+    }
+  }
+}
+
 // ===== MAIN INITIALIZATION =====
 async function initializeCloudSystem() {
   try {
@@ -658,6 +734,13 @@ async function initializeCloudSystem() {
     const realTimeDashboard = new RealTimeDashboard();
     realTimeDashboard.userManager = userManager;
 
+    // Initialize live leaderboard (send-only stats, read live rankings)
+    const leaderboardManager = new LeaderboardManager();
+    await leaderboardManager.submitStats();
+    if (typeof window.onLeaderboardUpdate === 'function') {
+      leaderboardManager.subscribe(rows => window.onLeaderboardUpdate(rows));
+    }
+
     // Replace original saveState to enable cloud sync
     if (typeof saveState !== 'function' || saveState.__cloudWrapped) {
       console.log('saveState already wrapped — skipping duplicate wrap');
@@ -677,7 +760,8 @@ async function initializeCloudSystem() {
       eventBus,
       analyticsTracker,
       cloudSyncManager,
-      realTimeDashboard
+      realTimeDashboard,
+      leaderboardManager
     };
 
     console.log('✅ Cloud system initialized successfully');
@@ -688,7 +772,8 @@ async function initializeCloudSystem() {
       eventBus,
       analyticsTracker,
       cloudSyncManager,
-      realTimeDashboard
+      realTimeDashboard,
+      leaderboardManager
     };
 
   } catch (error) {
@@ -730,6 +815,7 @@ if (typeof module !== 'undefined' && module.exports) {
     CloudSyncManager,
     EventBus,
     AnalyticsTracker,
-    RealTimeDashboard
+    RealTimeDashboard,
+    LeaderboardManager
   };
 }
