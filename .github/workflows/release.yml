@@ -11,6 +11,8 @@ on:
   push:
     tags:
       - 'v*'
+  # Manual runs build the installers and save them as artifacts but never publish.
+  workflow_dispatch:
 
 jobs:
   build:
@@ -87,7 +89,8 @@ jobs:
           ls -la
 
       - name: Create or refresh release
-        if: ${{ env.GH_TOKEN != '' }}
+        # Only publish on real tag pushes; manual runs just keep the artifacts.
+        if: ${{ env.GH_TOKEN != '' && github.event_name == 'push' }}
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
