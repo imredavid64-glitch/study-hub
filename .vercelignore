@@ -3,9 +3,9 @@ www
 ios
 android
 release
+downloads
 src-tauri
-*.dmg
-*.exe
-*.AppImage
-*.deb
-*.rpm
+.freebuff
+.qa
+.git
+supabase/.temp

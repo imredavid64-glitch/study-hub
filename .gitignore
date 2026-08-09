@@ -1,10 +1,13 @@
 .DS_Store
 *.log
 node_modules/
+.freebuff/
 .env
 .env.*
 !.env.example
 release/
 www/
+downloads/
+.qa/
 .vercel/
 supabase/.temp/

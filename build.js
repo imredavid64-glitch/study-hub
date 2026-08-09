@@ -9,7 +9,9 @@ function checkDependencies() {
     'index.html',
     'app.js',
     'styles.css',
-    'cloud-core.js'
+    'cloud-core.js',
+    'studymap-data.js',
+    'subject-labs.js'
   ];
 
   console.log('🔍 Checking required files...');

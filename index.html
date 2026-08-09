@@ -9,17 +9,23 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no" />
     <title>Study Hub</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="assets/icon-180.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png" />
+    <meta name="apple-mobile-web-app-title" content="Study Hub" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" media="(prefers-color-scheme:light)" />
     <link rel="icon" type="image/svg+xml" href="favicon-dark.svg" media="(prefers-color-scheme:dark)" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;700&family=Nunito:wght@400;600;700&display=swap" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.7.1/dist/umd/supabase.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sonner@1.5.0/dist/sonner.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
     <script src="mobile.js"></script>
     <script>window.addEventListener('error',function(e){var msg=e.message||e;try{var log=JSON.parse(localStorage.getItem('_js_errors')||'[]');log.push({msg:msg,time:new Date().toISOString()});if(log.length>20)log.shift();localStorage.setItem('_js_errors',JSON.stringify(log))}catch(_){}});window.addEventListener('unhandledrejection',function(e){window.dispatchEvent(new ErrorEvent('error',{message:'Promise: '+(e.reason&&e.reason.message||e.reason||'unknown')}))});</script>
     </head>
@@ -27,6 +33,7 @@
   <div class="ambient"></div>
     <div id="judgeBanner" class="judge-banner">
     <span class="judge-banner-text"><strong>🏆 Hackathon Judge Mode Active:</strong> Click 'Load Demo Data' to instantly populate decks, quizzes, and streak analytics without signing up.</span>
+    <button id="exitJudgeBtn" class="ghost judge-banner-exit hidden">Exit Judge Mode</button>
     <button id="dismissBannerBtn" class="ghost judge-banner-dismiss">Dismiss</button>
   </div>
   <div id="toast" class="toast hidden"></div>
@@ -60,9 +67,11 @@
           <button class="nav-btn" data-tab="autism"><span class="icon icon-sm icon-star"></span> Autism Support</button>
           <button class="nav-btn" data-tab="subjects">Subjects</button>
           <button class="nav-btn" data-tab="resources">Resources</button>
+          <button class="nav-btn" data-tab="studymap">Study Map</button>
           <button class="nav-btn" data-tab="calendar">Calendar</button>
           <button class="nav-btn" data-tab="social">Social</button>
           <button class="nav-btn" data-tab="analytics">Analytics</button>
+          <button class="nav-btn" data-tab="downloads">⬇ Downloads</button>
           <button class="nav-btn" data-tab="settings">Settings</button>
         </nav>
       </aside>
@@ -1332,14 +1341,27 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
           <article class="card">
             <h3><span class="icon icon-sm icon-film"></span> Film Generator</h3>
             <p class="subtle">Turn any concept into a short educational film: AI-written scenes, generated visuals, and narration you can play back.</p>
-            <div class="inline top-gap">
-              <input id="genFilmTopic" placeholder="e.g. Photosynthesis, The Industrial Revolution" />
+            <div class="inline wrap top-gap">
+              <input id="genFilmTopic" placeholder="e.g. Photosynthesis, The Industrial Revolution" style="flex:1;min-width:200px" />
+              <select id="genFilmScenes" title="Number of scenes">
+                <option value="3">3 scenes</option>
+                <option value="4" selected>4 scenes</option>
+                <option value="5">5 scenes</option>
+                <option value="6">6 scenes</option>
+              </select>
               <button id="genFilmBtn"><span class="icon icon-sm icon-film"></span> Make the Film</button>
             </div>
             <div id="genFilmOut" class="gen-film-out top-gap"></div>
             <div id="filmPlayer" class="film-player hidden top-gap">
               <div class="film-screen">
-                <div class="film-frame"><img id="filmFrameImg" alt="film scene" /></div>
+                <div class="film-frame">
+                  <img id="filmFrameImg" alt="film scene" />
+                  <div id="filmFrameFallback" class="film-frame-fallback hidden">
+                    <span class="film-fallback-icon">🎬</span>
+                    <strong id="filmFallbackTitle"></strong>
+                    <span id="filmFallbackText"></span>
+                  </div>
+                </div>
                 <div class="film-caption">
                   <div class="film-scene-label" id="filmSceneLabel">Scene 1</div>
                   <p id="filmNarration"></p>
@@ -1349,6 +1371,8 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
                 <button id="filmPrev" class="ghost" title="Previous scene"><span class="icon icon-sm icon-prev">◀</span></button>
                 <button id="filmPlay" class="ghost" title="Play / Pause"><span class="icon icon-sm icon-play">▶</span></button>
                 <button id="filmNext" class="ghost" title="Next scene"><span class="icon icon-sm icon-next">▶</span></button>
+                <button id="filmMute" class="ghost" title="Toggle narration voice"><span class="icon icon-sm icon-voice">🔊</span></button>
+                <button id="filmRegenImg" class="ghost" title="New image for this scene">🎨</button>
                 <span id="filmProgress" class="film-progress"></span>
               </div>
             </div>
@@ -1356,9 +1380,18 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
           <article class="card">
             <h3><span class="icon icon-sm icon-image"></span> Image Generator</h3>
             <p class="subtle">Find real, high-quality photos and diagrams for any study topic (from Wikimedia Commons — no AI).</p>
-            <div class="inline top-gap">
-              <input id="genImgTopic" placeholder="e.g. plant cell diagram, solar eclipse photo" />
-              <button id="genImgBtn"><span class="icon icon-sm icon-image"></span> Find Images</button>
+            <div class="inline wrap top-gap">
+              <input id="genImgTopic" placeholder="e.g. plant cell diagram, solar eclipse photo" style="flex:1;min-width:180px" />
+              <select id="genImgMode" title="Image source">
+                <option value="wiki">Real photos (Wikimedia)</option>
+                <option value="ai">AI images (Pollinations)</option>
+              </select>
+              <select id="genImgCount" title="Number of images">
+                <option value="4">4 images</option>
+                <option value="8" selected>8 images</option>
+                <option value="12">12 images</option>
+              </select>
+              <button id="genImgBtn"><span class="icon icon-sm icon-image"></span> Generate</button>
             </div>
             <div id="genImgOut" class="top-gap"></div>
           </article>
@@ -1379,6 +1412,7 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
             <div class="sub-nav">
               <button class="sub-nav-btn active" data-subject="math">Math</button>
               <button class="sub-nav-btn" data-subject="science">Science</button>
+              <button class="sub-nav-btn" data-subject="tech">Tech</button>
               <button class="sub-nav-btn" data-subject="languages">Languages</button>
               <button class="sub-nav-btn" data-subject="social-studies">Social Studies</button>
               <button class="sub-nav-btn" data-subject="english">English</button>
@@ -1524,6 +1558,109 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
                 <div class="science-image-card"><div class="science-image-placeholder"><span class="icon icon-sm icon-brain"></span> Brain</div><p class="subtle">Brain regions</p></div>
               </div>
             </article>
+            <article class="card top-gap">
+              <h3><span class="icon icon-sm icon-target"></span> Interactive Science Labs</h3>
+              <p class="subtle">Play with real simulations — change the variables and watch what happens.</p>
+              <div class="lab-tabs">
+                <button class="lab-tab active" data-lab="physics">Physics Lab</button>
+                <button class="lab-tab" data-lab="chemistry">Chemistry Lab</button>
+                <button class="lab-tab" data-lab="biology">Biology Lab</button>
+              </div>
+              <!-- Physics: projectile motion -->
+              <div class="lab-panel" id="lab-physics">
+                <div class="inline wrap top-gap">
+                  <label>Angle <input type="range" id="labAngle" min="0" max="90" value="45" /> <span id="labAngleVal">45°</span></label>
+                  <label>Speed <input type="range" id="labSpeed" min="10" max="100" value="55" /> <span id="labSpeedVal">55</span></label>
+                  <label>Gravity <input type="range" id="labGravity" min="1" max="25" value="10" /> <span id="labGravityVal">10</span></label>
+                  <button id="labFireBtn" class="ghost">🚀 Launch</button>
+                  <button id="labResetBtn" class="ghost">Reset</button>
+                </div>
+                <canvas id="labPhysicsCanvas" class="lab-canvas" height="300"></canvas>
+                <p class="subtle" id="labPhysicsReadout">Set the angle, speed and gravity, then launch. Watch the range change!</p>
+              </div>
+              <!-- Chemistry: periodic table explorer + pH scale -->
+              <div class="lab-panel hidden" id="lab-chemistry">
+                <p class="subtle">Click an element to see its facts. Then try the pH scale below.</p>
+                <div id="labPeriodic" class="lab-periodic top-gap"></div>
+                <div id="labElementInfo" class="lab-element-info top-gap"></div>
+                <div class="lab-ph top-gap">
+                  <label>pH scale <input type="range" id="labPh" min="0" max="14" value="7" /> <span id="labPhVal">7 — neutral</span></label>
+                  <div class="lab-ph-bar" id="labPhBar"></div>
+                </div>
+              </div>
+              <!-- Biology: cell explorer -->
+              <div class="lab-panel hidden" id="lab-biology">
+                <p class="subtle">Click a part of the cell to learn what it does.</p>
+                <div class="lab-cell-wrap top-gap">
+                  <div class="lab-cell" id="labCell">
+                    <button class="cell-part cell-nucleus" data-part="nucleus">Nucleus</button>
+                    <button class="cell-part cell-membrane" data-part="membrane">Membrane</button>
+                    <button class="cell-part cell-mito" data-part="mitochondria">Mitochondria</button>
+                    <button class="cell-part cell-ribosome" data-part="ribosome">Ribosome</button>
+                    <button class="cell-part cell-er" data-part="er">ER</button>
+                    <button class="cell-part cell-golgi" data-part="golgi">Golgi</button>
+                    <span class="cell-cyto">Cytoplasm</span>
+                  </div>
+                  <div id="labCellInfo" class="lab-cell-info">Click a labelled part…</div>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <!-- TECH -->
+          <div id="subject-tech" class="subject-panel hidden">
+            <div class="split-grid">
+              <article class="card">
+                <h3><span class="icon icon-sm icon-ai"></span> Code Playground</h3>
+                <p class="subtle">Write HTML/CSS/JavaScript and see it run instantly — a real mini IDE in your browser.</p>
+                <div class="stack top-gap">
+                  <div class="inline wrap">
+                    <select id="codeTemplate">
+                      <option value="blank">Blank page</option>
+                      <option value="hello">Hello, world!</option>
+                      <option value="canvas">Canvas animation</option>
+                      <option value="quiz">Mini quiz</option>
+                      <option value="counter">Counter app</option>
+                      <option value="todolist">To-do list</option>
+                    </select>
+                    <button id="codeRunBtn"><span class="icon icon-sm icon-play">▶</span> Run</button>
+                    <button id="codeResetBtn" class="ghost">Reset</button>
+                  </div>
+                  <textarea id="codeEditor" rows="14" spellcheck="false" class="code-editor" placeholder="<!-- write HTML here; add <style> and <script> blocks -->"></textarea>
+                  <div class="inline wrap">
+                    <button id="codeFixBtn" class="ghost"><span class="icon icon-sm icon-ai"></span> AI: find the bug</button>
+                    <button id="codeChallengeBtn" class="ghost"><span class="icon icon-sm icon-star"></span> New challenge</button>
+                  </div>
+                  <div class="code-output-wrap">
+                    <p class="subtle" style="margin-bottom:6px"><strong>Output</strong></p>
+                    <iframe id="codeOutput" class="code-output" sandbox="allow-scripts" title="Code output"></iframe>
+                  </div>
+                </div>
+              </article>
+              <article class="card">
+                <h3><span class="icon icon-sm icon-brain"></span> Computer Science Topics</h3>
+                <div class="stack top-gap">
+                  <select id="csTopic">
+                    <option value="algorithms">Algorithms & Big-O</option>
+                    <option value="web">How the Web Works</option>
+                    <option value="data">Data Structures</option>
+                    <option value="ai">AI & Machine Learning</option>
+                    <option value="cyber">Cybersecurity Basics</option>
+                    <option value="python">Python for Beginners</option>
+                    <option value="js">JavaScript Essentials</option>
+                    <option value="careers">Tech Careers & Paths</option>
+                  </select>
+                  <button id="csExplainBtn">Explain Topic →</button>
+                  <div id="csResult" class="stack top-gap"></div>
+                </div>
+                <h3 class="top-gap"><span class="icon icon-sm icon-timer"></span> Mini Terminal</h3>
+                <p class="subtle">Type a JavaScript expression (e.g. <code>2 ** 10</code>, <code>[3,1,2].sort()</code>) and press Enter.</p>
+                <div class="mini-term top-gap" id="miniTerm">
+                  <div id="miniTermOut" class="mini-term-out"></div>
+                  <div class="mini-term-line"><span class="mini-term-prompt">js&gt;</span><input id="miniTermInput" spellcheck="false" autocomplete="off" /></div>
+                </div>
+              </article>
+            </div>
           </div>
 
           <!-- LANGUAGES -->
@@ -1602,6 +1739,26 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
                 <div id="langWritingArea" class="stack top-gap"></div>
               </article>
             </div>
+            <article class="card top-gap">
+              <h3><span class="icon icon-sm icon-book"></span> Book Library</h3>
+              <p class="subtle">Classic books, free and legal (Project Gutenberg). Pick a language, then start reading.</p>
+              <div class="inline wrap top-gap">
+                <select id="bookLang">
+                  <option value="en">English</option>
+                  <option value="es">Spanish</option>
+                  <option value="fr">French</option>
+                  <option value="de">German</option>
+                  <option value="it">Italian</option>
+                </select>
+                <input id="bookSearch" placeholder="Search books…" style="flex:1;min-width:160px" />
+              </div>
+              <div id="bookList" class="book-grid top-gap"></div>
+              <div class="stack top-gap">
+                <h4>My reading notes</h4>
+                <textarea id="bookNotes" rows="4" placeholder="Notes on what you're reading… (saved locally)"></textarea>
+                <button id="bookNotesSave" class="ghost">Save Notes</button>
+              </div>
+            </article>
           </div>
 
           <!-- SOCIAL STUDIES -->
@@ -1658,6 +1815,16 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
                 <div id="civicsResult" class="stack top-gap"></div>
               </article>
             </div>
+            <article class="card top-gap">
+              <h3><span class="icon icon-sm icon-note"></span> Primary Source &amp; Document Analysis</h3>
+              <p class="subtle">Investigate any historical document with the SOAPStone method, then get AI help thinking it through.</p>
+              <div class="stack top-gap">
+                <textarea id="primarySourceText" rows="5" placeholder="Paste a quote or document excerpt here…"></textarea>
+                <input id="primarySourceContext" placeholder="Optional context: who wrote it, when, where?" />
+                <button id="primarySourceBtn">Analyze the Document →</button>
+              </div>
+              <div id="primarySourceResult" class="stack top-gap"></div>
+            </article>
           </div>
 
           <!-- ENGLISH -->
@@ -1688,6 +1855,28 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
                 <button id="englishVocabBtn">Generate Vocabulary →</button>
               </div>
               <div id="englishVocabResult" class="stack top-gap"></div>
+            </article>
+            <article class="card top-gap">
+              <h3><span class="icon icon-sm icon-book"></span> Literary Analysis</h3>
+              <p class="subtle">Analyze a book or passage for theme, character, and symbolism — guided by AI.</p>
+              <div class="inline wrap top-gap">
+                <select id="litBook">
+                  <option value="">Choose a classic…</option>
+                  <option value="To Kill a Mockingbird">To Kill a Mockingbird — Harper Lee</option>
+                  <option value="The Great Gatsby">The Great Gatsby — F. Scott Fitzgerald</option>
+                  <option value="1984">1984 — George Orwell</option>
+                  <option value="Lord of the Flies">Lord of the Flies — William Golding</option>
+                  <option value="Romeo and Juliet">Romeo and Juliet — Shakespeare</option>
+                  <option value="Macbeth">Macbeth — Shakespeare</option>
+                  <option value="The Odyssey">The Odyssey — Homer</option>
+                  <option value="Pride and Prejudice">Pride and Prejudice — Jane Austen</option>
+                  <option value="The Catcher in the Rye">The Catcher in the Rye — J.D. Salinger</option>
+                  <option value="Of Mice and Men">Of Mice and Men — John Steinbeck</option>
+                </select>
+                <input id="litPassage" placeholder="Or paste a passage to analyze…" style="flex:1;min-width:180px" />
+                <button id="litAnalyzeBtn">Analyze</button>
+              </div>
+              <div id="litResult" class="stack top-gap"></div>
             </article>
           </div>
 
@@ -1728,6 +1917,26 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
                 <button id="nutritionAskBtn">Ask AI</button>
               </div>
               <div id="nutritionResult" class="stack top-gap"></div>
+            </article>
+            <article class="card top-gap">
+              <h3><span class="icon icon-sm icon-brain"></span> Health Topics</h3>
+              <p class="subtle">Structured, practical guides for everyday health questions.</p>
+              <div class="inline wrap top-gap">
+                <select id="healthTopic">
+                  <option value="sleep">Sleep & Rest</option>
+                  <option value="stress">Stress Management</option>
+                  <option value="mental">Mental Health Basics</option>
+                  <option value="firstaid">First Aid Essentials</option>
+                  <option value="hydration">Hydration</option>
+                  <option value="posture">Posture & Screen Health</option>
+                  <option value="immunity">Boosting Immunity</option>
+                  <option value="time">Healthy Study Habits</option>
+                </select>
+                <button id="healthTopicBtn">Open Guide →</button>
+                <input id="healthAsk" placeholder="Ask a health question…" style="flex:1;min-width:160px" />
+                <button id="healthAskBtn" class="ghost">Ask AI</button>
+              </div>
+              <div id="healthResult" class="stack top-gap"></div>
             </article>
           </div>
         </section>
@@ -1773,6 +1982,32 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
             <div id="resourceLibrary" class="stack top-gap"></div>
           </article>
         </section>
+        <!-- ===== STUDY MAP ===== -->
+        <section id="studymap" class="tab">
+          <div class="split-grid">
+            <article class="card">
+              <h3><span class="icon icon-sm icon-chart"></span> Study Map</h3>
+              <p class="subtle">Libraries, SAT centres, foreign-language exam centres, government offices and airports from the open-source <a href="https://github.com/StudentSuite/StudyMap" target="_blank" rel="noreferrer">StudyMap</a> dataset (MIT). Ask the AI Tutor for places too — e.g. "where can I study near me?".</p>
+              <div class="inline wrap top-gap">
+                <select id="smTypeFilter">
+                  <option value="">All categories</option>
+                </select>
+                <select id="smCityFilter">
+                  <option value="">All cities</option>
+                </select>
+                <input id="smSearch" placeholder="Search places…" style="flex:1;min-width:160px;" />
+                <button id="smResetBtn" class="ghost">Reset</button>
+              </div>
+              <div id="smCount" class="subtle top-gap"></div>
+              <div id="smMap" class="sm-map top-gap"></div>
+            </article>
+            <article class="card">
+              <h3>Places</h3>
+              <div id="smList" class="stack top-gap"></div>
+            </article>
+          </div>
+        </section>
+
         <!-- ===== CALENDAR ===== -->
         <section id="calendar" class="tab">
           <div class="split-grid">
@@ -1837,6 +2072,20 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
                   <p class="subtle">A collaborative space where students share study techniques and help each other succeed.</p>
                   <a href="https://learningfans-imredavid64-glitchs-projects.vercel.app/" target="_blank" class="social-link">Join LearningFans →</a>
                 </div>
+              </div>
+            </article>
+            <article class="card">
+              <h3>Find Study Mates</h3>
+              <p class="subtle">Match with other students studying the same subjects — powered by LearningFans and your cloud-synced profile.</p>
+              <div class="stack top-gap">
+                <div id="studymatesProfile" class="item"></div>
+                <div class="inline wrap">
+                  <button id="findStudyMatesBtn">Find Study Mates</button>
+                  <button id="copyStudyHubIdBtn" class="ghost">Copy my Study Hub ID</button>
+                  <a id="openLearningFansBtn" href="https://learningfans-imredavid64-glitchs-projects.vercel.app/app/study-hub" target="_blank" rel="noreferrer" class="social-link">Open LearningFans →</a>
+                </div>
+                <div id="studymatesResults" class="stack top-gap"></div>
+                <p class="subtle">Paste your Study Hub ID into LearningFans (Study Hub page) to see your achievements and profile there.</p>
               </div>
             </article>
             <article class="card">
@@ -1955,10 +2204,27 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
                 <button class="theme-swatch" data-theme="yellow" title="Yellow">Yellow</button>
                 <button class="theme-swatch custom" data-theme="custom" title="Your color" style="background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)"></button>
               </div>
+              <p class="subtle top-gap" style="margin-top:12px"><strong>Quick palette</strong> — tap a color to make it your accent.</p>
+              <div class="mini-palette top-gap" id="miniPalette">
+                <button class="palette-swatch" data-hex="#0f766e" style="background:#0f766e" title="Teal"></button>
+                <button class="palette-swatch" data-hex="#0b5cab" style="background:#0b5cab" title="Blue"></button>
+                <button class="palette-swatch" data-hex="#2563eb" style="background:#2563eb" title="Royal blue"></button>
+                <button class="palette-swatch" data-hex="#7c3aed" style="background:#7c3aed" title="Purple"></button>
+                <button class="palette-swatch" data-hex="#db2777" style="background:#db2777" title="Pink"></button>
+                <button class="palette-swatch" data-hex="#dc2626" style="background:#dc2626" title="Red"></button>
+                <button class="palette-swatch" data-hex="#ea580c" style="background:#ea580c" title="Orange"></button>
+                <button class="palette-swatch" data-hex="#ca8a04" style="background:#ca8a04" title="Yellow"></button>
+                <button class="palette-swatch" data-hex="#16a34a" style="background:#16a34a" title="Green"></button>
+                <button class="palette-swatch" data-hex="#059669" style="background:#059669" title="Emerald"></button>
+                <button class="palette-swatch" data-hex="#0891b2" style="background:#0891b2" title="Cyan"></button>
+                <button class="palette-swatch" data-hex="#334155" style="background:#334155" title="Slate"></button>
+                <button class="palette-swatch" data-hex="#b45309" style="background:#b45309" title="Brown"></button>
+                <button class="palette-swatch" data-hex="#be185d" style="background:#be185d" title="Magenta"></button>
+              </div>
               <div class="inline top-gap" style="margin-top:10px;align-items:center">
                 <label style="display:flex;align-items:center;gap:8px;font-weight:600">
                   <input type="color" id="customColorInput" value="#0f766e" style="width:42px;height:34px;border:none;background:none;cursor:pointer" />
-                  Custom color
+                  Pick any color
                 </label>
                 <input id="customColorHex" class="ghost" value="#0f766e" maxlength="7" style="width:90px" />
               </div>
@@ -1990,6 +2256,14 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
                     <option value="sharp">Sharp</option>
                     <option value="soft">Soft</option>
                     <option value="round">Round</option>
+                  </select>
+                </div>
+                <div class="inline" style="align-items:center;gap:10px;flex-wrap:wrap">
+                  <label for="layoutSelect" style="font-weight:600">Layout</label>
+                  <select id="layoutSelect" style="flex:1;min-width:160px">
+                    <option value="balanced">Balanced — two columns</option>
+                    <option value="single">Single column — wide reading flow</option>
+                    <option value="wide">Wide — use the full screen</option>
                   </select>
                 </div>
               </div>
@@ -2024,9 +2298,55 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
                   <input id="importDataInput" type="file" accept="application/json" />
                 </label>
                 <button id="rerunOnboardingBtn" class="ghost">Re-run Onboarding</button>
-                <button id="resetDataBtn" class="danger">Reset All Data</button>
+                <button id="exitJudgeBtn" class="ghost hidden">Exit Judge Mode</button>
+                <button id="resetDataBtn" class="danger">Delete All Data</button>
               </div>
           </article>
+        </section>
+        <!-- ===== DOWNLOADS TAB ===== -->
+        <section id="downloads" class="tab">
+          <h2 class="tab-title">⬇ Download Study Hub</h2>
+          <p class="subtle">Get the full app on any device. Desktop apps are self-contained installers. On Android and iOS you install the app straight from this site — no App Store or Google Play required.</p>
+          <div class="split-grid">
+            <article class="card">
+              <h3>🍎 macOS</h3>
+              <p class="subtle">Installer for Apple Silicon Macs (macOS 12+).</p>
+              <a class="btn" href="https://github.com/imredavid64-glitch/study-hub-installers/releases/download/v1.0.0/Study-Hub-mac.dmg" download>Download for macOS (.dmg)</a>
+            </article>
+            <article class="card">
+              <h3>🪟 Windows</h3>
+              <p class="subtle">Portable app for Windows 10 / 11 (64-bit) — unzip and run <code>Study Hub.exe</code>.</p>
+              <a class="btn" href="https://github.com/imredavid64-glitch/study-hub-installers/releases/download/v1.0.0/Study-Hub-Windows.zip" download>Download for Windows (.zip)</a>
+            </article>
+            <article class="card">
+              <h3>🐧 Linux</h3>
+              <p class="subtle">Portable build for 64-bit Linux — extract and run <code>studyhub</code>.</p>
+              <a class="btn" href="https://github.com/imredavid64-glitch/study-hub-installers/releases/download/v1.0.0/Study-Hub-Linux.tar.gz" download>Download for Linux (.tar.gz)</a>
+            </article>
+            <article class="card">
+              <h3>🤖 Android</h3>
+              <p class="subtle">Install as an app directly from Chrome — no Google Play needed.</p>
+              <ol class="stack" style="padding-left:18px">
+                <li>Open this site in Chrome on your phone</li>
+                <li>Tap the <strong>⋮ menu → Install app</strong> (or “Add to Home screen”)</li>
+                <li>Study Hub appears on your home screen like a native app</li>
+              </ol>
+            </article>
+            <article class="card">
+              <h3>📱 iPhone / iPad</h3>
+              <p class="subtle">Add Study Hub to your Home Screen from Safari — no App Store needed.</p>
+              <ol class="stack" style="padding-left:18px">
+                <li>Open this site in Safari on your iPhone or iPad</li>
+                <li>Tap the <strong>Share</strong> button → <strong>Add to Home Screen</strong></li>
+                <li>Open it from your Home Screen — it runs full-screen and works offline</li>
+              </ol>
+            </article>
+            <article class="card">
+              <h3>💻 Any Browser</h3>
+              <p class="subtle">Install the app from the address bar, or use the desktop installers above.</p>
+              <p>On Chrome/Edge/Safari look for the <strong>install icon</strong> (or “Install Study Hub”) in the address bar or browser menu.</p>
+            </article>
+          </div>
         </section>
       </main>
     </div>
@@ -2071,7 +2391,9 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
     </div>
     <audio id="musicAudio" preload="auto"></audio>
 
+    <script src="studymap-data.js"></script>
     <script src="cloud-core.js"></script>
+    <script src="subject-labs.js"></script>
     <script src="app.js"></script>
   <!-- ===== SETUP MODAL ===== -->
 <div id="setupModal" class="onboarding-overlay hidden">
@@ -2104,14 +2426,24 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
       <h3>Get Study Hub</h3>
       <div class="landing-download-btns">
         <button id="installPwaBtn"><span class="icon icon-sm icon-star"></span> Install App</button>
-        <a id="dlAndroid" class="btn" href="https://github.com/imredavid64-glitch/study-hub/releases/latest/download/StudyHub.apk" target="_blank" rel="noopener">Android</a>
-        <a id="dlIos" class="btn" href="https://apps.apple.com" target="_blank" rel="noopener">iOS</a>
-        <a id="dlDesktop" class="btn" href="https://github.com/imredavid64-glitch/study-hub/releases/latest" target="_blank" rel="noopener">Desktop</a>
+        <a id="dlAndroid" class="btn" href="#downloads">Android</a>
+        <a id="dlIos" class="btn" href="#downloads">iOS</a>
+        <a id="dlDesktop" class="btn" href="#downloads">Desktop</a>
       </div>
-      <p class="subtle">Android: install the APK from the releases page · iOS: install the PWA from Safari → Share → Add to Home Screen · Desktop: web or Chrome extension.</p>
+      <p class="subtle">Android &amp; iOS: install the app straight from this site — no stores · Desktop: native installers for macOS, Windows and Linux.</p>
     </div>
     <button id="landingOpenApp" class="landing-open-app"><span class="icon icon-sm icon-star"></span> Open Study Hub Dashboard</button>
   </div>
 </div>
+<script>
+  // Register the service worker so the app installs & works offline (PWA)
+  if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function (e) {
+        console.warn('Service worker registration failed:', e);
+      });
+    });
+  }
+</script>
 </body>
 </html>

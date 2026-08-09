@@ -21,6 +21,17 @@ const Mobile = (() => {
     } else {
       console.log('[Mobile] Running as web app');
     }
+
+    // Phone browsers (PWA / mobile web) get the same adapted UI: bottom nav,
+    // swipe navigation, bigger touch targets — no app store required.
+    const isPhone = () => {
+      const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+      return !isNative && coarse && window.innerWidth <= 900;
+    };
+    const applyPhone = () => document.body.classList.toggle('is-mobile', isPhone());
+    applyPhone();
+    window.addEventListener('resize', applyPhone);
+    if (isPhone()) console.log('[Mobile] Phone adaptation enabled');
     return isNative;
   }
 
@@ -226,6 +237,8 @@ const Mobile = (() => {
       { tab: 'subjects', icon: '📚', label: 'Learn' },
       { tab: 'coach', icon: '🤖', label: 'AI' },
       { tab: 'analytics', icon: '📊', label: 'Stats' },
+      { tab: 'studymap', icon: '🗺️', label: 'Map' },
+      { tab: 'downloads', icon: '⬇️', label: 'Get App' },
       { tab: 'settings', icon: '⚙️', label: 'Settings' }
     ];
     items.forEach(item => {
@@ -251,7 +264,7 @@ const Mobile = (() => {
     });
   }
 
-  const TAB_ORDER = ['dashboard','planner','sessions','flashcards','recalls','quizzes','notes','assignments','coach','ai-content-generator','ai-tutor','ai-lessons','ai-voice','warmup','studyguide','studyroom','resources','generators','calculator','tutorial','autism','subjects','calendar','social','analytics','settings'];
+  const TAB_ORDER = ['dashboard','planner','sessions','flashcards','recalls','quizzes','notes','assignments','coach','ai-content-generator','ai-tutor','ai-lessons','ai-voice','warmup','studyguide','studyroom','resources','studymap','generators','calculator','tutorial','autism','subjects','calendar','social','analytics','settings'];
 
   function setupSwipeNavigation() {
     // Snapchat-style: swipe left/right across the app to move between tabs.
@@ -259,7 +272,7 @@ const Mobile = (() => {
     document.addEventListener('touchstart', (e) => {
       // don't hijack swipes started inside scrollable/editable regions
       const t = e.target;
-      if (t && (t.closest('.fc-flip-card') || t.closest('.gen-map-canvas') || t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.tagName === 'SELECT')) {
+      if (t && (t.closest('.fc-flip-card') || t.closest('.gen-map-canvas') || t.closest('.mobile-nav') || t.closest('.music-seek') || t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.tagName === 'SELECT')) {
         startX = null; return;
       }
       startX = e.touches[0].clientX;

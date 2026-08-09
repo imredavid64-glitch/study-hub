@@ -761,7 +761,27 @@ async function initializeCloudSystem() {
       analyticsTracker,
       cloudSyncManager,
       realTimeDashboard,
-      leaderboardManager
+      leaderboardManager,
+      supabase,
+      clearAllData: async () => {
+        // Best-effort wipe of this user's rows from the shared cloud
+        try {
+          const myId = typeof getStudyHubUserId === 'function' ? getStudyHubUserId() : localStorage.getItem('studyhub_user_id');
+          if (myId && window.supabase) {
+            const snaps = await window.supabase.from('user_state_snapshots').delete().eq('user_id', myId);
+            if (snaps.error) throw snaps.error;
+            const users = await window.supabase.from('users').delete().eq('id', myId);
+            if (users.error) throw users.error;
+            const feed = await window.supabase.from('peer_activity').delete().eq('user_id', myId);
+            if (feed.error) throw feed.error;
+          }
+          try { localStorage.removeItem('studyhub_user_id'); } catch (e) {}
+          try { localStorage.removeItem('studyhub_sync_queue'); } catch (e) {}
+          console.log('[Cloud] Cleared user data from cloud');
+        } catch (e) {
+          console.warn('[Cloud] clearAllData:', e);
+        }
+      }
     };
 
     console.log('✅ Cloud system initialized successfully');

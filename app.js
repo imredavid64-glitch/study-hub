@@ -176,7 +176,7 @@ function __(key) { const l = _lang(); return LOCALES[l]?.[key] || LOCALES.en[key
 
 const DEFAULT_STATE = {
   profile: { name: 'Scholar', major: 'General Studies', weeklyTargetHours: 20, targetGpa: 3.8, setupComplete: false, subjects: [], interests: '', learningStyle: '', difficulties: '', goals: '', xp: 0, currentStreak: 0 },
-    settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', font: 'default', density: 'comfortable', radius: 'soft', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', stickyNotes: [], warmupStats: { bestStreak: 0, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, _ach: { goalsCompleted: 0, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
+    settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', font: 'default', density: 'comfortable', radius: 'soft', layout: 'balanced', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', stickyNotes: [], warmupStats: { bestStreak: 0, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, _ach: { goalsCompleted: 0, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
   goals: [], tasks: [], sessions: [], flashcards: [], notes: [], assignments: [],
   reflections: [], quizAttempts: [], mockTestHistory: [], recallHistory: [],
   resources: [],
@@ -190,7 +190,7 @@ const DEFAULT_STATE = {
 // ===== DEMO DATA FOR JUDGE MODE =====
 const DEMO_DATA = {
   profile: { name: 'Judge', major: 'All Subjects', weeklyTargetHours: 25, targetGpa: 4.0, setupComplete: true, subjects: ['AP Physics', 'SAT Prep', 'Organic Chemistry'], interests: 'Competitive academics, Test preparation', learningStyle: 'visual', difficulties: 'None', goals: 'Ace all exams, Get into top college', xp: 450, currentStreak: 7 },
-  settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', font: 'default', density: 'comfortable', radius: 'soft', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', stickyNotes: [], warmupStats: { bestStreak: 7, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, _ach: { goalsCompleted: 1, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
+  settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', font: 'default', density: 'comfortable', radius: 'soft', layout: 'balanced', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', stickyNotes: [], warmupStats: { bestStreak: 7, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, _ach: { goalsCompleted: 1, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
   goals: [
     { id: 'demo_goal_1', title: 'Ace AP Physics Exam', subject: 'AP Physics', deadline: '2026-12-15', priority: 'high', hours: 20, createdAt: '2026-08-01' },
     { id: 'demo_goal_2', title: 'SAT Score 1500+', subject: 'SAT Prep', deadline: '2026-11-01', priority: 'high', hours: 30, createdAt: '2026-08-01' },
@@ -261,7 +261,7 @@ const DEMO_DATA = {
     { id: 'fc_oc_15', deck: 'Organic Chemistry', question: 'What is Markovnikov\'s rule?', answer: 'In addition reactions to unsymmetrical alkenes, the hydrogen atom attaches to the carbon with the greater number of hydrogen atoms', dueDate: '2026-08-08', interval: 0, ease: 2.5, repetitions: 0, createdAt: '2026-08-01' }
   ],
   quizAttempts: [
-    { id: 'demo_quiz_1', topic: 'AP Physics Practice', subject: 'AP Physics', questions: 5, correct: 5, score: 5, total: 5, percentage: 100, date: '2026-08-07T14:00:00Z', xpEarned: 40 }
+    { id: 'demo_quiz_1', topic: 'AP Physics Practice', subject: 'AP Physics', questions: 5, correct: 5, score: 5, total: 5, percentage: 100, pct: 100, date: '2026-08-07T14:00:00Z', xpEarned: 40 }
   ],
   notes: [
     { id: 'demo_note_1', title: 'AP Physics Kinematics', subject: 'AP Physics', content: '# Kinematics Notes\n\n## Key Equations\n- v = u + at\n- s = ut + 0.5at^2\n- v^2 = u^2 + 2as\n\n## Concepts\n- Displacement vs Distance\n- Speed vs Velocity\n- Acceleration', style: 'freeform', tags: 'physics,kinematics', createdAt: '2026-08-01' }
@@ -271,6 +271,7 @@ const DEMO_DATA = {
 function loadDemoData() {
   // Merge demo data with default state
   const demoState = deepMerge(cloneObj(DEFAULT_STATE), DEMO_DATA);
+  demoState.profile.isDemo = true;
   
   // Update current state
   state = demoState;
@@ -304,16 +305,67 @@ function loadDemoData() {
   return true;
 }
 
+function isJudgeMode() {
+  // Judge/demo mode is active when the sample environment is loaded
+  return !!(state && state.profile && (state.profile.isDemo === true || (state.profile.name === 'Judge' && state.profile.xp >= 450 && state.flashcards && state.flashcards.length >= 45)));
+}
+
+function exitJudgeMode() {
+  // Leave the demo environment: restore a clean default state and re-run onboarding
+  if (!confirm('Exit Judge Mode? Your demo data will be removed and you will start fresh with onboarding.')) return;
+  state = cloneObj(DEFAULT_STATE);
+  state.profile.setupComplete = false;
+  localStorage.removeItem('judgeBannerDismissed');
+  saveState();
+  init();
+  showToast('Exited Judge Mode — welcome to your fresh Study Hub');
+  const banner = document.getElementById('judgeBanner');
+  if (banner) banner.classList.remove('hidden');
+  const exitBtn = document.getElementById('exitJudgeBtn');
+  if (exitBtn) exitBtn.classList.add('hidden');
+  return true;
+}
+
+function deleteAllData() {
+  // Full wipe: every localStorage key on this origin, plus a best-effort cloud cleanup
+  if (!confirm('Delete ALL data? Everything — profile, goals, sessions, flashcards, notes, settings and cloud sync — will be permanently erased. This cannot be undone.')) return;
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith('studyhub_') || k.startsWith('_js_errors') || k === STORAGE_KEY || k === 'judgeBannerDismissed')) keysToRemove.push(k);
+    }
+    keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+  } catch (e) {}
+  // Reset in-memory state to defaults
+  state = cloneObj(DEFAULT_STATE);
+  state.profile.setupComplete = false;
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+  // Best-effort cloud wipe
+  try {
+    if (window.studyHub && typeof window.studyHub.clearAllData === 'function') window.studyHub.clearAllData();
+  } catch (e) {}
+  init();
+  showToast('All data has been deleted');
+  return true;
+}
+
 function initJudgeBanner() {
   const banner = document.getElementById('judgeBanner');
   const dismissBtn = document.getElementById('dismissBannerBtn');
+  const exitBtn = document.getElementById('exitJudgeBtn');
   
   if (!banner) return;
   
   // Check if demo data is already loaded
-  if (state.profile.xp >= 450 || state.flashcards.length >= 45) {
+  if (isJudgeMode()) {
     banner.classList.add('hidden');
+  } else {
+    banner.classList.remove('hidden');
   }
+  
+  // In judge mode the banner swaps to an 'exit demo' state
+  if (exitBtn) exitBtn.classList.toggle('hidden', !isJudgeMode());
   
   // Dismiss button handler
   if (dismissBtn) {
@@ -323,8 +375,13 @@ function initJudgeBanner() {
     });
   }
   
+  // Exit demo button handler
+  if (exitBtn) {
+    exitBtn.addEventListener('click', exitJudgeMode);
+  }
+  
   // Check if banner was previously dismissed
-  if (localStorage.getItem('judgeBannerDismissed') === 'true') {
+  if (!isJudgeMode() && localStorage.getItem('judgeBannerDismissed') === 'true') {
     banner.classList.add('hidden');
   }
 }
@@ -566,6 +623,12 @@ function getSubjectColor(subject) {
 
 // ===== GROQ AI =====
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
+// Local fallback key for static / file:// / Electron builds where the /api/groq
+// serverless proxy is unavailable. In production the key lives server-side in
+// .env.local (GROQ_API_KEY) — this client copy is only used as a last resort.
+if (typeof window !== 'undefined' && !window._GROQ_FALLBACK_KEY) {
+  window._GROQ_FALLBACK_KEY = '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';
+}
 let studentLearningStyle = '';
 async function groqChat(messages, options = {}) {
   const model = options.model || 'llama-3.1-8b-instant';
@@ -1298,7 +1361,8 @@ function renderQuizHistory() {
   }
   state.quizAttempts.slice().reverse().slice(0, 15).forEach(q => {
     const d = document.createElement('div'); d.className = 'item';
-    d.innerHTML = `<strong>${escapeHtml(q.topic)}</strong> — ${q.score}/${q.total} (${q.pct}%) <span class="badge">${formatDate(q.date)}</span>`;
+    const pct = q.pct ?? q.percentage ?? (q.total ? Math.round((q.score / q.total) * 100) : 0);
+    d.innerHTML = `<strong>${escapeHtml(q.topic)}</strong> — ${q.score}/${q.total} (${pct}%) <span class="badge">${formatDate(q.date)}</span>`;
     el.appendChild(d);
   });
 }
@@ -2175,9 +2239,10 @@ async function sendAiChat() {
     const subjects = [...new Set(state.sessions.map(s => s.subject))].slice(0, 3).join(', ') || 'General';
     const peerPrompt = getPeerTutoringPrompt();
     const resourceCtx = buildResourceContext();
+    const studyMapCtx = buildStudyMapContext(q);
     const adhdNote = state.settings.adhdMode ? ' Keep responses VERY short and concise — 2-3 sentences max. The student has ADHD and needs brief, focused answers.' : '';
     const profileCtx = [state.profile.interests && ('Interests: ' + state.profile.interests + '.'), state.profile.learningStyle && ('Preferred learning style: ' + state.profile.learningStyle + '.'), state.profile.difficulties && ('Known difficulties to handle patiently: ' + state.profile.difficulties + '.'), state.profile.goals && ('Goals to motivate them with: ' + state.profile.goals + '.')].filter(Boolean).join(' ');
-     const systemPrompt = `You are a skilled Socratic tutor for ${state.profile.name} (${state.profile.major}). Response style: ${style}. Study mode: ${mode}. ${peerPrompt}${adhdNote} Pedagogical rules you ALWAYS follow: (1) Act like a personal teacher, not an answer machine — your goal is to build the student's understanding. (2) When the student asks a question, first help them THINK: check what they already know, break the problem into smaller steps, and give hints before solutions. (3) After you explain something, ALWAYS end your reply with exactly ONE clear follow-up question that checks understanding or pushes them a step further. (4) Connect ideas with analogies and real-world examples, and praise correct reasoning. Only give a direct answer when the student explicitly asks to be shown the full solution or is clearly stuck. If the student asks for direct instruction, start with "Let's think through this step by step..." Context: recent subjects include ${subjects}. Student profile: ${profileCtx}${resourceCtx ? '\n\nStudent\'s saved study resources (reference these when relevant):\n' + resourceCtx : ''}`;
+     const systemPrompt = `You are a skilled Socratic tutor for ${state.profile.name} (${state.profile.major}). Response style: ${style}. Study mode: ${mode}. ${peerPrompt}${adhdNote} Pedagogical rules you ALWAYS follow: (1) Act like a personal teacher, not an answer machine — your goal is to build the student's understanding. (2) When the student asks a question, first help them THINK: check what they already know, break the problem into smaller steps, and give hints before solutions. (3) After you explain something, ALWAYS end your reply with exactly ONE clear follow-up question that checks understanding or pushes them a step further. (4) Connect ideas with analogies and real-world examples, and praise correct reasoning. Only give a direct answer when the student explicitly asks to be shown the full solution or is clearly stuck. If the student asks for direct instruction, start with "Let's think through this step by step..." Context: recent subjects include ${subjects}. Student profile: ${profileCtx}${resourceCtx ? '\n\nStudent\'s saved study resources (reference these when relevant):\n' + resourceCtx : ''}${studyMapCtx ? '\n\nNote: the student has access to a Study Map of real places (libraries, SAT centres, exam centres, government offices, airports). Use the places listed below to answer place-finding questions with real, specific recommendations rather than generic advice.' + studyMapCtx : ''}`;
      const includeThinking = state.settings.showAiThinking;
      const thinkPrompt = includeThinking ? `\n\nFirst, silently reason through your approach in a <thinking> block (do not show this to the student). Then, when responding, briefly narrate your pedagogical reasoning in a concise "Teaching thought:" line that the student CAN see, so they understand how you're guiding them. Format the teaching thought as: _Teaching thought: <brief reasoning>_` : '';
      const txt = await groqChat([
@@ -2562,6 +2627,21 @@ function setupSettings() {
       saveState();
     });
   }
+  // Quick color palette — tap a swatch to make it your accent.
+  qsa('.palette-swatch').forEach(function(p) {
+    p.addEventListener('click', function() {
+      const hex = p.dataset.hex || '#0f766e';
+      syncCustomColorUI(hex);
+      qsa('.theme-swatch').forEach(x => x.classList.remove('active'));
+      const cus = qs('.theme-swatch.custom');
+      if (cus) cus.classList.add('active');
+      state.settings.theme = 'custom';
+      state.settings.customColor = hex;
+      applyTheme();
+      saveState();
+      showToast('Accent color: ' + hex);
+    });
+  });
   $('themeToggleBtn').addEventListener('click', () => {
     state.settings.darkMode = !state.settings.darkMode;
     saveState(); applyTheme();
@@ -2620,17 +2700,12 @@ function setupSettings() {
     reader.readAsText(file);
     e.target.value = '';
   });
-  $('resetDataBtn').addEventListener('click', () => {
-    if (confirm('Are you sure you want to erase ALL your data? This cannot be undone.')) {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem('studyhub_user_id');
-      localStorage.removeItem('studyhub_sync_queue');
-      state = cloneObj(DEFAULT_STATE);
-      saveState();
-      init();
-      showToast('All data has been reset to defaults');
-    }
-  });
+  $('resetDataBtn').addEventListener('click', deleteAllData);
+  var exitJudge = $('exitJudgeBtn');
+  if (exitJudge) {
+    exitJudge.addEventListener('click', exitJudgeMode);
+    exitJudge.classList.toggle('hidden', !isJudgeMode());
+  }
   var rerunBtn = $('rerunOnboardingBtn');
   if (rerunBtn) rerunBtn.addEventListener('click', function() {
     state.profile.setupComplete = false;
@@ -2678,6 +2753,11 @@ $('profileName').value = state.profile.name;
     radiusSelect.value = state.settings.radius || 'soft';
     radiusSelect.addEventListener('change', () => { state.settings.radius = radiusSelect.value; saveState(); applyAppearance(); showToast('Corner radius updated'); });
   }
+  var layoutSelect = $('layoutSelect');
+  if (layoutSelect) {
+    layoutSelect.value = state.settings.layout || 'balanced';
+    layoutSelect.addEventListener('change', () => { state.settings.layout = layoutSelect.value; saveState(); applyAppearance(); showToast('Layout updated'); });
+  }
 
   // Google OAuth client ID (element removed from settings UI)
   const gClientId = document.getElementById('googleClientId');
@@ -2692,6 +2772,7 @@ $('profileName').value = state.profile.name;
 }
 function applyTheme() {
   document.documentElement.setAttribute('data-theme', state.settings.theme || 'teal');
+  if (document.body) document.body.dataset.layout = state.settings.layout || 'balanced';
   applyAppearance();
   if (state.settings.theme === 'custom') {
     const hex = (state.settings.customColor || '#0f766e').replace(/[^0-9a-fA-F#]/g, '');
@@ -2804,7 +2885,7 @@ function setupMusicPlayer() {
   $('musicPrevBtn').addEventListener('click', () => { state.musicTrackIndex = (state.musicTrackIndex - 1 + MUSIC_TRACKS.length) % MUSIC_TRACKS.length; loadMusicTrack(); });
   $('musicNextBtn').addEventListener('click', () => { state.musicTrackIndex = (state.musicTrackIndex + 1) % MUSIC_TRACKS.length; loadMusicTrack(); });
   $('musicToggleList').addEventListener('click', () => $('musicTrackList').classList.toggle('hidden'));
-  $('musicSeek').addEventListener('input', () => { if (audio.src) audio.currentTime = audio.duration * ($('musicSeek').value / 100); });
+  $('musicSeek').addEventListener('input', () => { if (audio.src && isFinite(audio.duration) && audio.duration > 0) audio.currentTime = Math.min(audio.duration, audio.duration * ($('musicSeek').value / 100)); });
   $('musicVolume').addEventListener('input', () => { audio.volume = $('musicVolume').value / 100; state.musicVolume = +$('musicVolume').value; saveState(); });
   audio.addEventListener('timeupdate', updateMusicProgress);
   audio.addEventListener('ended', () => { state.musicTrackIndex = (state.musicTrackIndex + 1) % MUSIC_TRACKS.length; loadMusicTrack(); });
@@ -2854,6 +2935,203 @@ function renderMusicTrackList() {
   });
 }
 
+
+// ===== STUDY MAP (places from open-source StudyMap dataset — https://github.com/StudentSuite/StudyMap, MIT) =====
+const STUDYMAP_CATEGORY_LABELS = {
+  library: 'Library',
+  sat_centre: 'SAT Centre',
+  foreign_lang_exam_centre: 'Foreign Language Exam Centre',
+  gov_offices: 'Government Office',
+  airport: 'Airport',
+  other_places: 'Other'
+};
+
+function getAllStudyMapPlaces() {
+  return window.STUDYMAP_PLACES || [];
+}
+
+function studyMapQuery(opts) {
+  let places = getAllStudyMapPlaces();
+  if (!opts) opts = {};
+  if (opts.type) places = places.filter(p => p.type === opts.type);
+  if (opts.city) places = places.filter(p => p.city === opts.city);
+  if (opts.q) {
+    const q = String(opts.q).toLowerCase();
+    places = places.filter(p => (p.name + ' ' + (p.address || '') + ' ' + (p.typeLabel || '') + ' ' + (p.city || '') + ' ' + (p.exam || '')).toLowerCase().includes(q));
+  }
+  if (opts.limit) places = places.slice(0, opts.limit);
+  return places;
+}
+
+// Keyword-based place search used by the AI (loose OR matching, ranked by hits).
+function studyMapSuggest(query, limit) {
+  const q = String(query || '').toLowerCase();
+  const STOP = new Set(['where','can','i','find','me','show','a','an','the','for','near','around','close','to','my','some','good','places','place','any','is','there','are','that','in','of','on','and','or','with','please','study','studying','need','want','recommend']);
+  const words = q.replace(/[^a-z0-9\s-]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !STOP.has(w));
+  // Question words → place types (helps when the query has no city/name keywords).
+  const typeHints = [];
+  if (/library|reading|borrow book/i.test(q)) typeHints.push('library');
+  if (/sat|college board|entrance test|exam centre|test centre/i.test(q)) typeHints.push('sat_centre');
+  if (/language|french|german|spanish|jlpt|toefl|ielts/i.test(q)) typeHints.push('foreign_lang_exam_centre');
+  if (/passport|visa|government|office|aadhaar/i.test(q)) typeHints.push('gov_offices');
+  if (/airport|flight|travel/i.test(q)) typeHints.push('airport');
+  let places = getAllStudyMapPlaces();
+  if (typeHints.length > 0 && words.length === 0) places = places.filter(p => typeHints.includes(p.type));
+  const scored = [];
+  places.forEach(p => {
+    const hay = (p.name + ' ' + (p.address || '') + ' ' + (p.typeLabel || '') + ' ' + (p.city || '') + ' ' + (p.exam || '')).toLowerCase();
+    let hits = 0;
+    words.forEach(w => { if (hay.includes(w)) hits++; });
+    if (typeHints.includes(p.type)) hits += 0.5;
+    if (hits > 0) scored.push({ place: p, hits });
+  });
+  scored.sort((a, b) => b.hits - a.hits);
+  return scored.slice(0, limit || 8).map(s => s.place);
+}
+
+function setupStudyMap() {
+  const typeSel = $('smTypeFilter'), citySel = $('smCityFilter'), search = $('smSearch');
+  const resetBtn = $('smResetBtn'), countEl = $('smCount'), listEl = $('smList'), mapEl = $('smMap');
+  if (!mapEl) return;
+  const places = getAllStudyMapPlaces();
+
+  // Populate filters
+  [...new Set(places.map(p => p.type))].sort().forEach(t => {
+    const o = document.createElement('option'); o.value = t; o.textContent = STUDYMAP_CATEGORY_LABELS[t] || t;
+    typeSel.appendChild(o);
+  });
+  [...new Set(places.map(p => p.city))].sort().forEach(c => {
+    const o = document.createElement('option'); o.value = c; o.textContent = c.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+    citySel.appendChild(o);
+  });
+
+  let map = null, markers = [], markerById = {};
+  try {
+    if (typeof window.L !== 'undefined' && mapEl) {
+      map = window.L.map(mapEl, { scrollWheelZoom: false });
+      window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors', maxZoom: 18 }).addTo(map);
+      map.setView([20, 0], 2);
+    }
+  } catch (e) { map = null; }
+
+  function render() {
+    const filtered = studyMapQuery({ type: typeSel.value, city: citySel.value, q: (search.value || '').trim() });
+    countEl.textContent = filtered.length + ' of ' + places.length + ' places';
+
+    // List (always available, doubles as fallback when the map can't load)
+    listEl.innerHTML = '';
+    if (filtered.length === 0) { listEl.innerHTML = '<p class="subtle">No places match your filters.</p>'; }
+    filtered.slice(0, 100).forEach(p => {
+      const d = document.createElement('div'); d.className = 'item sm-place-item';
+      d.innerHTML = '<strong>' + escapeHtml(p.name) + '</strong> <span class="badge">' + escapeHtml(p.typeLabel || p.type) + '</span><p class="subtle">' + escapeHtml(p.address || '') + ' · ' + escapeHtml(p.cityLabel || p.city) + '</p>';
+      d.addEventListener('click', () => {
+        if (map && p.lat && p.lng) { map.setView([p.lat, p.lng], 14); if (markerById[p.id]) markerById[p.id].openPopup(); }
+      });
+      listEl.appendChild(d);
+    });
+
+    // Map markers
+    if (map) {
+      markers.forEach(m => map.removeLayer(m)); markers = []; markerById = {};
+      filtered.forEach(p => {
+        if (!p.lat || !p.lng) return;
+        const m = window.L.marker([p.lat, p.lng]).addTo(map);
+        m.bindPopup('<strong>' + escapeHtml(p.name) + '</strong><br>' + escapeHtml(p.address || '') + '<br><a href="' + escapeHtml(p.gmaps_link || '#') + '" target="_blank" rel="noreferrer">Open in Google Maps →</a>');
+        markerById[p.id] = m; markers.push(m);
+      });
+      const withCoords = filtered.filter(p => p.lat && p.lng);
+      if (withCoords.length === 1) map.setView([withCoords[0].lat, withCoords[0].lng], 14);
+      else if (withCoords.length > 1) map.fitBounds(window.L.latLngBounds(withCoords.map(p => [p.lat, p.lng])));
+      else map.setView([20, 0], 2);
+    }
+  }
+
+  typeSel.addEventListener('change', render);
+  citySel.addEventListener('change', render);
+  search.addEventListener('input', render);
+  resetBtn.addEventListener('click', () => { typeSel.value = ''; citySel.value = ''; search.value = ''; render(); });
+  render();
+}
+
+// Build AI context from the study map when the student asks about places.
+function buildStudyMapContext(q) {
+  if (!q || !/(library|study (spot|place|room|space|hub|mate)|exam centre|sat centre|government office|airport|where can i|near me|places to|test centre|language centre|reading room)/i.test(q)) return '';
+  const places = studyMapSuggest(q, 8);
+  if (places.length === 0) return '';
+  return '\n\nStudy map places matching the student\'s request (from the open-source StudyMap dataset — these are real, specific places; use them in your answer):\n' +
+    places.map(p => '- ' + p.name + ' (' + (p.typeLabel || p.type) + ', ' + (p.cityLabel || p.city) + ') — ' + (p.address || 'address on request') + (p.gmaps_link ? ' ' + p.gmaps_link : '')).join('\n');
+}
+
+// ===== STUDY MATES (LearningFans collaboration) =====
+function getStudyHubUserId() {
+  return (typeof window.studyHub !== 'undefined' && window.studyHub.userManager && window.studyHub.userManager.currentUserId) ||
+    localStorage.getItem('studyhub_user_id') || 'user_' + Math.random().toString(36).substr(2, 9);
+}
+
+function setupStudyMates() {
+  const findBtn = $('findStudyMatesBtn'), copyBtn = $('copyStudyHubIdBtn'), openBtn = $('openLearningFansBtn');
+  const resultsEl = $('studymatesResults'), profileEl = $('studymatesProfile');
+  if (!findBtn) return;
+  const subjects = (state.profile.subjects || []).filter(Boolean);
+  if (profileEl) {
+    profileEl.innerHTML = '<strong>' + escapeHtml(state.profile.name || 'Scholar') + '</strong>' +
+      '<p class="subtle">' + escapeHtml(state.profile.major || 'General Studies') + ' · Subjects: ' + (subjects.length ? escapeHtml(subjects.join(', ')) : 'none set') + ' · Weekly target: ' + (state.profile.weeklyTargetHours || 20) + 'h</p>' +
+      '<p class="subtle">Your Study Hub ID: <code>' + escapeHtml(getStudyHubUserId()) + '</code> — paste it into LearningFans → Study Hub to link accounts.</p>';
+  }
+  if (copyBtn) copyBtn.addEventListener('click', () => {
+    const id = getStudyHubUserId();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(id).then(() => showToast('Study Hub ID copied — paste it in LearningFans')).catch(() => {});
+    }
+  });
+  if (openBtn) openBtn.href = 'https://learningfans-imredavid64-glitchs-projects.vercel.app/app/study-hub?userId=' + encodeURIComponent(getStudyHubUserId());
+  findBtn.addEventListener('click', findStudyMates);
+}
+
+async function findStudyMates() {
+  const resultsEl = $('studymatesResults');
+  if (!resultsEl) return;
+  const mySubjects = (state.profile.subjects || []).filter(Boolean).map(s => String(s).toLowerCase().trim());
+  resultsEl.innerHTML = '<p class="subtle">Searching the LearningFans community for matching study mates…</p>';
+  try {
+    const client = (window.studyHub && window.studyHub.supabase) || window.supabase;
+    if (!client || typeof client.from !== 'function') throw new Error('cloud sync is unavailable (offline or Supabase not loaded)');
+    const myId = getStudyHubUserId();
+    const { data: users, error } = await client.from('users').select('id,name,major').limit(50);
+    if (error) throw error;
+    const { data: snaps, error: snapErr } = await client.from('user_state_snapshots').select('user_id,state_data,last_updated').limit(100);
+    if (snapErr) throw snapErr;
+    const snapMap = {};
+    (snaps || []).forEach(s => { if (s.state_data && s.state_data.profile) snapMap[s.user_id] = s.state_data.profile; });
+    const mates = [];
+    (users || []).forEach(u => {
+      if (u.id === myId) return;
+      const prof = snapMap[u.id] || {};
+      const subs = (prof.subjects || []).filter(Boolean).map(s => String(s).toLowerCase().trim());
+      const overlap = subs.filter(s => mySubjects.includes(s));
+      if (overlap.length === 0) return;
+      mates.push({ name: u.name || prof.name || 'Scholar', major: prof.major || u.major || '', subjects: (prof.subjects || []).filter(Boolean), overlap: overlap.map(s => s.charAt(0).toUpperCase() + s.slice(1)), target: prof.weeklyTargetHours || 0, updated: (snapMap[u.id] && snaps.find(s => s.user_id === u.id) || {}).last_updated });
+    });
+    mates.sort((a, b) => b.overlap.length - a.overlap.length);
+    if (mates.length === 0) {
+      resultsEl.innerHTML = '<p class="subtle">No study mates found yet on the same subjects. Share your Study Hub ID with friends, or join LearningFans spaces to grow the community.</p>';
+      return;
+    }
+    resultsEl.innerHTML = '';
+    mates.slice(0, 12).forEach(m => {
+      const d = document.createElement('div'); d.className = 'item';
+      d.innerHTML = '<strong>' + escapeHtml(m.name) + '</strong> <span class="badge">' + escapeHtml(m.overlap.join(', ')) + '</span>' +
+        '<p class="subtle">' + escapeHtml(m.major || 'Student') + (m.target ? ' · ' + m.target + 'h/week' : '') + '</p>' +
+        '<p class="subtle">Subjects: ' + escapeHtml(m.subjects.join(', ')) + '</p>';
+      resultsEl.appendChild(d);
+    });
+    const tip = document.createElement('p'); tip.className = 'subtle top-gap';
+    tip.innerHTML = 'Want to study together? <a href="https://learningfans-imredavid64-glitchs-projects.vercel.app/app/spaces" target="_blank" rel="noreferrer">Join a LearningFans space</a> to collaborate in real time.';
+    resultsEl.appendChild(tip);
+  } catch (e) {
+    resultsEl.innerHTML = '<p class="subtle">Could not reach the cloud community (' + escapeHtml(e.message) + '). Enable Cloud Sync in Settings, then try again.</p>';
+  }
+}
 
 // ===== RESOURCES (AI scout + uploads) =====
 function buildResourceContext() {
@@ -4728,7 +5006,10 @@ function init() {
   safeCall(initMobileMenu);
   safeCall(setupAiLessons);
   safeCall(setupSubjects);
+  safeCall(setupSubjectLabs);
   safeCall(setupResources);
+  safeCall(setupStudyMap);
+  safeCall(setupStudyMates);
   safeCall(setupStudyRoom);
   safeCall(setupAnalytics);
   safeCall(setupSettings);
@@ -4781,6 +5062,14 @@ function init() {
   if (lc) lc.addEventListener('click', () => { const ov = $('landingOverlay'); if (ov) ov.classList.add('hidden'); });
   const loa = $('landingOpenApp');
   if (loa) loa.addEventListener('click', () => { const ov = $('landingOverlay'); if (ov) ov.classList.add('hidden'); });
+  ['dlAndroid', 'dlIos', 'dlDesktop'].forEach(function (id) {
+    const b = document.getElementById(id);
+    if (b) b.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      const ov = $('landingOverlay'); if (ov) ov.classList.add('hidden');
+      showTab('downloads');
+    });
+  });
   const ipb = $('installPwaBtn');
   if (ipb) {
     ipb.style.display = (deferredPrompt ? '' : 'none');
@@ -5526,10 +5815,13 @@ function setupAutismSupport() {
   function syncSpectrumFromCheckboxes() {
     var cl = $('autismClearLang'), sb = $('autismStepByStep'), vs = $('autismVisual'), pd = $('autismPredictable');
     if (!cl || !sb || !vs || !pd) return;
+    var rateEl = $('autismSpeechRate');
+    var rate = rateEl ? rateEl.value : (state.settings.autismSpeechRate || 'moderate');
+    state.settings.autismSpeechRate = rate;
     var level = 0;
     if (cl.checked) level = Math.max(level, 1);
-    if (cl.checked && sb.checked && vs.checked && pd.checked) level = state.settings.autismSpeechRate === 'slow' ? 3 : 2;
-    if (level >= 2 && state.settings.autismSpeechRate === 'slow') level = 3;
+    if (cl.checked && sb.checked && vs.checked && pd.checked) level = rate === 'slow' ? 3 : 2;
+    if (level >= 2 && rate === 'slow') level = 3;
     state.settings.autismLevel = level;
     segs.forEach(function(s, i) {
       var active = i <= level;
@@ -5674,16 +5966,22 @@ function setupAutismSupport() {
   // Adaptive AI chat
   var aiSend = $('autismAiSend'), aiInput = $('autismAiInput'), aiChat = $('autismAiChat');
   if (aiSend && aiInput && aiChat) {
+    var typingId = 'autismTyping';
     aiSend.addEventListener('click', function() {
       var q = aiInput.value.trim();
       if (!q) return;
       aiInput.value = '';
       aiChat.innerHTML += '<div class="chat-bubble user">' + escapeHtml(q) + '</div>';
+      aiChat.innerHTML += '<div class="chat-bubble ai subtle" id="' + typingId + '">Thinking…</div>';
+      aiChat.scrollTop = aiChat.scrollHeight;
       callGroq(buildAutismCoachPrompt(q)).then(function(text) {
+        var t = $(typingId); if (t) t.remove();
         aiChat.innerHTML += '<div class="chat-bubble ai">' + formatInline(text) + '</div>';
         aiChat.scrollTop = aiChat.scrollHeight;
       }).catch(function(err) {
+        var t = $(typingId); if (t) t.remove();
         aiChat.innerHTML += '<div class="chat-bubble ai">Sorry, I had trouble responding. Please try again.</div>';
+        aiChat.scrollTop = aiChat.scrollHeight;
       });
     });
     aiInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') aiSend.click(); });
@@ -5743,6 +6041,44 @@ if (document.readyState === 'loading') {
 }
 
 // ===== CREATIVE GENERATORS =====
+// Inline prompt dialog — works everywhere (window.prompt is unavailable in Electron).
+function inlinePrompt(title, placeholder, onDone) {
+  var old = document.getElementById('inlinePromptOverlay');
+  if (old) old.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'inlinePromptOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;';
+  var box = document.createElement('div');
+  box.style.cssText = 'background:var(--panel,#fff);border:1px solid var(--border,#ddd);border-radius:14px;padding:18px;width:100%;max-width:360px;box-shadow:0 12px 40px rgba(0,0,0,0.3);';
+  var h = document.createElement('h4');
+  h.textContent = title || 'Enter a value';
+  h.style.cssText = 'margin:0 0 10px;';
+  var input = document.createElement('input');
+  input.placeholder = placeholder || '';
+  input.style.cssText = 'width:100%;box-sizing:border-box;';
+  var row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;margin-top:12px;';
+  var ok = document.createElement('button');
+  ok.textContent = 'OK';
+  ok.style.cssText = 'background:var(--accent,#0f766e);color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;';
+  var cancel = document.createElement('button');
+  cancel.textContent = 'Cancel';
+  cancel.className = 'ghost';
+  cancel.style.cssText = 'border-radius:8px;padding:8px 14px;cursor:pointer;';
+  function close() { overlay.remove(); }
+  ok.addEventListener('click', function() { var v = input.value.trim(); close(); if (onDone) onDone(v); });
+  cancel.addEventListener('click', close);
+  input.addEventListener('keydown', function(e) { if (e.key === 'Enter') ok.click(); if (e.key === 'Escape') close(); });
+  row.appendChild(cancel);
+  row.appendChild(ok);
+  box.appendChild(h);
+  box.appendChild(input);
+  box.appendChild(row);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  input.focus();
+}
+
 function setupGenerators() {
   // ---- Interactive Mind Map (with explanations and more interactiveness) ----
   var mapBtn = $('genMapBtn'), mapTopic = $('genMapTopic'), mapCanvas = $('genMapCanvas');
@@ -5841,7 +6177,7 @@ function setupGenerators() {
     mapCanvas.style.width = Math.max(600, (Math.max(...mm.nodes.map(n => n.x)) + 220)) + 'px';
   }
   function positionEdge(line, a, b) {
-    var ax = a.x + 80, ay = a.y + 16, bx = b.x + 80, by = b.y + 16;
+    var ax = a.x + 75, ay = a.y + 18, bx = b.x + 75, by = b.y + 18;
     var dx = bx - ax, dy = by - ay;
     var len = Math.max(10, Math.sqrt(dx * dx + dy * dy));
     line.style.left = ax + 'px'; line.style.top = ay + 'px';
@@ -5874,18 +6210,28 @@ function setupGenerators() {
   document.addEventListener('touchmove', onDragMove, { passive: true });
   document.addEventListener('touchend', stopDrag);
 
+  function mindMapDepth(raw) {
+    var depth = 0;
+    while (depth < raw.length && (raw[depth] === '-' || raw[depth] === '•' || raw[depth] === '*' || raw[depth] === '\t' || raw[depth] === ' ')) depth++;
+    return depth;
+  }
   function parseMindMap(txt) {
     mm.nodes = []; mm.edges = [];
     var lines = txt.split('\n').map(l => l.trim()).filter(Boolean);
     var center = lines[0].replace(/^[-•*#\s]+/, '') || 'Concept';
-    addMapNode('m0', center.slice(0, 30), 40, 40, 0);
+    var cx = 260, cy = 150;
+    addMapNode('m0', center.slice(0, 34), cx - 75, cy - 16, 0);
     var stack = [{ depth: 0, parent: 'm0' }];
     var branch = 0;
-    var branchGroups = {};
-    lines.slice(1).forEach(function(raw) {
-      var depth = 0;
-      while (depth < raw.length && (raw[depth] === '-' || raw[depth] === '•' || raw[depth] === '*' || raw[depth] === '\t' || raw[depth] === ' ')) depth++;
-      var label = raw.replace(/^[-•*#\s]+/, '').slice(0, 34);
+    var level1 = [];
+    // First pass: collect level-1 branches and their subtrees so angles stay even.
+    var rows = lines.slice(1).map(function(raw) { return { raw: raw, depth: mindMapDepth(raw) }; });
+    var l1 = rows.filter(function(r) { return r.depth === 1; });
+    var l1Count = Math.max(1, l1.length);
+    var l1Index = 0;
+    rows.forEach(function(row) {
+      var depth = row.depth;
+      var label = row.raw.replace(/^[-•*#\s]+/, '').slice(0, 34);
       if (!label) return;
       branch++;
       var id = 'm' + branch;
@@ -5893,32 +6239,58 @@ function setupGenerators() {
       for (var i = stack.length - 1; i >= 0; i--) { if (stack[i].depth < depth) { parent = stack[i].parent; break; } }
       stack.push({ depth: depth, parent: id });
       var px = mm.nodes.find(n => n.id === parent) || mm.nodes[0];
-      // Radial layout: level-1 branches spread evenly around the center,
-      // deeper levels fan out from their parent.
       if (depth === 1) {
-        branchGroups[parent] = (branchGroups[parent] || 0);
-        var total = lines.slice(1).filter(l => { var d = 0; while (d < l.length && (l[d] === '-' || l[d] === '•' || l[d] === '*' || l[d] === '\t' || l[d] === ' ')) d++; return d === 1; }).length || 1;
-        var b1 = mm.nodes.filter(n => n.depth === 1).length;
-        var angle = (b1 / total) * Math.PI * 2 - Math.PI / 2;
-        var dist = 190;
-        addMapNode(id, label, 40 + 140 + Math.round(Math.cos(angle) * dist), 40 + 100 + Math.round(Math.sin(angle) * dist), 1);
+        var angle = (l1Index / l1Count) * Math.PI * 2 - Math.PI / 2;
+        l1Index++;
+        var dist = 175;
+        addMapNode(id, label, Math.round(cx + Math.cos(angle) * dist - 75), Math.round(cy + Math.sin(angle) * dist - 16), 1);
+        level1.push({ id: id, angle: angle });
       } else {
-        var parentAngle = Math.atan2(px.y - 140, px.x - 180);
-        var childrenCount = 1;
-        var childIndex = 0;
-        var parentColor = mapColors(px.depth || 0);
-        var ang = parentAngle + (childIndex - (childrenCount - 1) / 2) * 0.6;
-        var d2 = 150 + depth * 40;
-        addMapNode(id, label, px.x + Math.round(Math.cos(ang) * d2), px.y + Math.round(Math.sin(ang) * d2), depth);
+        // Fan out siblings of the same parent so they never pile on top of each other.
+        var siblings = mm.nodes.filter(function(n) { return n.id !== id && mm.edges.some(function(e) { return e.to === n.id && e.from === parent; }); });
+        var count = siblings.length + 1;
+        var idx = siblings.length;
+        var parentAngle = Math.atan2(px.y - (cy - 16), px.x - (cx - 75));
+        if (depth === 2) parentAngle = (level1.find(function(x) { return x.id === parent; }) || { angle: parentAngle }).angle;
+        var span = Math.min(0.9, Math.max(0.35, 0.8 - depth * 0.1));
+        var ang = parentAngle + (idx - (count - 1) / 2) * span;
+        var d2 = 130 + depth * 45;
+        addMapNode(id, label, Math.round(px.x + Math.cos(ang) * d2), Math.round(px.y + Math.sin(ang) * d2), depth);
         mm.edges.push({ from: parent, to: id });
       }
       if (depth === 1) mm.edges.push({ from: parent, to: id });
     });
-    // Auto-fit canvas to drawn nodes
-    var maxX = Math.max(...mm.nodes.map(n => n.x + 160), 700);
-    var maxY = Math.max(...mm.nodes.map(n => n.y + 80), 380);
-    mapCanvas.style.width = maxX + 'px';
-    mapCanvas.style.height = maxY + 'px';
+    // Normalize so nothing sits at negative coordinates, then auto-fit the canvas.
+    var minX = Math.min.apply(null, mm.nodes.map(function(n) { return n.x; }));
+    var minY = Math.min.apply(null, mm.nodes.map(function(n) { return n.y; }));
+    if (minX < 20 || minY < 20) {
+      var dx = minX < 20 ? 20 - minX : 0;
+      var dy = minY < 20 ? 20 - minY : 0;
+      mm.nodes.forEach(function(n) { n.x += dx; n.y += dy; });
+    }
+    var maxX = Math.max.apply(null, mm.nodes.map(function(n) { return n.x + 170; }));
+    var maxY = Math.max.apply(null, mm.nodes.map(function(n) { return n.y + 60; }));
+    mapCanvas.style.width = Math.max(640, maxX) + 'px';
+    mapCanvas.style.height = Math.max(380, maxY) + 'px';
+  }
+  // Offline fallback: builds a useful mind map without the network.
+  function fallbackMindMap(topic) {
+    var branches = [
+      'Definition — what is it exactly?',
+      'Key parts — the pieces that make it up',
+      'How it works — step by step',
+      'Examples — real cases you know',
+      'Why it matters — real-world use',
+      'Study tips — how to remember it'
+    ];
+    var out = topic;
+    branches.forEach(function(b, i) {
+      var sub = i === 2 ? ['Step 1: observe what happens', 'Step 2: identify the pattern', 'Step 3: connect to what you know'] : (i === 1 ? ['Main components', 'How they fit together'] : ['One specific example', 'One everyday example']);
+      out += '\n- ' + b;
+      sub.forEach(function(s) { out += '\n  - ' + s; });
+    });
+    parseMindMap(out);
+    renderMindMap();
   }
 
   if (mapBtn && mapTopic && mapCanvas) {
@@ -5932,49 +6304,83 @@ function setupGenerators() {
         renderMindMap();
         showToast('Mind map generated — drag nodes to explore');
       } catch (err) {
-        mapCanvas.innerHTML = '<p class="subtle">Could not generate the mind map. Please try again.</p>';
+        // Offline/API failure: still give the user a useful map.
+        fallbackMindMap(topic);
+        showToast('Offline template used (AI unavailable) — drag nodes to explore');
         logErrors('mindmap')(err);
       }
     });
   }
   if (addNodeBtn) addNodeBtn.addEventListener('click', function() {
     if (!mm.nodes.length) { showToast('Generate a mind map first.'); return; }
-    var label = prompt('New branch label:');
-    if (!label || !label.trim()) return;
-    var parent = mm.nodes[mm.nodes.length - 1];
-    addMapNode('m' + Date.now(), label.trim().slice(0, 34), parent.x + 130, parent.y + 50);
-    mm.edges.push({ from: parent.id, to: 'm' + Date.now() });
-    renderMindMap();
+    inlinePrompt('Add a branch', 'New branch label (attach to the last node)', function(label) {
+      if (!label || !label.trim()) return;
+      var parent = mm.nodes[mm.nodes.length - 1];
+      addMapNode('m' + Date.now(), label.trim().slice(0, 34), parent.x + 130, parent.y + 50);
+      mm.edges.push({ from: parent.id, to: 'm' + Date.now() });
+      renderMindMap();
+    });
   });
   if (resetBtn) resetBtn.addEventListener('click', function() {
     mm.nodes = []; mm.edges = [];
     renderMindMap();
   });
 
-  // ---- Film Generator (produces a real playable film) ----
-  var filmBtn = $('genFilmBtn'), filmTopic = $('genFilmTopic'), filmOut = $('genFilmOut');
-  var playerEl = $('filmPlayer'), frameImg = $('filmFrameImg'), narrationEl = $('filmNarration');
+  // ---- Film Generator (produces a real playable film with narration) ----
+  var filmBtn = $('genFilmBtn'), filmTopic = $('genFilmTopic'), filmOut = $('genFilmOut'), filmScenesSelect = $('genFilmScenes');
+  var playerEl = $('filmPlayer'), frameImg = $('filmFrameImg'), frameFallback = $('filmFrameFallback');
+  var fallbackTitle = $('filmFallbackTitle'), fallbackText = $('filmFallbackText');
+  var narrationEl = $('filmNarration');
   var sceneLabelEl = $('filmSceneLabel'), filmPlay = $('filmPlay'), filmPrev = $('filmPrev'), filmNext = $('filmNext');
+  var filmMute = $('filmMute'), filmRegenImg = $('filmRegenImg');
   var filmProgress = $('filmProgress');
-  var filmScenes = [], filmIndex = 0, filmTimer = null, filmPlaying = false;
-  function filmStopTimer() { if (filmTimer) { clearTimeout(filmTimer); filmTimer = null; } filmPlaying = false; if (filmPlay) filmPlay.textContent = '▶'; }
-  function showFilmScene(i) {
+  var filmScenes = [], filmIndex = 0, filmTimer = null, filmPlaying = false, filmSoundOn = true, filmSpeaking = false;
+  function filmStopTimer() { if (filmTimer) { clearTimeout(filmTimer); filmTimer = null; } filmPlaying = false; if (filmPlay) filmPlay.textContent = '▶'; filmStopSpeech(); }
+  function filmStopSpeech() {
+    if (window.speechSynthesis) speechSynthesis.cancel();
+    filmSpeaking = false;
+  }
+  function filmSpeak(text) {
+    if (!filmSoundOn || !window.speechSynthesis || !text) return;
+    filmStopSpeech();
+    var u = new SpeechSynthesisUtterance(text);
+    u.rate = 1;
+    u.pitch = 1;
+    filmSpeaking = true;
+    speechSynthesis.speak(u);
+  }
+  function showFilmScene(i, auto) {
     if (!filmScenes.length) return;
     i = Math.max(0, Math.min(filmScenes.length - 1, i));
     filmIndex = i;
     var scene = filmScenes[i];
     if (sceneLabelEl) sceneLabelEl.textContent = 'Scene ' + (i + 1) + ' of ' + filmScenes.length;
     if (narrationEl) narrationEl.textContent = scene.narration;
+    var fallbackShown = false;
     if (frameImg) {
       frameImg.src = scene.img;
       frameImg.alt = scene.visual;
-      frameImg.onerror = function() { this.src = scene.img.replace('width=800', 'width=800&seed=' + Math.floor(Math.random() * 1e5)); };
+      frameImg.onerror = function() {
+        // Pollinations failed — fall back to a styled frame instead of a broken image.
+        frameImg.style.display = 'none';
+        if (frameFallback) {
+          frameFallback.classList.remove('hidden');
+          if (fallbackTitle) fallbackTitle.textContent = scene.visual || '';
+          if (fallbackText) fallbackText.textContent = scene.narration || '';
+        }
+        fallbackShown = true;
+      };
+      frameImg.onload = function() {
+        frameImg.style.display = '';
+        if (frameFallback) frameFallback.classList.add('hidden');
+      };
     }
     if (filmProgress) filmProgress.textContent = '• ' + (i + 1) + ' / ' + filmScenes.length + ' •';
+    if (auto !== false) filmSpeak(scene.narration);
     filmStopTimer();
     if (scene.seconds) {
       filmTimer = setTimeout(function() {
-        if (filmIndex < filmScenes.length - 1) showFilmScene(filmIndex + 1);
+        if (filmIndex < filmScenes.length - 1) showFilmScene(filmIndex + 1, true);
         else { filmStopTimer(); }
       }, scene.seconds * 1000);
       filmPlaying = true;
@@ -5984,15 +6390,31 @@ function setupGenerators() {
   if (filmPlay) filmPlay.addEventListener('click', function() {
     if (!filmScenes.length) return;
     if (filmPlaying) { filmStopTimer(); }
-    else { showFilmScene(filmIndex); }
+    else { showFilmScene(filmIndex, true); }
   });
-  if (filmPrev) filmPrev.addEventListener('click', function() { if (filmScenes.length) showFilmScene(filmIndex - 1); });
-  if (filmNext) filmNext.addEventListener('click', function() { if (filmScenes.length) showFilmScene(filmIndex + 1); });
+  if (filmPrev) filmPrev.addEventListener('click', function() { if (filmScenes.length) showFilmScene(filmIndex - 1, true); });
+  if (filmNext) filmNext.addEventListener('click', function() { if (filmScenes.length) showFilmScene(filmIndex + 1, true); });
+  if (filmMute) filmMute.addEventListener('click', function() {
+    filmSoundOn = !filmSoundOn;
+    filmMute.textContent = filmSoundOn ? '🔊' : '🔇';
+    filmMute.title = filmSoundOn ? 'Mute narration' : 'Unmute narration';
+    if (!filmSoundOn) filmStopSpeech();
+    showToast(filmSoundOn ? 'Narration voice on' : 'Narration voice muted');
+  });
+  if (filmRegenImg) filmRegenImg.addEventListener('click', function() {
+    if (!filmScenes.length) return;
+    var scene = filmScenes[filmIndex];
+    scene.img = scene.img.replace(/seed=\d+/, 'seed=' + Math.floor(Math.random() * 1e6));
+    frameImg.style.display = '';
+    if (frameFallback) frameFallback.classList.add('hidden');
+    frameImg.src = scene.img;
+    showToast('New image for scene ' + (filmIndex + 1));
+  });
   function parseFilmScenes(txt) {
     // Accept either numbered SCENE blocks or a JSON list from the AI.
     try { var parsed = JSON.parse(txt); if (Array.isArray(parsed)) return parsed; } catch (e) {}
     var scenes = [];
-    var blockRe = /(?:^|\n)(?:SCENE\s*\d*|Scene\s*\d*|###\s*Scene\s*\d*)\s*[:\-]?\s*\n?([\s\S]*?)(?=(?:SCENE\s*\d*|Scene\s*\d*|###\s*Scene\s*\d*)\s*[:\-]?\s*\n|$)/gi;
+    var blockRe = /(?:^|\n)(?:#{0,3}\s*)?(?:SCENE|Scene|S)\s*\d*\s*[:\-–]?\s*\n?([\s\S]*?)(?=(?:^|\n)(?:#{0,3}\s*)?(?:SCENE|Scene|S)\s*\d*\s*[:\-–]?\s*\n|$)/gi;
     var m;
     while ((m = blockRe.exec(txt)) !== null) {
       var body = m[1] || '';
@@ -6001,7 +6423,10 @@ function setupGenerators() {
       var vm = body.match(/VISUAL\s*[:\-]\s*(.+)/i);
       if (nm) narr = nm[1].trim();
       if (vm) vis = vm[1].trim();
-      if (!narr && !vis) narr = body.trim().split('\n')[0] || '';
+      if (!narr && !vis) {
+        // Take the first meaningful line as narration.
+        narr = body.trim().split('\n').map(l => l.trim()).filter(Boolean).shift() || '';
+      }
       scenes.push({ narration: narr, visual: vis || narr, seconds: 4 });
     }
     // Fallback: split on numbered lines "1." / "•" paragraphs
@@ -6019,15 +6444,18 @@ function setupGenerators() {
     filmBtn.addEventListener('click', async function() {
       var topic = filmTopic.value.trim();
       if (!topic) { showToast('Enter a topic for the film.'); filmTopic.focus(); return; }
+      var sceneCount = filmScenesSelect ? parseInt(filmScenesSelect.value, 10) || 4 : 4;
       filmOut.innerHTML = '<p class="subtle">Writing your film and creating visuals...</p>';
       playerEl.classList.add('hidden');
+      filmStopSpeech();
       try {
-        var txt = await groqChat([{ role: 'system', content: 'You are a short-film director for students. Write a 4-scene educational micro-film that teaches one concept. Output ONLY lines in this exact format, one per scene:\nSCENE 1\nNARRATION: <one clear spoken sentence, vivid and simple>\nVISUAL: <a detailed visual to be drawn, e.g. "a plant cell with sunlight arrows entering chloroplasts" />\nSCENE 2\n... (continue). Keep each NARRATION to 1-2 short sentences. Make the VISUAL concrete and drawable.' }, { role: 'user', content: 'Concept to teach: ' + topic }], { maxTokens: 900, temperature: 0.8 });
+        var txt = await groqChat([{ role: 'system', content: 'You are a short-film director for students. Write a ' + sceneCount + '-scene educational micro-film that teaches one concept. Output ONLY lines in this exact format, one per scene:\nSCENE 1\nNARRATION: <one clear spoken sentence, vivid and simple>\nVISUAL: <a detailed visual to be drawn, e.g. "a plant cell with sunlight arrows entering chloroplasts">\nSCENE 2\n... (continue). Keep each NARRATION to 1-2 short sentences. Make the VISUAL concrete and drawable.' }, { role: 'user', content: 'Concept to teach: ' + topic }], { maxTokens: 1200, temperature: 0.8 });
         filmScenes = parseFilmScenes(txt);
         if (!filmScenes.length) { filmScenes = [{ narration: txt.trim(), visual: topic, seconds: 5 }]; }
-        filmScenes.forEach(function(s) {
+        filmScenes = filmScenes.slice(0, sceneCount);
+        filmScenes.forEach(function(s, i) {
           var visualPrompt = 'educational film still of ' + topic + ' - ' + s.visual + ', cinematic, colorful, clean, textbook quality, labeled, 16:9';
-          s.img = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(visualPrompt) + '?width=800&height=450&nologo=true';
+          s.img = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(visualPrompt) + '?width=800&height=450&nologo=true&seed=' + (1000 + i * 131 + Math.floor(Math.random() * 900));
         });
         var filmTitle = document.createElement('h4');
         filmTitle.innerHTML = '<span class="icon icon-sm icon-film"></span> ' + escapeHtml(topic);
@@ -6035,10 +6463,10 @@ function setupGenerators() {
         filmOut.appendChild(filmTitle);
         var summary = document.createElement('p');
         summary.className = 'subtle';
-        summary.textContent = filmScenes.length + ' scenes · press ▶ to play';
+        summary.textContent = filmScenes.length + ' scenes · press ▶ to play (turn sound on for narration)';
         filmOut.appendChild(summary);
         playerEl.classList.remove('hidden');
-        showFilmScene(0);
+        showFilmScene(0, false);
       } catch (err) {
         filmOut.innerHTML = '<p class="subtle">Could not make the film. Please try again.</p>';
         logErrors('filmgen')(err);
@@ -6046,71 +6474,124 @@ function setupGenerators() {
     });
   }
 
-  // ---- Image Generator (real images from Wikimedia Commons — no AI, high quality) ----
+  // ---- Image Generator (real photos from Wikimedia Commons, or AI images from Pollinations) ----
   var imgBtn = $('genImgBtn'), imgTopic = $('genImgTopic'), imgOut = $('genImgOut');
+  var imgMode = $('genImgMode'), imgCount = $('genImgCount');
+  // Shared lightbox
+  var lightbox = null;
+  function openLightbox(src, alt) {
+    if (!lightbox) {
+      lightbox = document.createElement('div');
+      lightbox.id = 'imgLightbox';
+      lightbox.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;z-index:9999;padding:24px;cursor:zoom-out;';
+      var im = document.createElement('img');
+      im.style.cssText = 'max-width:92vw;max-height:86vh;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,0.5);';
+      lightbox.appendChild(im);
+      lightbox.addEventListener('click', function() { lightbox.style.display = 'none'; });
+      document.body.appendChild(lightbox);
+    }
+    lightbox.querySelector('img').src = src;
+    lightbox.querySelector('img').alt = alt || '';
+    lightbox.style.display = 'flex';
+  }
+  function imgActions(cell, fullUrl, pageUrl, title) {
+    var bar = document.createElement('div');
+    bar.className = 'img-actions';
+    var open = document.createElement('a');
+    open.href = pageUrl || fullUrl;
+    open.target = '_blank';
+    open.rel = 'noopener';
+    open.textContent = 'Open';
+    var dl = document.createElement('a');
+    dl.href = fullUrl;
+    dl.download = (title || 'image').replace(/[^a-z0-9]+/gi, '-').slice(0, 40) + '.jpg';
+    dl.textContent = 'Download';
+    bar.appendChild(open);
+    bar.appendChild(dl);
+    cell.appendChild(bar);
+  }
+  async function genWikiImages(topic, limit) {
+    var api = 'https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=' + encodeURIComponent(topic) +
+      '&gsrnamespace=6&gsrlimit=' + limit + '&prop=imageinfo&iiprop=url|size|extmetadata&iiurlwidth=800&format=json&origin=*';
+    var res = await fetch(api);
+    var data = await res.json();
+    var pages = data && data.query && data.query.pages ? Object.values(data.query.pages) : [];
+    pages.sort(function(a, b) {
+      var aw = (a.imageinfo && a.imageinfo[0] && a.imageinfo[0].width) || 0;
+      var bw = (b.imageinfo && b.imageinfo[0] && b.imageinfo[0].width) || 0;
+      return bw - aw;
+    });
+    return pages.filter(function(p) {
+      var raw = (p.imageinfo && p.imageinfo[0] && p.imageinfo[0].url || '').split('?')[0];
+      var ext = raw.split('.').pop().toLowerCase();
+      return ['jpg', 'jpeg', 'png', 'webp', 'svg', 'gif'].indexOf(ext) > -1;
+    }).slice(0, limit);
+  }
+  async function genAiImages(topic, limit) {
+    var out = [];
+    for (var i = 0; i < limit; i++) {
+      out.push({
+        thumburl: 'https://image.pollinations.ai/prompt/' + encodeURIComponent(topic + (limit > 1 ? ' variant ' + (i + 1) : '')) + '?width=800&height=450&nologo=true&seed=' + (1000 + i * 97),
+        url: 'https://image.pollinations.ai/prompt/' + encodeURIComponent(topic) + '?width=1024&height=1024&nologo=true&seed=' + (1000 + i * 97),
+        title: topic + ' — AI image ' + (i + 1),
+        descriptionurl: ''
+      });
+    }
+    return out;
+  }
+  function renderImageCells(candidates, noteText) {
+    imgOut.innerHTML = '';
+    var grid = document.createElement('div');
+    grid.className = 'img-grid top-gap';
+    candidates.forEach(function(p) {
+      var cell = document.createElement('figure');
+      cell.className = 'img-cell';
+      var img = document.createElement('img');
+      img.loading = 'lazy';
+      img.src = p.thumburl || p.url;
+      img.alt = p.title || '';
+      img.onerror = function() { this.closest('figure').style.display = 'none'; };
+      img.style.cursor = 'zoom-in';
+      img.addEventListener('click', function() { openLightbox(p.url || p.thumburl, p.title); });
+      cell.appendChild(img);
+      var cap = document.createElement('figcaption');
+      var desc = (p.desc || p.title || '').replace(/<[^>]+>/g, '');
+      cap.textContent = desc.length > 80 ? desc.slice(0, 80) + '…' : desc;
+      cell.appendChild(cap);
+      imgActions(cell, p.url || p.thumburl, p.descriptionurl, p.title);
+      grid.appendChild(cell);
+    });
+    imgOut.appendChild(grid);
+    if (noteText) {
+      var note = document.createElement('p');
+      note.className = 'subtle top-gap';
+      note.textContent = noteText;
+      imgOut.appendChild(note);
+    }
+  }
   if (imgBtn && imgTopic && imgOut) {
     imgBtn.addEventListener('click', async function() {
       var topic = imgTopic.value.trim();
       if (!topic) { showToast('Describe the image you want.'); imgTopic.focus(); return; }
-      imgOut.innerHTML = '<p class="subtle">Finding high-quality images...</p>';
+      var limit = imgCount ? parseInt(imgCount.value, 10) || 8 : 8;
+      var mode = imgMode ? imgMode.value : 'wiki';
+      imgOut.innerHTML = '<p class="subtle">' + (mode === 'ai' ? 'Creating AI images...' : 'Finding high-quality photos...') + '</p>';
       try {
-        var api = 'https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=' + encodeURIComponent(topic) +
-          '&gsrnamespace=6&gsrlimit=8&prop=imageinfo&iiprop=url|size|extmetadata&iiurlwidth=800&format=json&origin=*';
-        var res = await fetch(api);
-        var data = await res.json();
-        var pages = data && data.query && data.query.pages ? Object.values(data.query.pages) : [];
-        // Sort by resolution, prefer larger/quality images
-        pages.sort(function(a, b) {
-          var aw = (a.imageinfo && a.imageinfo[0] && a.imageinfo[0].width) || 0;
-          var bw = (b.imageinfo && b.imageinfo[0] && b.imageinfo[0].width) || 0;
-          return bw - aw;
-        });
-        var candidates = pages.filter(function(p) {
-          var ext = (p.imageinfo && p.imageinfo[0] && p.imageinfo[0].url || '').split('.').pop().toLowerCase();
-          return ['jpg', 'jpeg', 'png', 'webp', 'svg', 'gif'].indexOf(ext) > -1;
-        }).slice(0, 4);
-        if (!candidates.length) { imgOut.innerHTML = '<p class="subtle">No images found for that topic. Try different words.</p>'; return; }
-        var grid = document.createElement('div');
-        grid.className = 'img-grid top-gap';
-        var downloadLinks = [];
-        candidates.forEach(function(p) {
-          var info = p.imageinfo && p.imageinfo[0];
-          if (!info) return;
-          var desc = info.extmetadata && info.extmetadata.ImageDescription && info.extmetadata.ImageDescription.value ? info.extmetadata.ImageDescription.value.replace(/<[^>]+>/g, '') : p.title;
-          var cell = document.createElement('figure');
-          cell.className = 'img-cell';
-          var a = document.createElement('a');
-          a.href = info.descriptionurl || '#';
-          a.target = '_blank';
-          a.rel = 'noopener';
-          var img = document.createElement('img');
-          img.loading = 'lazy';
-          img.src = info.thumburl || info.url;
-          img.alt = p.title;
-          img.onerror = function() { this.closest('figure').style.display = 'none'; };
-          a.appendChild(img);
-          cell.appendChild(a);
-          var cap = document.createElement('figcaption');
-          cap.textContent = desc.length > 80 ? desc.slice(0, 80) + '…' : desc;
-          cell.appendChild(cap);
-          grid.appendChild(cell);
-          downloadLinks.push({ url: info.url, title: p.title.replace(/[^a-z0-9]+/gi, '-').slice(0, 40) });
-        });
-        imgOut.innerHTML = '';
-        imgOut.appendChild(grid);
-        var note = document.createElement('p');
-        note.className = 'subtle';
-        note.textContent = 'Real images from Wikimedia Commons (CC licensed). Click an image to open the source.';
-        imgOut.appendChild(note);
-        if (downloadLinks.length) {
-          var dl = document.createElement('a');
-          dl.href = downloadLinks[0].url;
-          dl.download = downloadLinks[0].title;
-          dl.className = 'ghost top-gap';
-          dl.textContent = 'Download best image';
-          dl.style.display = 'inline-block';
-          imgOut.appendChild(dl);
+        var candidates;
+        if (mode === 'ai') {
+          candidates = await genAiImages(topic, limit);
+        } else {
+          try {
+            candidates = await genWikiImages(topic, limit);
+          } catch (e) {
+            // Wikimedia unavailable — automatically fall back to AI images.
+            candidates = await genAiImages(topic, limit);
+          }
         }
+        if (!candidates.length) { imgOut.innerHTML = '<p class="subtle">No images found for that topic. Try different words.</p>'; return; }
+        renderImageCells(candidates, mode === 'ai'
+          ? 'AI-generated images (Pollinations). Click an image to enlarge, Download to save.'
+          : 'Real images from Wikimedia Commons (CC licensed). Click an image to enlarge; Download saves the full-resolution file.');
       } catch (err) {
         imgOut.innerHTML = '<p class="subtle">Could not load images (network or API limit). Please try again.</p>';
         logErrors('imggen')(err);
