@@ -20,7 +20,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;700&family=Nunito:wght@400;600;700&display=swap" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="styles.css" />
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.7.1/dist/umd/supabase.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.48.1/dist/umd/supabase.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -2079,6 +2079,10 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
               <p class="subtle">Match with other students studying the same subjects — powered by LearningFans and your cloud-synced profile.</p>
               <div class="stack top-gap">
                 <div id="studymatesProfile" class="item"></div>
+                <label class="mate-optin top-gap">
+                  <input type="checkbox" id="mateFindableToggle" />
+                  <span><strong>Make me findable</strong> — publish only my name, major, and subjects so other students studying the same subjects can find me. Turn it off anytime.</span>
+                </label>
                 <div class="inline wrap">
                   <button id="findStudyMatesBtn">Find Study Mates</button>
                   <button id="copyStudyHubIdBtn" class="ghost">Copy my Study Hub ID</button>
@@ -2288,6 +2292,14 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
           </article>
           <article class="card">
             <label class="top-gap" style="display:flex;align-items:center;gap:8px;font-weight:600"><input type="checkbox" id="hideMusicToggle" /> <span class="icon icon-sm icon-music"></span> Hide the music player from the bottom of the screen</label>
+          </article>
+          <article class="card">
+            <h3>Cloud Sync &amp; Privacy</h3>
+            <p id="cloudStatusText" class="cloud-status subtle">Checking cloud status…</p>
+            <div class="inline wrap top-gap">
+              <button id="cloudRetryBtn" class="ghost">↻ Retry cloud sign-in</button>
+            </div>
+            <p class="subtle" style="margin-top:8px">Cloud sync signs you in anonymously so only you can read and write your data. Study-mate matching only publishes what you opt into.</p>
           </article>
           <article class="card">
             <h3>Backup and Data</h3>

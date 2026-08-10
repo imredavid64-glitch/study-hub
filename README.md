@@ -73,6 +73,15 @@ Study Hub/
 
 ## Setup & Installation
 
+### Cloud backend (Supabase + Vercel)
+Cloud sync, leaderboards, and study-mate matching need three one-time steps:
+enable anonymous sign-ins, apply the RLS migration, and add the service key.
+Follow the runbook: **[docs/supabase-setup.md](docs/supabase-setup.md)**.
+
+### Security
+See **[SECURITY.md](SECURITY.md)** for the data model, secrets inventory, and
+known tradeoffs.
+
 ### Quick Start
 ```bash
 # Install dependencies (if any)

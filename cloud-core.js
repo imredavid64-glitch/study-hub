@@ -37,23 +37,57 @@ class UserManager {
   constructor() {
     this.currentUserId = null;
     this.userProfile = null;
+    this.authMode = 'local';   // 'auth' = Supabase Auth identity, 'local' = offline fallback
+    this.authError = null;     // human-readable reason auth failed, if any
   }
 
   async initialize() {
-    // Generate consistent user ID
-    this.currentUserId = this.getUserId();
+    this.currentUserId = await this.resolveUserId();
+    this.listenForAuthChanges();
     await this.ensureProfileExists();
     return this.currentUserId;
   }
 
-  getUserId() {
-    // Use existing localStorage key if available, otherwise create new
-    let userId = localStorage.getItem('studyhub_user_id');
-    if (!userId) {
-      userId = `user_${Math.random().toString(36).substr(2, 9)}${Date.now().toString(36).slice(-4)}`;
-      localStorage.setItem('studyhub_user_id', userId);
+  async resolveUserId() {
+    const legacyId = localStorage.getItem('studyhub_user_id');
+    // Prefer a real Supabase Auth identity (anonymous sign-in). Its uid is the
+    // key that RLS ownership policies are scoped to.
+    if (supabase && supabase.auth && typeof supabase.auth.getSession === 'function') {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && session.user && session.user.id) {
+          this.authMode = 'auth';
+          this.authError = null;
+          localStorage.setItem('studyhub_user_id', session.user.id);
+          return session.user.id;
+        }
+        const { data, error } = await supabase.auth.signInAnonymously();
+        if (error) throw error;
+        if (data && data.user && data.user.id) {
+          this.authMode = 'auth';
+          this.authError = null;
+          localStorage.setItem('studyhub_user_id', data.user.id);
+          return data.user.id;
+        }
+      } catch (e) {
+        this.authMode = 'local';
+        this.authError = (e && e.message) ? e.message : String(e);
+        console.warn('[Cloud] Anonymous sign-in unavailable (' + this.authError + '). Enable it in Supabase → Authentication → Providers. Running in local-only mode.');
+      }
     }
-    return userId;
+    return legacyId || `user_${Math.random().toString(36).substr(2, 9)}${Date.now().toString(36).slice(-4)}`;
+  }
+
+  listenForAuthChanges() {
+    if (!supabase || !supabase.auth || typeof supabase.auth.onAuthStateChange !== 'function') return;
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (session && session.user && session.user.id) {
+        this.currentUserId = session.user.id;
+        this.authMode = 'auth';
+        this.authError = null;
+        localStorage.setItem('studyhub_user_id', session.user.id);
+      }
+    });
   }
 
   async ensureProfileExists() {
@@ -273,16 +307,10 @@ class EventBus {
       source: 'frontend'
     };
 
-    // Send to Supabase real-time channel
-    if (this.realtimeChannel) {
-      this.realtimeChannel.send({
-        type: 'INSERT',
-        table: 'analytics_events',
-        data: event
-      });
-    }
-
-    // Also notify local subscribers
+    // Local subscribers only. (No public broadcast channel: an unscoped
+    // realtime broadcast would leak analytics events to every subscriber.
+    // The dashboard's own postgres_changes subscription is RLS-filtered
+    // server-side, so each user only receives their own rows.)
     if (this.subscribers.has(eventType)) {
       this.subscribers.get(eventType).forEach(callback => {
         try {
@@ -314,21 +342,6 @@ class EventBus {
     }
   }
 
-  setupRealtimeSubscription() {
-    // Subscribe to Supabase realtime updates
-    this.realtimeChannel = this.supabase
-      .channel('analytics_events')
-      .on('INSERT', payload => {
-        this.emit('event:created', payload.new);
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('Successfully subscribed to analytics events');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('Realtime channel error');
-        }
-      });
-  }
 }
 
 // ===== ANALYTICS TRACKER =====
@@ -640,7 +653,8 @@ class RealTimeDashboard {
 // Your stats are pushed to the cloud so peers can see live rankings.
 // The leaderboard read-back is never written into your local state.
 class LeaderboardManager {
-  constructor() {
+  constructor(userManager) {
+    this.userManager = userManager;
     this.weekStart = this.getWeekStart();
     this.realtimeChannel = null;
   }
@@ -660,7 +674,7 @@ class LeaderboardManager {
         return d >= new Date(this.weekStart);
       });
       const entry = {
-        user_id: localStorage.getItem('studyhub_user_id') || 'anon_' + Math.random().toString(36).substr(2, 8),
+        user_id: (this.userManager && this.userManager.currentUserId) || localStorage.getItem('studyhub_user_id') || 'anon_' + Math.random().toString(36).substr(2, 8),
         name: (state.profile && state.profile.name) || 'Scholar',
         week_start: this.weekStart,
         xp: (state.profile && state.profile.xp) || 0,
@@ -719,10 +733,9 @@ async function initializeCloudSystem() {
     const userManager = new UserManager();
     await userManager.initialize();
 
-    // Initialize event bus
+    // Initialize event bus (local subscribers only — no public broadcast)
     const eventBus = new EventBus(supabase);
     eventBus.userManager = userManager;
-    eventBus.setupRealtimeSubscription();
 
     // Initialize analytics tracker
     const analyticsTracker = new AnalyticsTracker(eventBus);
@@ -735,7 +748,7 @@ async function initializeCloudSystem() {
     realTimeDashboard.userManager = userManager;
 
     // Initialize live leaderboard (send-only stats, read live rankings)
-    const leaderboardManager = new LeaderboardManager();
+    const leaderboardManager = new LeaderboardManager(userManager);
     await leaderboardManager.submitStats();
     if (typeof window.onLeaderboardUpdate === 'function') {
       leaderboardManager.subscribe(rows => window.onLeaderboardUpdate(rows));
@@ -777,6 +790,7 @@ async function initializeCloudSystem() {
           }
           try { localStorage.removeItem('studyhub_user_id'); } catch (e) {}
           try { localStorage.removeItem('studyhub_sync_queue'); } catch (e) {}
+          try { if (window.supabase && window.supabase.auth) await window.supabase.auth.signOut(); } catch (e) {}
           console.log('[Cloud] Cleared user data from cloud');
         } catch (e) {
           console.warn('[Cloud] clearAllData:', e);
@@ -786,6 +800,7 @@ async function initializeCloudSystem() {
 
     console.log('✅ Cloud system initialized successfully');
     showToast('Cloud sync enabled');
+    if (typeof window.onCloudStatusChange === 'function') window.onCloudStatusChange();
 
     return {
       userManager,
@@ -799,6 +814,7 @@ async function initializeCloudSystem() {
   } catch (error) {
     console.error('Failed to initialize cloud system:', error);
     showToast('Cloud sync unavailable, using local storage only');
+    if (typeof window.onCloudStatusChange === 'function') window.onCloudStatusChange();
     return null;
   }
 }

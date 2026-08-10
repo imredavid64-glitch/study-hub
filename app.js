@@ -2616,7 +2616,44 @@ function renderHeatmap() {
 }
 
 // ===== SETTINGS =====
+function updateCloudStatusUI() {
+  const el = $('cloudStatusText');
+  if (!el) return;
+  const um = window.studyHub && window.studyHub.userManager;
+  if (!um) {
+    el.textContent = 'Cloud unavailable — cloud sync did not initialize.';
+    el.className = 'cloud-status cloud-bad';
+    return;
+  }
+  if (!navigator.onLine) {
+    el.textContent = 'Offline — changes stay on this device until you reconnect.';
+    el.className = 'cloud-status cloud-bad';
+    return;
+  }
+  if (um.authMode === 'auth') {
+    el.textContent = 'Signed in — your data syncs to the cloud and only your account can read or write it.';
+    el.className = 'cloud-status cloud-good';
+    return;
+  }
+  el.textContent = 'Local-only mode — ' + (um.authError ? um.authError : 'cloud sync unavailable') + '. Tap “Retry cloud sign-in” to try again.';
+  el.className = 'cloud-status cloud-warn';
+}
+window.onCloudStatusChange = updateCloudStatusUI;
+
 function setupSettings() {
+  const cloudRetry = $('cloudRetryBtn');
+  if (cloudRetry) {
+    cloudRetry.addEventListener('click', async () => {
+      cloudRetry.disabled = true;
+      const um = window.studyHub && window.studyHub.userManager;
+      try {
+        if (um) await um.resolveUserId();
+      } catch (e) { /* status text reflects the failure */ }
+      updateCloudStatusUI();
+      cloudRetry.disabled = false;
+      showToast('Cloud status refreshed');
+    });
+  }
   $('profileForm').addEventListener('submit', e => {
     e.preventDefault();
     state.profile.name = $('profileName').value || 'Scholar';
@@ -3135,36 +3172,67 @@ function setupStudyMates() {
     }
   });
   if (openBtn) openBtn.href = 'https://learningfans-imredavid64-glitchs-projects.vercel.app/app/study-hub?userId=' + encodeURIComponent(getStudyHubUserId());
+  const mateToggle = $('mateFindableToggle');
+  if (mateToggle) {
+    mateToggle.addEventListener('change', () => syncMateProfile(mateToggle.checked));
+  }
   findBtn.addEventListener('click', findStudyMates);
+}
+
+async function syncMateProfile(findable) {
+  // Opt-in: publish a minimal profile (name, major, subjects, target) to the
+  // mate_profiles table so the /api/mates matcher can find you. Only your own
+  // row is writable (RLS); other users' rows are never readable from here.
+  const client = (window.studyHub && window.studyHub.supabase) || window.supabase;
+  const toggle = $('mateFindableToggle');
+  if (!client || typeof client.from !== 'function') {
+    if (toggle) toggle.checked = false;
+    showToast('Cloud sync unavailable — opt-in needs the deployed backend');
+    return;
+  }
+  const id = getStudyHubUserId();
+  try {
+    const subjects = (state.profile.subjects || []).filter(Boolean);
+    if (findable && subjects.length === 0) {
+      if (toggle) toggle.checked = false;
+      showToast('Add subjects to your profile first, then opt in');
+      return;
+    }
+    const { error } = await client.from('mate_profiles').upsert({
+      user_id: id,
+      name: state.profile.name || 'Scholar',
+      major: state.profile.major || '',
+      subjects: subjects,
+      weekly_target_hours: state.profile.weeklyTargetHours || 0,
+      findable: !!findable,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+    if (error) throw error;
+    showToast(findable ? 'You are now findable as a study mate' : 'You are no longer findable');
+  } catch (e) {
+    if (toggle) toggle.checked = !findable;
+    showToast('Could not update findability: ' + (e && e.message ? e.message : e));
+  }
 }
 
 async function findStudyMates() {
   const resultsEl = $('studymatesResults');
   if (!resultsEl) return;
   const mySubjects = (state.profile.subjects || []).filter(Boolean).map(s => String(s).toLowerCase().trim());
-  resultsEl.innerHTML = '<p class="subtle">Searching the LearningFans community for matching study mates…</p>';
+  resultsEl.innerHTML = '<p class="subtle">Searching the study-mate matching service…</p>';
   try {
-    const client = (window.studyHub && window.studyHub.supabase) || window.supabase;
-    if (!client || typeof client.from !== 'function') throw new Error('cloud sync is unavailable (offline or Supabase not loaded)');
-    const myId = getStudyHubUserId();
-    const { data: users, error } = await client.from('users').select('id,name,major').limit(50);
-    if (error) throw error;
-    const { data: snaps, error: snapErr } = await client.from('user_state_snapshots').select('user_id,state_data,last_updated').limit(100);
-    if (snapErr) throw snapErr;
-    const snapMap = {};
-    (snaps || []).forEach(s => { if (s.state_data && s.state_data.profile) snapMap[s.user_id] = s.state_data.profile; });
-    const mates = [];
-    (users || []).forEach(u => {
-      if (u.id === myId) return;
-      const prof = snapMap[u.id] || {};
-      const subs = (prof.subjects || []).filter(Boolean).map(s => String(s).toLowerCase().trim());
-      const overlap = subs.filter(s => mySubjects.includes(s));
-      if (overlap.length === 0) return;
-      mates.push({ name: u.name || prof.name || 'Scholar', major: prof.major || u.major || '', subjects: (prof.subjects || []).filter(Boolean), overlap: overlap.map(s => s.charAt(0).toUpperCase() + s.slice(1)), target: prof.weeklyTargetHours || 0, updated: (snapMap[u.id] && snaps.find(s => s.user_id === u.id) || {}).last_updated });
+    const res = await fetch('/api/mates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subjects: mySubjects, userId: getStudyHubUserId() })
     });
-    mates.sort((a, b) => b.overlap.length - a.overlap.length);
-    if (mates.length === 0) {
-      resultsEl.innerHTML = '<p class="subtle">No study mates found yet on the same subjects. Share your Study Hub ID with friends, or join LearningFans spaces to grow the community.</p>';
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'matching service returned ' + res.status);
+    }
+    const mates = await res.json();
+    if (!Array.isArray(mates) || mates.length === 0) {
+      resultsEl.innerHTML = '<p class="subtle">No study mates found yet on the same subjects. Make yourself findable above, share your Study Hub ID with friends, or join LearningFans spaces to grow the community.</p>';
       return;
     }
     resultsEl.innerHTML = '';
@@ -3179,7 +3247,7 @@ async function findStudyMates() {
     tip.innerHTML = 'Want to study together? <a href="https://learningfans-imredavid64-glitchs-projects.vercel.app/app/spaces" target="_blank" rel="noreferrer">Join a LearningFans space</a> to collaborate in real time.';
     resultsEl.appendChild(tip);
   } catch (e) {
-    resultsEl.innerHTML = '<p class="subtle">Could not reach the cloud community (' + escapeHtml(e.message) + '). Enable Cloud Sync in Settings, then try again.</p>';
+    resultsEl.innerHTML = '<p class="subtle">Could not reach the study-mate matching service (' + escapeHtml(e.message) + '). It runs on the deployed backend — try again when online.</p>';
   }
 }
 
@@ -5114,6 +5182,7 @@ function init() {
   safeCall(setupStudyRoom);
   safeCall(setupAnalytics);
   safeCall(setupSettings);
+  safeCall(updateCloudStatusUI);
   safeCall(setupMusicPlayer);
   safeCall(setupPlaylists);
   safeCall(enhanceMusicTrackList);
