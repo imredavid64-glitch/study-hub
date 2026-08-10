@@ -14,7 +14,8 @@
     "cap:sync": "npm run build:mobile && npx cap sync",
     "cap:ios": "npm run build:mobile && npx cap sync ios && npx cap open ios",
     "cap:android": "npm run build:mobile && npx cap sync android && npx cap open android",
-    "test": "node --check app.js && node --check cloud-core.js"
+    "test": "node --check app.js && node --check cloud-core.js",
+    "test:qa": "electron scripts/qa-smoke.js"
   },
   "keywords": [
     "study",
@@ -22,7 +23,10 @@
     "productivity",
     "ai"
   ],
-  "author": { "name": "Study Hub", "email": "30dimrekatai@student.aisb.hu" },
+  "author": {
+    "name": "Study Hub",
+    "email": "30dimrekatai@student.aisb.hu"
+  },
   "license": "ISC",
   "dependencies": {
     "@capacitor/android": "^8.4.2",

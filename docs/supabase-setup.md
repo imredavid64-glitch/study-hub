@@ -4,6 +4,15 @@ Study Hub's cloud backend (sync, analytics, leaderboard, study-mate matching)
 runs on Supabase with auth-scoped Row Level Security. Three one-time steps are
 required — two in the Supabase dashboard and one in Vercel.
 
+> **Quick checklist** — each item below has a full click-path walkthrough.
+>
+> - [ ] **A. Enable anonymous sign-ins** (Supabase → Authentication → Providers)
+> - [ ] **B. Run the RLS migration** (Supabase → SQL Editor → run the migration file)
+> - [ ] **C. Add `SUPABASE_SERVICE_KEY`** (Supabase → Settings → API → copy `service_role` → Vercel env)
+> - [ ] **D. Add `INSTALLERS_PAT`** (GitHub → Settings → Developer settings → PAT → repo secret) — enables the release workflow to publish installers automatically
+> - [ ] **E. (Optional) Add `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`** (Vercel env) — durable cross-instance rate limiting
+> - [ ] **F. Rotate the old Groq key** (console.groq.com → API Keys → revoke the leaked key)
+
 ## 1. Enable anonymous sign-ins (Supabase dashboard)
 
 Cloud sync uses Supabase Auth's anonymous sign-ins so users get a real,
@@ -57,7 +66,30 @@ curl -X POST https://study-hub-plum-omega.vercel.app/api/mates \
 - `{"error":"Origin not allowed"}` → the origin allowlist rejected the caller
   (add it via `ALLOWED_ORIGINS`, see below)
 
-## Optional: durable rate limiting
+## 4. Add the installers publish token (GitHub)
+
+The release workflow (`.github/workflows/release.yml`) builds installers for
+macOS / Windows / Linux on every tag. Its final **Publish** job uploads them to
+the public `study-hub-installers` repo — it needs a repo-scoped secret called
+`INSTALLERS_PAT`.
+
+1. Create a PAT: GitHub → **Settings → Developer settings → Personal access
+   tokens → Tokens (classic) → Generate new token**
+   - Scope: **Contents: write** (or `repo` for simplicity) — target the
+     `imredavid64-glitch/study-hub-installers` repo
+2. Add it as a secret: **study-hub repo → Settings → Secrets and variables →
+   Actions → New repository secret** → name `INSTALLERS_PAT`
+3. Next release tag will auto-publish. To publish the current build without a
+   new tag: **Actions → release workflow → re-run the Publish job**, or run
+   the manual download-and-`gh release create` flow.
+
+Verify with:
+
+```bash
+gh secret list   # INSTALLERS_PAT should appear
+```
+
+## 5. (Optional) Durable rate limiting
 
 Rate limiting works out of the box per function instance. To make limits
 shared across all instances (and to enforce the daily quota reliably), add an
