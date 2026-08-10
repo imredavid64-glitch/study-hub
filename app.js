@@ -2263,7 +2263,7 @@ async function sendAiChat() {
     if (state.aiChatHistory.length > 200) state.aiChatHistory = state.aiChatHistory.slice(-200);
     saveState(); renderAiSessionHistory();
     convHistory.scrollTop = convHistory.scrollHeight;
-  } catch (e) { convHistory.innerHTML += `<div class="chat-bubble assistant">I apologize, but I encountered an error. Please try again.</div>`; }
+  } catch (e) { const reason = (e && e.message && /AI proxy unreachable|Groq API error/.test(e.message)) ? ' — ' + escapeHtml(e.message) : ''; convHistory.innerHTML += `<div class="chat-bubble assistant">I apologize, but I encountered an error${reason}. Please try again.</div>`; }
 }
 function parseAiActions(txt) {
   const actions = [];

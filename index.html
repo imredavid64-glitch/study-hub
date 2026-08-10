@@ -2456,12 +2456,15 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
   </div>
 </div>
 <script>
-  // Register the service worker so the app installs & works offline (PWA)
+  // Register the service worker so the app installs & works offline (PWA).
+  // Preflight the script so environments that don't serve sw.js (single-file
+  // local previews) skip registration quietly instead of logging 404 noise.
   if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function (e) {
-        console.warn('Service worker registration failed:', e);
-      });
+      fetch('sw.js', { cache: 'no-store' }).then(function (r) {
+        if (!r.ok) return; // sw.js not served here — app still works without it
+        return navigator.serviceWorker.register('sw.js');
+      }).catch(function () { /* offline or unreachable — registration will retry next load */ });
     });
   }
 </script>

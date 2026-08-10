@@ -68,12 +68,55 @@ function checkFileIntegrity() {
   }
 }
 
+function checkInlineSafety() {
+  console.log('\n🔒 Checking inline-bundle safety ($& corruption guard)...');
+
+  // Guard against a known bundling bug: using a STRING as the replacement in
+  // String.prototype.replace expands $& / $1 / $` / $' patterns found inside
+  // the JS being inlined (e.g. the '$&' in renderMarkdown), which can inject
+  // a literal </script> and truncate the bundle. Always use function
+  // replacements when inlining scripts.
+  const filesToCheck = ['index.html'];
+  try {
+    if (fs.existsSync('.qa/index.html')) filesToCheck.push('.qa/index.html');
+  } catch (e) { /* ignore */ }
+
+  const problems = [];
+  for (const file of filesToCheck) {
+    const html = fs.readFileSync(file, 'utf8');
+    // Known corruption signature from the $&-expansion bug
+    if (html.includes('<ul><script src="app.js"></script></ul>')) {
+      problems.push(file + ': corrupted $&-expanded string detected');
+    }
+    // Any inline <script> whose body contains a literal </script> terminates
+    // early and would truncate the script.
+    const inlineRe = /<script>([\s\S]*?)<\/script>/g;
+    let m;
+    while ((m = inlineRe.exec(html)) !== null) {
+      const body = m[1];
+      const truncated = body.match(/<\/script>/);
+      if (truncated) {
+        problems.push(file + ': inline script contains literal </script> (truncation risk)');
+      }
+    }
+  }
+
+  if (problems.length > 0) {
+    console.error('❌ Inline-safety check failed:');
+    problems.forEach(p => console.error('   - ' + p));
+    return false;
+  }
+  console.log('✅ No corruption or truncation patterns found');
+  return true;
+}
+
 function validateBuild() {
   console.log('\n🏗️ Building Study Hub...');
 
   const steps = [
     { name: 'Checking dependencies', fn: checkDependencies },
     { name: 'Validating file integrity', fn: checkFileIntegrity },
+    { name: 'Checking inline-bundle safety', fn: checkInlineSafety },
   ];
 
   let stepIndex = 0;
