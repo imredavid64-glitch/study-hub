@@ -2240,27 +2240,77 @@ async function sendAiChat() {
     const peerPrompt = getPeerTutoringPrompt();
     const resourceCtx = buildResourceContext();
     const studyMapCtx = buildStudyMapContext(q);
+    const personalCtx = buildPersonalContext();
     const adhdNote = state.settings.adhdMode ? ' Keep responses VERY short and concise — 2-3 sentences max. The student has ADHD and needs brief, focused answers.' : '';
     const profileCtx = [state.profile.interests && ('Interests: ' + state.profile.interests + '.'), state.profile.learningStyle && ('Preferred learning style: ' + state.profile.learningStyle + '.'), state.profile.difficulties && ('Known difficulties to handle patiently: ' + state.profile.difficulties + '.'), state.profile.goals && ('Goals to motivate them with: ' + state.profile.goals + '.')].filter(Boolean).join(' ');
-     const systemPrompt = `You are a skilled Socratic tutor for ${state.profile.name} (${state.profile.major}). Response style: ${style}. Study mode: ${mode}. ${peerPrompt}${adhdNote} Pedagogical rules you ALWAYS follow: (1) Act like a personal teacher, not an answer machine — your goal is to build the student's understanding. (2) When the student asks a question, first help them THINK: check what they already know, break the problem into smaller steps, and give hints before solutions. (3) After you explain something, ALWAYS end your reply with exactly ONE clear follow-up question that checks understanding or pushes them a step further. (4) Connect ideas with analogies and real-world examples, and praise correct reasoning. Only give a direct answer when the student explicitly asks to be shown the full solution or is clearly stuck. If the student asks for direct instruction, start with "Let's think through this step by step..." Context: recent subjects include ${subjects}. Student profile: ${profileCtx}${resourceCtx ? '\n\nStudent\'s saved study resources (reference these when relevant):\n' + resourceCtx : ''}${studyMapCtx ? '\n\nNote: the student has access to a Study Map of real places (libraries, SAT centres, exam centres, government offices, airports). Use the places listed below to answer place-finding questions with real, specific recommendations rather than generic advice.' + studyMapCtx : ''}`;
+     const systemPrompt = `You are a skilled Socratic tutor for ${state.profile.name} (${state.profile.major}). Response style: ${style}. Study mode: ${mode}. ${peerPrompt}${adhdNote} Pedagogical rules you ALWAYS follow: (1) Act like a personal teacher, not an answer machine — your goal is to build the student's understanding. (2) When the student asks a question, first help them THINK: check what they already know, break the problem into smaller steps, and give hints before solutions. (3) After you explain something, ALWAYS end your reply with exactly ONE clear follow-up question that checks understanding or pushes them a step further. (4) Connect ideas with analogies and real-world examples, and praise correct reasoning. Only give a direct answer when the student explicitly asks to be shown the full solution or is clearly stuck. If the student asks for direct instruction, start with "Let's think through this step by step..." Context: recent subjects include ${subjects}. Student profile: ${profileCtx}${resourceCtx ? '\n\nStudent\'s saved study resources (reference these when relevant):\n' + resourceCtx : ''}${studyMapCtx ? '\n\nNote: the student has access to a Study Map of real places (libraries, SAT centres, exam centres, government offices, airports). Use the places listed below to answer place-finding questions with real, specific recommendations rather than generic advice.' + studyMapCtx : ''}${personalCtx}\n\nACTION CAPABILITY: When the student explicitly asks you to ADD, CREATE, or SCHEDULE a task or calendar event (e.g. "add a task to review chapter 4", "put my history exam on the calendar", "remind me to study physics tomorrow"), you may propose it as an action block so the app can offer a one-tap confirm button. Only propose actions the student clearly asked for — never invent unscheduled tasks or events on your own. In your visible reply, briefly say what you're proposing and why. Then, at the very end of your reply on its own line, add the block in EXACTLY this format:\n[[action]]{"type":"task","title":"Review Chapter 4","subject":"Physics","due":"2026-08-15","effort":2}[[/action]]\nFor calendar events use: [[action]]{"type":"event","title":"History Exam","date":"2026-08-20","time":"09:00","desc":"Final exam"}[[/action]]\nRules: type is "task" or "event" only. Tasks: title (required), subject, due (YYYY-MM-DD), effort (1-5). Events: title (required), date (YYYY-MM-DD), time (HH:MM), desc. Use the student's live data (assignments, calendar, flashcards) to pick realistic dates — e.g. suggest studying 2 days before a real exam. Put the [[action]] block on its own line AFTER your visible message; it will be hidden and turned into a confirm button. You may include multiple blocks, one per line, if the student asked for several things.`;
      const includeThinking = state.settings.showAiThinking;
      const thinkPrompt = includeThinking ? `\n\nFirst, silently reason through your approach in a <thinking> block (do not show this to the student). Then, when responding, briefly narrate your pedagogical reasoning in a concise "Teaching thought:" line that the student CAN see, so they understand how you're guiding them. Format the teaching thought as: _Teaching thought: <brief reasoning>_` : '';
      const txt = await groqChat([
        { role: 'system', content: systemPrompt + thinkPrompt },
        { role: 'user', content: recentContext ? `Previous discussion:\n${recentContext}\n\nStudent's new question: ${q}` : q }
      ], { maxTokens: 1024 });
-     let assistantContent = txt;
+     const proposedActions = parseAiActions(txt);
+     const cleanTxt = txt.replace(/\[\[action\]\][\s\S]*?\[\[\/action\]\]/gi, '').trim();
+     let assistantContent = cleanTxt;
      let teachingThought = '';
-     const thoughtMatch = txt.match(/_Teaching thought:\s*(.+?)(?:$|<br|<\/)/i);
-     if (thoughtMatch) { teachingThought = thoughtMatch[1].trim(); assistantContent = txt.replace(thoughtMatch[0], '').trim(); }
+     const thoughtMatch = cleanTxt.match(/_Teaching thought:\s*(.+?)(?:$|<br|<\/)/i);
+     if (thoughtMatch) { teachingThought = thoughtMatch[1].trim(); assistantContent = cleanTxt.replace(thoughtMatch[0], '').trim(); }
      convHistory.innerHTML += `<div class="chat-bubble assistant">${renderMarkdown(assistantContent)}</div>`;
      if (includeThinking && teachingThought) { convHistory.innerHTML += `<div class="ai-thinking">${escapeHtml(teachingThought)}</div>`; }
+     if (proposedActions.length > 0) renderAiActionCards(proposedActions, convHistory);
     state.aiChatHistory.push({ role: 'user', content: q, timestamp: new Date().toISOString() });
-    state.aiChatHistory.push({ role: 'assistant', content: txt, timestamp: new Date().toISOString() });
+    state.aiChatHistory.push({ role: 'assistant', content: cleanTxt, timestamp: new Date().toISOString() });
     if (state.aiChatHistory.length > 200) state.aiChatHistory = state.aiChatHistory.slice(-200);
     saveState(); renderAiSessionHistory();
     convHistory.scrollTop = convHistory.scrollHeight;
   } catch (e) { convHistory.innerHTML += `<div class="chat-bubble assistant">I apologize, but I encountered an error. Please try again.</div>`; }
+}
+function parseAiActions(txt) {
+  const actions = [];
+  const re = /\[\[action\]\]([\s\S]*?)\[\[\/action\]\]/gi;
+  let m;
+  while ((m = re.exec(txt)) !== null) {
+    try {
+      const a = JSON.parse(m[1].trim());
+      if (a && (a.type === 'task' || a.type === 'event') && a.title) actions.push(a);
+    } catch (e) { /* skip malformed action blocks */ }
+  }
+  return actions;
+}
+function renderAiActionCards(actions, container) {
+  actions.forEach(a => {
+    const card = document.createElement('div');
+    card.className = 'chat-bubble assistant action-card';
+    const isEvent = a.type === 'event';
+    let meta;
+    if (isEvent) meta = (a.date || 'No date') + (a.time ? ' at ' + a.time : '');
+    else meta = (a.subject || 'General') + (a.due ? ' — due ' + a.due : '');
+    card.innerHTML = `<div class="action-card-icon">${isEvent ? '📅' : '✅'}</div>
+      <div class="action-card-body">
+        <div class="action-card-title">${escapeHtml(a.title)}</div>
+        <div class="action-card-meta">${escapeHtml(meta)}${isEvent && a.desc ? ' — ' + escapeHtml(a.desc) : ''}</div>
+        <div class="action-card-btns">
+          <button class="btn btn-sm">Confirm ${isEvent ? 'Event' : 'Task'}</button>
+          <button class="btn btn-sm btn-ghost">Decline</button>
+        </div>
+      </div>`;
+    card.querySelector('.btn').addEventListener('click', () => { commitAiAction(a); card.remove(); });
+    card.querySelector('.btn-ghost').addEventListener('click', () => card.remove());
+    container.appendChild(card);
+    container.scrollTop = container.scrollHeight;
+  });
+}
+function commitAiAction(a) {
+  if (a.type === 'task') {
+    state.tasks.push({ id: uid(), title: a.title, subject: a.subject || 'General', due: a.due || todayStr(), effort: Math.min(5, Math.max(1, +a.effort || 1)), status: 'todo', createdAt: todayStr(), source: 'ai' });
+    saveState(); renderKanban(); renderDashboard();
+    showToast('Task added to planner');
+  } else if (a.type === 'event') {
+    state.calendarEvents.push({ id: uid(), title: a.title, date: a.date || todayStr(), time: a.time || '', desc: a.desc || '', createdAt: new Date().toISOString(), source: 'ai' });
+    saveState(); renderCalendar(); renderCalendarEvents();
+    showToast('Event added to calendar');
+  }
 }
 function renderAiSessionHistory() {
   const el = $('aiSessionHistory');
@@ -3144,6 +3194,57 @@ function buildResourceContext() {
     const url = r.url ? (' (' + r.url + ')') : '';
     return meta + ' ' + title + ': ' + content + url;
   }).join('\n');
+}
+
+function buildPersonalContext() {
+  const today = todayStr();
+  const parts = [];
+  // Assignments: overdue through next 14 days, with grading status
+  const upcoming = (state.assignments || [])
+    .filter(a => a.due)
+    .map(a => ({ a, days: daysUntil(a.due) }))
+    .filter(x => x.days >= -7 && x.days <= 14)
+    .sort((x, y) => x.days - y.days)
+    .slice(0, 8);
+  if (upcoming.length > 0) {
+    const lines = upcoming.map(x => {
+      const a = x.a;
+      const status = a.earned !== null ? `graded ${a.earned}/${a.max}` : 'not graded yet';
+      const when = x.days < 0 ? `${-x.days}d OVERDUE` : x.days === 0 ? 'due TODAY' : `in ${x.days}d`;
+      return `- ${a.title} (${a.subject || 'General'}) — ${when}, ${status}`;
+    });
+    parts.push(`Assignments:\n${lines.join('\n')}`);
+  }
+  // Calendar events: yesterday through next 7 days
+  const events = (state.calendarEvents || [])
+    .map(e => ({ e, days: e.date ? daysUntil(e.date) : null }))
+    .filter(x => x.days !== null && x.days >= -1 && x.days <= 7)
+    .sort((a, b) => (a.e.date + (a.e.time || '')).localeCompare(b.e.date + (b.e.time || '')))
+    .slice(0, 8);
+  if (events.length > 0) {
+    const lines = events.map(x => {
+      const when = x.days < 0 ? 'yesterday' : x.days === 0 ? 'today' : x.days === 1 ? 'tomorrow' : `in ${x.days} days`;
+      return `- ${x.e.title} (${when}${x.e.time ? ' at ' + x.e.time : ''})`;
+    });
+    parts.push(`Calendar events:\n${lines.join('\n')}`);
+  }
+  // Quiz scores: recent attempts + running average
+  const attempts = state.quizAttempts || [];
+  if (attempts.length > 0) {
+    const pctOf = a => Math.round(a.pct !== undefined ? a.pct : (a.score / a.total) * 100);
+    const avg = Math.round(attempts.reduce((s, a) => s + pctOf(a), 0) / attempts.length);
+    const lines = attempts.slice(-5).reverse().map(a => `- ${a.topic || 'Quiz'} (${a.date}): ${a.score}/${a.total} (${pctOf(a)}%)`);
+    parts.push(`Quiz scores (average ${avg}%):\n${lines.join('\n')}`);
+  }
+  // Flashcards due today
+  const allDue = (state.flashcards || []).filter(c => c.dueDate && c.dueDate <= today);
+  if (allDue.length > 0) {
+    const lines = allDue.slice(0, 10).map(c => `- [${c.deck || 'Deck'}] ${c.question}`);
+    const more = allDue.length > 10 ? ` (+${allDue.length - 10} more)` : '';
+    parts.push(`Flashcards due today (${allDue.length} total):\n${lines.join('\n')}${more}`);
+  }
+  if (parts.length === 0) return '';
+  return `\n\nLIVE personal data from the student's account (assignments, calendar, quiz scores, flashcards due today). Use this to give specific, personalized planning and study advice — reference real items by name rather than generic suggestions:\n${parts.join('\n\n')}`;
 }
 
 function setupResources() {

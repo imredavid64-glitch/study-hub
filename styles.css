@@ -1946,6 +1946,28 @@ button.danger:hover {
   border-color: var(--border);
   align-self: flex-start;
 }
+/* AI-proposed action cards (tasks/events from the tutor, with confirm buttons) */
+.action-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  max-width: 90%;
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+}
+.action-card-icon { font-size: 1.3rem; line-height: 1.4; }
+.action-card-body { flex: 1; min-width: 0; }
+.action-card-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 2px; }
+.action-card-meta { font-size: 0.8rem; color: var(--muted); margin-bottom: 10px; }
+.action-card-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.action-card-btns .btn { padding: 6px 12px; border-radius: 9px; font-size: 0.8rem; }
+.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover { background: color-mix(in srgb, var(--muted) 10%, transparent); opacity: 1; }
+.btn-sm { padding: 6px 12px; font-size: 0.8rem; border-radius: 9px; }
 /* Rich content inside assistant bubbles */
 .chat-bubble.assistant p, .chat-bubble.ai p { margin: 4px 0; }
 .chat-bubble.assistant p:first-child, .chat-bubble.ai p:first-child { margin-top: 0; }
