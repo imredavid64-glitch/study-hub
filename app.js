@@ -1309,7 +1309,20 @@ async function generateQuiz() {
     $('submitQuizBtn').classList.add('hidden');
     $('quizResult').textContent = '';
     renderQuizQuestion();
-  } catch (e) { showToast('Failed to generate quiz'); }
+  } catch (e) {
+    // AI unavailable — a written self-check quiz still gives real practice.
+    quizState.questions = offlineQuiz(topic, subject, level, count);
+    quizState.index = 0;
+    quizState.answers = new Array(quizState.questions.length).fill('');
+    quizState.submitted = false;
+    $('quizMeta').textContent = `${quizState.questions.length} questions (offline template)`;
+    $('nextQuizQuestionBtn').classList.remove('hidden');
+    $('submitQuizBtn').classList.add('hidden');
+    $('quizResult').textContent = '';
+    renderQuizQuestion();
+    showToast('Offline quiz template used (AI unavailable)');
+    logErrors('quizgen')(e);
+  }
 }
 function renderQuizQuestion() {
   const q = quizState.questions[quizState.index];
@@ -1396,7 +1409,22 @@ function startMockTest() {
         if (mockState.seconds <= 0) { clearInterval(mockState.timer); submitMockTest(); }
       }, 1000);
     } catch (e) { showToast('Failed to parse mock test'); }
-  }).catch(() => showToast('AI generation failed'));
+  }).catch(() => {
+    // AI unavailable — exam-strategy questions still auto-grade correctly.
+    mockState.questions = offlineMockTest(subject, level, count);
+    mockState.answers = new Array(mockState.questions.length).fill(''); mockState.index = 0;
+    $('mockTestMeta').textContent = `${mockState.questions.length} questions (offline template) | Marked: 0`;
+    $('mockPrevBtn').classList.remove('hidden'); $('mockNextBtn').classList.remove('hidden'); $('mockMarkBtn').classList.remove('hidden'); $('mockSubmitBtn').classList.remove('hidden');
+    renderMockQuestion();
+    if (mockState.timer) clearInterval(mockState.timer);
+    mockState.timer = setInterval(() => {
+      mockState.seconds--;
+      const m = Math.floor(mockState.seconds / 60); const s = mockState.seconds % 60;
+      $('mockTestTimer').textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      if (mockState.seconds <= 0) { clearInterval(mockState.timer); submitMockTest(); }
+    }, 1000);
+    showToast('Offline mock test used (AI unavailable)');
+  });
 }
 function renderMockQuestion() {
   const q = mockState.questions[mockState.index];
@@ -1462,7 +1490,17 @@ async function generateRecallPrompts() {
       el.appendChild(d);
     });
     showToast(`${prompts.length} prompts generated`);
-  } catch (e) { showToast('Failed to generate prompts'); }
+  } catch (e) {
+    // AI unavailable — the same retrieval techniques work offline.
+    const el = $('recallPromptList');
+    el.innerHTML = '<h4>Recall Prompts <span class="badge">offline</span></h4>';
+    offlineRecallPrompts(subject, source, count).forEach(p => {
+      const d = document.createElement('div'); d.className = 'item recall-prompt'; d.textContent = p;
+      el.appendChild(d);
+    });
+    showToast('Offline recall prompts (AI unavailable)');
+    logErrors('recalls')(e);
+  }
 }
 let blurtTimerInterval = null;
 let blurtSeconds = 0;
@@ -1493,7 +1531,18 @@ async function scoreBlurt() {
     <p><strong>Missing:</strong> ${(result.missing || []).join(', ') || 'Nothing identified'}</p>`;
     state.recallHistory.push({ id: uid(), date: todayStr(), topic, score: result.score, feedback: result.feedback });
     saveState(); renderRecallHistory();
-  } catch (e) { showToast('Scoring failed'); }
+  } catch (e) {
+    // AI unavailable — local keyword-overlap scoring still gives real feedback.
+    const result = offlineBlurtScore(topic, keywords, response);
+    const el = $('blurtFeedback');
+    el.innerHTML = `<div class="score-chip ${result.score > 70 ? 'good' : result.score > 40 ? 'mid' : 'low'}">Score: ${result.score}% (offline)</div>
+    <p>${escapeHtml(result.feedback)}</p>
+    <p><strong>Covered:</strong> ${result.coverage.join(', ') || 'None'}</p>
+    <p><strong>Missing:</strong> ${result.missing.join(', ') || 'Nothing identified'}</p>`;
+    state.recallHistory.push({ id: uid(), date: todayStr(), topic, score: result.score, feedback: result.feedback });
+    saveState(); renderRecallHistory();
+    logErrors('blurt')(e);
+  }
 }
 function renderRecallHistory() {
   const el = $('recallHistory');
@@ -2078,7 +2127,14 @@ function analyzeEssay() {
       <div class="item"><strong>Argument:</strong> ${escapeHtml(r.argument || 'N/A')}</div>
       <div class="item"><strong>Suggestions:</strong><ul>${(r.suggestions || []).map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul></div>`;
     } catch (e) { $('essayFeedback').innerHTML = '<p class="subtle">Analysis result available.</p>'; }
-  }).catch(() => showToast('Essay analysis failed'));
+  }).catch(() => {
+    // AI unavailable — local stats + writing tips still give useful feedback.
+    const r = offlineRubric(text);
+    $('essayFeedback').innerHTML = `<div class="item"><strong>Structure:</strong> ${r.score}/100 | <strong>Offline analysis</strong></div>
+      <div class="item">${escapeHtml(r.feedback)}</div>
+      <div class="item"><strong>Strengths:</strong><ul>${(r.strengths || []).map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul></div>
+      <div class="item"><strong>Improvements:</strong><ul>${(r.improvements || []).map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul></div>`;
+  });
 }
 function setupPdfUpload() {
   const zone = $('pdfUploadZone');
@@ -2190,7 +2246,25 @@ function setupSmartAI() {
         saveState(); renderAllFlashcards(); renderFlashcardStudy();
       }
       $('generationStatus').classList.add('hidden'); showToast('Content generated!');
-    } catch (err) { $('generationStatus').classList.add('hidden'); showToast('Generation failed'); }
+    } catch (err) {
+      // AI unavailable — generate the same formats from local templates.
+      const local = offlineContent(topic, type, count);
+      const el = $('generatedContent');
+      if (type === 'quiz' || type === 'both') {
+        el.innerHTML += '<h4>Quiz Questions <span class="badge">offline</span></h4>';
+        (local.quiz || []).forEach((q, i) => { el.innerHTML += `<div class="item"><strong>Q${i+1}:</strong> ${escapeHtml(q.question)}<br><em>Self-check:</em> ${escapeHtml(q.answer)}</div>`; });
+      }
+      if (type === 'flashcards' || type === 'both') {
+        (local.flashcards || []).forEach(c => {
+          state.flashcards.push({ id: uid(), deck: topic, question: c.question, answer: c.answer, dueDate: todayStr(), interval: 0, ease: 2.5, repetitions: 0, createdAt: todayStr() });
+        });
+        el.innerHTML += '<h4>Flashcards <span class="badge">offline</span></h4>';
+        el.innerHTML += '<p class="subtle">' + local.flashcards.length + ' flashcards added to your deck "' + escapeHtml(topic) + '".</p>';
+        saveState(); renderAllFlashcards(); renderFlashcardStudy();
+      }
+      $('generationStatus').classList.add('hidden'); showToast('Offline content generated (AI unavailable)');
+      logErrors('contentgen')(err);
+    }
   });
   $('rubricForm').addEventListener('submit', async e => {
     e.preventDefault();
@@ -2209,7 +2283,18 @@ function setupSmartAI() {
       <div class="item">${escapeHtml(r.feedback)}</div>
       <div class="item"><strong>Strengths:</strong><ul>${(r.strengths || []).map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul></div>
       <div class="item"><strong>Improvements:</strong><ul>${(r.improvements || []).map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul></div>`;
-    } catch (e) { showToast('Rubric analysis failed'); }
+    } catch (e) {
+      // AI unavailable — local rubric with the same output shape.
+      const r = offlineRubric(content);
+      const el = $('rubricFeedback');
+      el.classList.remove('hidden');
+      el.innerHTML = `<div class="item"><strong>Score: ${r.score}% (offline)</strong></div>
+      <div class="item">${escapeHtml(r.feedback)}</div>
+      <div class="item"><strong>Strengths:</strong><ul>${(r.strengths || []).map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul></div>
+      <div class="item"><strong>Improvements:</strong><ul>${(r.improvements || []).map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul></div>`;
+      showToast('Offline rubric used (AI unavailable)');
+      logErrors('rubric')(e);
+    }
   });
 }
 
@@ -2351,7 +2436,15 @@ function setupAiLessons() {
       $('lessonArea').style.display = 'block';
       $('lessonForm').querySelector('button').textContent = 'Regenerate Lesson';
       showLessonStep();
-    } catch (e) { showToast('Failed to generate lesson'); }
+    } catch (e) {
+      // AI unavailable — a 5-step interactive lesson still works offline.
+      lessonState.steps = offlineLesson(lessonState.topic || 'the topic');
+      $('lessonArea').style.display = 'block';
+      $('lessonForm').querySelector('button').textContent = 'Regenerate Lesson';
+      showLessonStep();
+      showToast('Offline lesson used (AI unavailable)');
+      logErrors('lesson')(e);
+    }
   });
   $('lessonNextBtn').addEventListener('click', nextLessonStep);
   $('lessonAskBtn').addEventListener('click', pauseForQuestion);
@@ -3542,7 +3635,37 @@ async function scoutResources() {
     }
     if (status) status.textContent = 'Found ' + items.length + ' resources for "' + topicText + '".';
   } catch (e) {
-    if (status) status.textContent = 'Scout failed: ' + e.message;
+    // AI unavailable — curated free resources by topic keyword.
+    const items = offlineResources(topicText);
+    if (status) status.textContent = items.length + ' curated resources for "' + topicText + '" (offline — AI unavailable).';
+    if (results) {
+      results.innerHTML = '';
+      items.forEach((it, i) => {
+        const row = document.createElement('div');
+        row.className = 'resource-scout-item';
+        row.innerHTML = `
+          <div class="resource-scout-head">
+            <strong>${escapeHtml(it.title)}</strong>
+            <span class="badge">${escapeHtml(it.type || 'link')}</span>
+          </div>
+          <p class="subtle">${escapeHtml(it.description || '')}</p>
+          <div class="inline">
+            <a class="ghost" href="${escapeHtml(it.url)}" target="_blank" rel="noopener">Open ↗</a>
+            <button class="ghost resource-add" data-title="${escapeHtml(it.title)}" data-url="${escapeHtml(it.url)}" data-type="${escapeHtml(it.type || 'link')}" data-desc="${escapeHtml(it.description || '')}">Add to Library</button>
+          </div>
+        `;
+        results.appendChild(row);
+      });
+      results.querySelectorAll('.resource-add').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.resources.push({ id: uid(), title: btn.dataset.title || 'Resource', url: btn.dataset.url || '', type: btn.dataset.type || 'link', content: btn.dataset.desc || '', subject: '', source: 'ai-scout', createdAt: new Date().toISOString() });
+          saveState(); renderResourceLibrary();
+          btn.textContent = '✓ Added'; btn.disabled = true;
+          showToast('Resource added to library');
+        });
+      });
+    }
+    logErrors('scout')(e);
   }
 }
 
@@ -3983,7 +4106,10 @@ function setupSubjects() {
         { role: "user", content: input }
       ], { maxTokens: 1024 });
       $("mathSolverResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
-    } catch (e) { showToast("AI error"); }
+    } catch (e) {
+      $("mathSolverResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(offlineExplain(input, 'math')) + '</div>' + offlineNote();
+      logErrors('mathsolver')(e);
+    }
   });
 
   // ---- Physics ----
@@ -3997,7 +4123,10 @@ function setupSubjects() {
         { role: "user", content: "Explain: " + (labels[topic] || topic) }
       ], { maxTokens: 1024 });
       $("physicsResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
-    } catch (e) { showToast("AI error"); }
+    } catch (e) {
+      $("physicsResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(offlineExplain(labels[topic] || topic, 'physics')) + '</div>' + offlineNote();
+      logErrors('physics')(e);
+    }
   });
 
   // ---- Chemistry ----
@@ -4011,7 +4140,10 @@ function setupSubjects() {
         { role: "user", content: "Explain: " + (labels[topic] || topic) }
       ], { maxTokens: 1024 });
       $("chemistryResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
-    } catch (e) { showToast("AI error"); }
+    } catch (e) {
+      $("chemistryResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(offlineExplain(labels[topic] || topic, 'chemistry')) + '</div>' + offlineNote();
+      logErrors('chemistry')(e);
+    }
   });
 
   // ---- Biology ----
@@ -4025,7 +4157,10 @@ function setupSubjects() {
         { role: "user", content: "Explain: " + (labels[topic] || topic) }
       ], { maxTokens: 1024 });
       $("biologyResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
-    } catch (e) { showToast("AI error"); }
+    } catch (e) {
+      $("biologyResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(offlineExplain(labels[topic] || topic, 'biology')) + '</div>' + offlineNote();
+      logErrors('biology')(e);
+    }
   });
 
   // ---- Mind Maps ----
@@ -4039,7 +4174,10 @@ function setupSubjects() {
         { role: "user", content: "Topic: " + (labels[topic] || topic) }
       ], { maxTokens: 1024 });
       $("mindmapResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
-    } catch (e) { showToast("AI error"); }
+    } catch (e) {
+      $("mindmapResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(offlineMindMapText(labels[topic] || topic)) + '</div>' + offlineNote();
+      logErrors('mindmap')(e);
+    }
   });
 
   // ---- Languages: Speaking ----
@@ -4059,7 +4197,16 @@ function setupSubjects() {
         utter.lang = langMap[lang] || "en-US";
         window.speechSynthesis.speak(utter);
       }
-    } catch (e) { showToast("AI error"); }
+    } catch (e) {
+      $("langSpeakingArea").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(offlineSpeakingExercise(lang, level)) + '</div>' + offlineNote();
+      if ("speechSynthesis" in window) {
+        const g = OFFLINE_LANG_GREET[lang] || 'Hello!';
+        const utter = new SpeechSynthesisUtterance(g);
+        utter.lang = ({ spanish: "es-ES", french: "fr-FR", german: "de-DE", japanese: "ja-JP", mandarin: "zh-CN", italian: "it-IT", portuguese: "pt-BR", arabic: "ar-SA" })[lang] || "en-US";
+        window.speechSynthesis.speak(utter);
+      }
+      logErrors('langspeak')(e);
+    }
   });
 
   // ---- Languages: Listening ----
@@ -4079,7 +4226,15 @@ function setupSubjects() {
         utter.lang = langMap[lang] || "en-US";
         window.speechSynthesis.speak(utter);
       }
-    } catch (e) { showToast("AI error"); }
+    } catch (e) {
+      $("langListeningArea").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(offlineListeningPassage(lang)) + '</div>' + offlineNote();
+      if ("speechSynthesis" in window) {
+        const utter = new SpeechSynthesisUtterance(OFFLINE_LANG_GREET[lang] || 'Hello! Today is a good day to practice.');
+        utter.lang = langMap[lang] || "en-US";
+        window.speechSynthesis.speak(utter);
+      }
+      logErrors('langlisten')(e);
+    }
   });
 
   // ---- Languages: Reading ----
@@ -4093,7 +4248,10 @@ function setupSubjects() {
         { role: "user", content: "Create a reading exercise." }
       ], { maxTokens: 1024 });
       $("langReadingArea").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
-    } catch (e) { showToast("AI error"); }
+    } catch (e) {
+      $("langReadingArea").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(offlineReadingPassage(lang, level)) + '</div>' + offlineNote();
+      logErrors('langread')(e);
+    }
   });
 
   // ---- Languages: Writing ----
@@ -4106,7 +4264,10 @@ function setupSubjects() {
         { role: "user", content: "Create a writing prompt." }
       ], { maxTokens: 1024 });
       $("langWritingArea").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
-    } catch (e) { showToast("AI error"); }
+    } catch (e) {
+      $("langWritingArea").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(offlineWritingPrompt(lang)) + '</div>' + offlineNote();
+      logErrors('langwrite')(e);
+    }
   });
 
   // ---- Social Studies: Geography ----
@@ -4120,7 +4281,10 @@ function setupSubjects() {
         { role: "user", content: "Teach me about: " + (labels[region] || region) }
       ], { maxTokens: 1024 });
       $("geoResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
-    } catch (e) { showToast("AI error"); }
+    } catch (e) {
+      $("geoResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(offlineExplain(labels[region] || region, 'geography')) + '</div>' + offlineNote();
+      logErrors('geo')(e);
+    }
   });
 
   // ---- Social Studies: History ----
@@ -4134,7 +4298,10 @@ function setupSubjects() {
         { role: "user", content: "Timeline for: " + (labels[period] || period) }
       ], { maxTokens: 1024 });
       $("historyResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
-    } catch (e) { showToast("AI error"); }
+    } catch (e) {
+      $("historyResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(offlineTimeline(labels[period] || period)) + '</div>' + offlineNote();
+      logErrors('history')(e);
+    }
   });
 
   // ---- Social Studies: Economy ----
@@ -4148,7 +4315,10 @@ function setupSubjects() {
         { role: "user", content: "Explain: " + (labels[topic] || topic) }
       ], { maxTokens: 1024 });
       $("economyResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
-    } catch (e) { showToast("AI error"); }
+    } catch (e) {
+      $("economyResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(offlineExplain(labels[topic] || topic, 'economics')) + '</div>' + offlineNote();
+      logErrors('economy')(e);
+    }
   });
 
   // ---- Social Studies: Civics ----
@@ -4162,7 +4332,10 @@ function setupSubjects() {
         { role: "user", content: "Explain: " + (labels[topic] || topic) }
       ], { maxTokens: 1024 });
       $("civicsResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
-    } catch (e) { showToast("AI error"); }
+    } catch (e) {
+      $("civicsResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(offlineExplain(labels[topic] || topic, 'civics')) + '</div>' + offlineNote();
+      logErrors('civics')(e);
+    }
   });
 
   // ---- English: Text Analyzer ----
@@ -4185,7 +4358,14 @@ function setupSubjects() {
       } catch (e) {
         $("englishAnalysisResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
       }
-    } catch (e) { showToast("AI error"); }
+    } catch (e) {
+      const r = offlineEssayAnalysis(text);
+      $("englishAnalysisResult").innerHTML = '<div class="item"><strong>Readability:</strong> ' + r.readability + '/100</div>' +
+        '<div class="item"><strong>Grammar:</strong> ' + escapeHtml(r.grammar) + '</div>' +
+        '<div class="item"><strong>Structure:</strong> ' + escapeHtml(r.structure) + '</div>' +
+        '<div class="item"><strong>Suggestions:</strong><ul>' + r.suggestions.map(s => '<li>' + escapeHtml(s) + '</li>').join('') + '</ul></div>' + offlineNote();
+      logErrors('englishanalyze')(e);
+    }
   });
 
   // ---- English: Essay Helper ----
@@ -4200,7 +4380,10 @@ function setupSubjects() {
         { role: "user", content: "Essay draft:\\n" + essay.substring(0, 3000) }
       ], { maxTokens: 1024 });
       $("englishEssayResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
-    } catch (e) { showToast("AI error"); }
+    } catch (e) {
+      $("englishEssayResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(offlineExplain('your essay: ' + prompt, 'english')) + '</div>' + offlineNote();
+      logErrors('englishessay')(e);
+    }
   });
 
   // ---- English: Vocabulary Builder ----
@@ -4222,7 +4405,11 @@ function setupSubjects() {
       } catch (e) {
         $("englishVocabResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
       }
-    } catch (e) { showToast("AI error"); }
+    } catch (e) {
+      let html = offlineVocabulary(topic).map(w => '<div class="item"><strong>' + escapeHtml(w.word) + '</strong> - ' + escapeHtml(w.definition) + '<br><em>' + escapeHtml(w.example || '') + '</em></div>').join('');
+      $("englishVocabResult").innerHTML = html + offlineNote();
+      logErrors('englishvocab')(e);
+    }
   });
 
   // ---- Health: Exercise ----
@@ -4236,7 +4423,10 @@ function setupSubjects() {
         { role: "user", content: "Exercise guide for: " + (labels[type] || type) }
       ], { maxTokens: 1024 });
       $("exerciseResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
-    } catch (e) { showToast("AI error"); }
+    } catch (e) {
+      $("exerciseResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(offlineExerciseGuide(labels[type] || type)) + '</div>' + offlineNote();
+      logErrors('exercise')(e);
+    }
   });
 
   // ---- Health: Body Systems ----
@@ -4250,7 +4440,10 @@ function setupSubjects() {
         { role: "user", content: "Explain: " + (labels[system] || system) }
       ], { maxTokens: 1024 });
       $("bodySystemResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
-    } catch (e) { showToast("AI error"); }
+    } catch (e) {
+      $("bodySystemResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(offlineBodySystem(labels[system] || system)) + '</div>' + offlineNote();
+      logErrors('bodysystem')(e);
+    }
   });
 
   // ---- Health: Nutrition ----
@@ -4264,7 +4457,10 @@ function setupSubjects() {
         { role: "user", content: q }
       ], { maxTokens: 1024 });
       $("nutritionResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
-    } catch (e) { showToast("AI error"); }
+    } catch (e) {
+      $("nutritionResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(offlineNutrition(q)) + '</div>' + offlineNote();
+      logErrors('nutrition')(e);
+    }
   });
 
   // ---- Math Formulas ----
@@ -4909,7 +5105,8 @@ function setupPracticeCoach() {
       ], { maxTokens: 1024, temperature: 0.7 });
       outEl.innerHTML = '<h4><span class="icon icon-sm icon-chart"></span> ' + lbl + '</h4><div class="analysis-content" style="white-space:pre-wrap">' + escapeHtml(resp) + '</div>';
     } catch (err) {
-      outEl.innerHTML = '<p class="subtle">Sorry, I could not generate feedback. Please try again.</p>';
+      // AI unavailable — local stats + coaching tips still give feedback.
+      outEl.innerHTML = '<h4><span class="icon icon-sm icon-chart"></span> ' + lbl + '</h4><div class="analysis-content" style="white-space:pre-wrap">' + escapeHtml(offlinePracticeFeedback(mode, text)) + '</div>' + offlineNote();
       if (typeof console !== 'undefined') console.error('Practice coach error:', err);
     } finally {
       runBtn.disabled = false;
@@ -5805,9 +6002,12 @@ function generateStudyGuide() {
     output.classList.remove('hidden');
     output.innerHTML = formatStudyGuide(text, topic.value);
   }).catch(function(err) {
+    // AI unavailable — a structured offline guide still gets you studying.
     loading.classList.add('hidden');
     output.classList.remove('hidden');
-    output.innerHTML = '<p class="subtle">Failed to generate. Check your API key and try again.</p><p style="color:var(--danger)">' + escapeHtml(String(err)) + '</p>';
+    output.innerHTML = formatStudyGuide(offlineStudyGuide(t, sub || 'this subject'), topic.value) +
+      '<p class="subtle top-gap">(offline template — AI unavailable)</p>';
+    logErrors('studyguide')(err);
   });
 }
 
@@ -5843,9 +6043,11 @@ function generateStudyPlan() {
     output.classList.remove('hidden');
     output.innerHTML = formatStudyPlan(text, s, d);
   }).catch(function(err) {
+    // AI unavailable — an offline day-by-day plan still gets you started.
     loading.classList.add('hidden');
     output.classList.remove('hidden');
-    output.innerHTML = '<p class="subtle">Failed to generate. Check your API key and try again.</p><p style="color:var(--danger)">' + escapeHtml(String(err)) + '</p>';
+    output.innerHTML = formatStudyPlan(offlineStudyPlan(s, t, d, h), s, d) + offlineNote();
+    logErrors('studyplan')(err);
   });
 }
 
@@ -6313,7 +6515,14 @@ function setupAutismSupport() {
         showScriptStep();
         showToast('AI script generated for: ' + topic);
       }).catch(function() {
-        showToast('Could not generate a script. Please try again.');
+        // AI unavailable — an offline role-play still gives practice.
+        var steps = offlineScriptFor(topic);
+        currentScript = steps;
+        currentStep = 0;
+        scriptArea.classList.remove('hidden');
+        if (scriptResponse) scriptResponse.value = '';
+        showScriptStep();
+        showToast('Offline script template used (AI unavailable)');
       }).finally(function() {
         generateBtn.disabled = false;
         generateBtn.textContent = originalTxt;
@@ -7139,4 +7348,363 @@ function setupGenerators() {
       }
     });
   }
+}
+
+// ===== OFFLINE AI FALLBACKS =====
+// Every AI feature degrades to a useful local result when the proxy + custom
+// key are unavailable (local / desktop builds), so nothing dead-ends with a
+// generic error. Each returns the same shape the AI path would produce.
+
+function offlineNote() {
+  return '<p class="subtle top-gap">(offline template — AI unavailable)</p>';
+}
+
+// Generic structured explainer used across subjects (science, social studies,
+// english, health, math). The `area` picks relevant thinking hints.
+function offlineExplain(topic, area) {
+  const hints = {
+    math: ['Think of math as a pattern language — every rule has a why.', 'Estimate before you calculate, then check your answer makes sense.', 'Work one step at a time and label each step.'],
+    physics: ['Think of a ball rolling on a slope — force changes motion.', 'Draw the forces as arrows; each arrow is one push or pull.', 'Estimate the answer before calculating, then check.'],
+    chemistry: ['Think of atoms as building blocks — reactions just rearrange them.', 'Balance equations one element at a time.', 'Look for patterns in the periodic table: columns share traits.'],
+    biology: ['Think of the body as teams of cells with specific jobs.', 'Structure follows function — shape tells you what something does.', 'Trace the path: what comes before, what comes after?'],
+    geography: ['Think in layers: physical (land, climate), human (cities, trade), and political (borders).', 'Connect place to pattern — why do people live where they do?', 'Read maps as a story, not a picture.'],
+    history: ['Always ask: what changed, and why did it happen then?', 'Think causes and effects, not just dates.', 'Consider perspectives — different people experienced events differently.'],
+    economics: ['Think in trade-offs: every choice gives up something.', 'Follow the incentive — people respond to rewards and costs.', 'Supply and demand is the invisible hand at work.'],
+    civics: ['Think about power: who has it, how it is limited, and who it serves.', 'Rights come with responsibilities.', 'Institutions are the rules of the game.'],
+    english: ['Show, don\'t tell — use specific details.', 'Structure: hook, body, conclusion. Every paragraph has one job.', 'Read your work aloud to hear what readers will feel.'],
+    health: ['Consistency beats intensity — small habits compound.', 'Listen to your body: pain is information.', 'Balance movement, nutrition, sleep, and stress together.'],
+    coding: ['Think in small steps: input → process → output.', 'Debug by reading your error message out loud — it tells you the line.', 'Write code for humans first, computers second.'],
+    study: ['Active recall beats re-reading every time.', 'Space your review across days, not all at once.', 'Explain it to someone else to find your gaps.']
+  };
+  const hs = hints[area] || hints.study;
+  return '**What it is**\n' + topic + ' is a core idea worth mastering because it connects to so much else you will study.\n\n' +
+    '**Key ideas**\n- Break ' + topic + ' into its parts and name the job of each part.\n- Look for the cause-and-effect chain: what happens first, next, and last.\n- Find the pattern or rule that holds in every example.\n\n' +
+    '**How it works, step by step**\n1. Start with what you already know about ' + topic + '.\n2. Write a one-line definition for each key term.\n3. Trace one concrete example from beginning to end.\n4. Explain it out loud without notes — where you stumble, that is what to review.\n\n' +
+    '**Real-world example**\n- ' + topic + ' shows up in everyday life more than you think. Name one place you have seen it.\n- If you cannot think of one, look around for a small example you can observe today.\n\n' +
+    '**Ways to think about it**\n- ' + hs[0] + '\n- ' + hs[1] + '\n- ' + hs[2] + '\n\n' +
+    '**Check yourself**\n- Explain ' + topic + ' to a friend in under a minute.\n- Write down one question you still have and bring it to your next study session.';
+}
+
+function offlineMindMapText(topic) {
+  return topic + '\n- What is it — define ' + topic + ' in one sentence\n  - Key parts\n  - How it fits together\n- How it works — trace the steps\n  - Step 1: start simple\n  - Step 2: follow the cause-and-effect chain\n- Examples — real cases\n  - One from class\n  - One from daily life\n- Why it matters\n  - Connect to other topics you are learning\n- Study tips\n  - Teach it to someone\n  - Quiz yourself tonight';
+}
+
+function offlineQuiz(topic, subject, level, count) {
+  const n = Math.max(2, Math.min(6, +count || 4));
+  const templates = [
+    { q: t => 'Define ' + t + ' in one clear sentence.', a: 'Compare your answer with your notes and fill any gaps.' },
+    { q: t => 'List the three most important parts of ' + t + '.', a: 'Each part should have a name and a one-line job description.' },
+    { q: t => 'Give a real-world example of ' + t + ' you have seen or heard about.', a: 'Concrete examples are easier to remember than abstract definitions.' },
+    { q: t => 'Explain how ' + t + ' connects to something you learned in another subject.', a: 'Cross-subject connections make ideas stick.' },
+    { q: t => 'What is one common misconception about ' + t + '?', a: 'Naming the misconception is half of mastering the idea.' },
+    { q: t => 'Summarize ' + t + ' in exactly three sentences.', a: 'Forcing brevity reveals what you truly understand.' }
+  ];
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const tpl = templates[i % templates.length];
+    out.push({ question: tpl.q(topic), answer: tpl.a, type: 'written' });
+  }
+  return out;
+}
+
+// Reusable, subject-agnostic exam-strategy questions that auto-grade correctly.
+function offlineMockTest(subject, level, count) {
+  const n = Math.max(3, Math.min(10, +count || 5));
+  const bank = [
+    { question: 'You have limited time before the exam. Which strategy is most effective?', options: ['Re-read all your notes slowly', 'Active recall: quiz yourself, then check gaps', 'Copy your notes again by hand', 'Watch videos only'], answer: 'Active recall: quiz yourself, then check gaps' },
+    { question: 'You just learned something new. When should you first review it?', options: ['Within 24 hours', 'Only right before the exam', 'Never — once is enough', 'A month later'], answer: 'Within 24 hours' },
+    { question: 'What does retrieval practice mean?', options: ['Trying to recall from memory without looking', 'Re-reading until it feels familiar', 'Highlighting every sentence', 'Rewriting notes slowly'], answer: 'Trying to recall from memory without looking' },
+    { question: 'You are stuck on a hard problem. Best first move?', options: ['Give up and move on', 'Break it into smaller steps and try a simpler version', 'Stare at it longer', 'Copy a friend\'s answer'], answer: 'Break it into smaller steps and try a simpler version' },
+    { question: 'A full night of sleep before an exam...', options: ['Hurts because you could study more', 'Is essential — memory consolidates during sleep', 'Makes no difference', 'Only matters for math'], answer: 'Is essential — memory consolidates during sleep' },
+    { question: 'A good study plan should be...', options: ['Specific, realistic, and spaced over days', 'Vague but ambitious', 'Written the night before', 'The same for every subject'], answer: 'Specific, realistic, and spaced over days' },
+    { question: 'The forgetting curve means you should...', options: ['Review at increasing intervals (spaced repetition)', 'Cram everything in one night', 'Avoid reviewing', 'Only review on weekends'], answer: 'Review at increasing intervals (spaced repetition)' },
+    { question: 'Best way to check if you really understand ' + subject + '?', options: ['Explain it out loud without notes', 'Count how many pages you read', 'Highlight more text', 'Listen to the same video twice'], answer: 'Explain it out loud without notes' },
+    { question: 'What should you do the day before the exam?', options: ['Light review + early sleep', 'All-nighter cram session', 'Learn brand-new topics', 'Skip meals to save time'], answer: 'Light review + early sleep' },
+    { question: 'During the exam, when you hit a question you cannot solve...', options: ['Mark it, move on, and return later', 'Spend all remaining time on it', 'Panic and stop', 'Guess randomly immediately'], answer: 'Mark it, move on, and return later' }
+  ];
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const q = bank[i % bank.length];
+    out.push({ question: q.question, options: q.options, answer: q.answer, type: 'multiple' });
+  }
+  return out;
+}
+
+function offlineRecallPrompts(subject, source, count) {
+  const n = Math.max(3, Math.min(8, +count || 6));
+  const what = source || subject || 'the topic';
+  const banks = [
+    'Define the three most important terms from ' + what + ' in your own words.',
+    'Without looking at your notes, write a one-paragraph summary of ' + what + '.',
+    'List every key concept from ' + what + ' you can remember in 60 seconds.',
+    'Explain the most important idea in ' + what + ' to an imaginary 10-year-old.',
+    'What questions would an exam ask about ' + what + '? Write three.',
+    'Draw a quick diagram or mind map of ' + what + ' from memory.',
+    'Which part of ' + what + ' do you feel least confident about? Why?',
+    'Connect ' + what + ' to something you already know well.'
+  ];
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(banks[i % banks.length]);
+  return out;
+}
+
+function offlineBlurtScore(topic, keywords, response) {
+  const resp = (response || '').toLowerCase();
+  const kws = (keywords || '').split(/[,;\n]+/).map(k => k.trim().toLowerCase()).filter(k => k.length > 1);
+  const topicWords = (topic || '').toLowerCase().split(/\s+/).filter(w => w.length > 3);
+  const allKeys = [...new Set([...kws, ...topicWords])];
+  const covered = allKeys.filter(k => resp.includes(k));
+  const missing = allKeys.filter(k => !resp.includes(k));
+  const ratio = allKeys.length ? covered.length / allKeys.length : (resp.length > 40 ? 0.7 : 0.3);
+  const sentences = resp.split(/[.!?]+/).filter(s => s.trim().length > 5);
+  const score = Math.round(Math.min(100, Math.max(5, ratio * 100 + Math.min(15, sentences.length * 3))));
+  const feedback = score >= 70 ? 'Strong recall — you covered most of the key terms. Review the missing ones for a complete picture.' :
+    score >= 40 ? 'Good start — you remembered some key ideas. Review the missing terms, then try again from memory.' :
+    'Keep going — re-read your notes on ' + topic + ', then blurt again without looking. Retrieval gets easier with practice.';
+  return { score, feedback, coverage: covered, missing };
+}
+
+function offlineLesson(topic) {
+  return [
+    { title: 'Warm up', concept: 'Before we start, recall anything you already know about ' + topic + '. Write three things you are sure of.', quiz: { question: 'Why is it useful to recall what you already know before learning something new?', options: ['It creates hooks for new memory', 'It is faster than learning', 'It is required by teachers', 'It makes notes longer'], answer: 'It creates hooks for new memory' }, simulation: 'Think of your brain as a web — new ideas stick where old threads already exist.' },
+    { title: 'The big idea', concept: topic + ' is best understood as a story: a beginning (what it is), a middle (how it works), and an end (what it leads to).', quiz: { question: 'What is the best first step to understand ' + topic + '?', options: ['Memorize every detail', 'Understand the big picture, then the details', 'Skip straight to questions', 'Only read the diagrams'], answer: 'Understand the big picture, then the details' }, simulation: 'State the big idea of ' + topic + ' in one sentence out loud.' },
+    { title: 'How it works', concept: 'Break ' + topic + ' into steps. What happens first, next, and last? Trace the chain from start to end.', quiz: { question: 'When tracing how something works, what should you look for?', options: ['The cause-and-effect chain', 'The hardest words', 'The page numbers', 'The colors'], answer: 'The cause-and-effect chain' }, simulation: 'Write the 3-step chain for ' + topic + ': first → next → last.' },
+    { title: 'Apply it', concept: 'Knowledge sticks when you use it. Take ' + topic + ' and find one real example in your life or in the world around you.', quiz: { question: 'Why do real examples help you learn?', options: ['They are concrete and memorable', 'They replace studying', 'They are always on exams', 'They are shorter'], answer: 'They are concrete and memorable' }, simulation: 'Describe one real-world example of ' + topic + ' you have seen.' },
+    { title: 'Check yourself', concept: 'Time to test yourself without looking. Try to explain ' + topic + ' from memory. Where you stumble, that is your next review target.', quiz: { question: 'What does retrieval practice mean?', options: ['Recalling from memory, not just re-reading', 'Re-reading many times', 'Highlighting notes', 'Watching videos'], answer: 'Recalling from memory, not just re-reading' }, simulation: 'Blurt everything you remember about ' + topic + ' out loud for 60 seconds.' }
+  ];
+}
+
+function offlineContent(topic, type, count) {
+  const n = Math.max(3, Math.min(8, +count || 5));
+  const fs = [
+    [t => 'What is ' + t + '?', t => 'A concept you can define in one clear sentence and connect to examples.'],
+    [t => 'Give an example of ' + t + '.', t => 'Find one real-world case; concrete examples anchor memory.'],
+    [t => 'How does ' + t + ' work?', t => 'Trace the steps in order: first, next, last.'],
+    [t => 'Why does ' + t + ' matter?', t => 'It connects to other ideas and real problems.'],
+    [t => 'What is a common mistake with ' + t + '?', t => 'Naming the misconception makes it easier to avoid.'],
+    [t => 'Summarize ' + t + ' in three sentences.', t => 'Brevity forces you to keep only the essential ideas.']
+  ];
+  const flashcards = [];
+  const quiz = [];
+  for (let i = 0; i < n; i++) {
+    const [q, a] = fs[i % fs.length];
+    flashcards.push({ question: q(topic), answer: a(topic) });
+  }
+  for (let i = 0; i < Math.min(4, n); i++) {
+    const [q, a] = fs[i % fs.length];
+    quiz.push({ question: q(topic), answer: a(topic), type: 'written' });
+  }
+  return { quiz, flashcards };
+}
+
+function offlineRubric(content) {
+  const text = content || '';
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 1);
+  const avgLen = sentences.length ? Math.round(words.length / sentences.length) : 0;
+  const score = Math.min(90, Math.max(40, 60 + (words.length > 200 ? 15 : 0) + (avgLen >= 12 && avgLen <= 22 ? 10 : 0) + (sentences.length >= 5 ? 5 : 0)));
+  return {
+    score: score,
+    feedback: 'Offline analysis: ' + words.length + ' words across ' + sentences.length + ' sentences (avg ' + avgLen + ' words/sentence). Aim for a clear thesis, one idea per paragraph, and a conclusion that ties back to the opening.',
+    strengths: ['You produced ' + words.length + ' words of content to work with.', avgLen >= 12 ? 'Sentence variety is reasonable — mix short punchy and longer explanatory sentences.' : 'Keep sentences focused and vary their length for rhythm.'],
+    improvements: ['Make sure every paragraph has exactly one job: state, support, or connect.', 'End with a conclusion that answers "so what?" — not just a repeat of the intro.', 'Read your work aloud to catch awkward phrasing.']
+  };
+}
+
+function offlineEssayAnalysis(text) {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 1);
+  const avgWords = sentences.length ? Math.round(words.length / sentences.length) : 0;
+  const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim().length > 0).length;
+  let readability = 85;
+  if (avgWords > 22) readability -= 12;
+  if (avgWords < 8) readability -= 5;
+  if (words.length < 30) readability -= 8;
+  readability = Math.max(20, Math.min(100, readability));
+  const suggestions = [];
+  if (paragraphs < 3) suggestions.push('Add a clear introduction, body, and conclusion — at least 3 paragraphs.');
+  if (avgWords > 22) suggestions.push('Split your longest sentences — aim for 15–20 words on average.');
+  if (/\bi\b/.test(text) && !/[.!?]\s+I\b/.test(text)) suggestions.push('Capitalize the pronoun "I" throughout.');
+  if (/\s{2,}/.test(text)) suggestions.push('Remove double spaces — single spaces after punctuation.');
+  if (suggestions.length === 0) suggestions.push('Structure looks solid. Consider strengthening your conclusion with a "so what?" sentence.');
+  suggestions.push('Read it aloud once — your ear catches what your eye misses.');
+  return {
+    readability: readability,
+    grammar: 'Offline check: ' + words.length + ' words, ' + sentences.length + ' sentences, ' + paragraphs + ' paragraphs (avg ' + avgWords + ' words/sentence).',
+    structure: 'Paragraphs: ' + paragraphs + (paragraphs >= 3 ? ' — has a clear intro/body/conclusion shape.' : ' — aim for at least 3 paragraphs.'),
+    suggestions: suggestions
+  };
+}
+
+function offlineVocabulary(topic) {
+  const words = [
+    { word: 'Analyze', definition: 'Break something into parts and explain how they relate.', example: 'We analyzed the experiment by separating each variable.' },
+    { word: 'Synthesize', definition: 'Combine ideas from different sources into a new whole.', example: 'Her essay synthesized three historians\' views.' },
+    { word: 'Evaluate', definition: 'Judge the value or quality using clear criteria.', example: 'Evaluate the argument\'s strengths before accepting it.' },
+    { word: 'Infer', definition: 'Reach a conclusion from evidence and reasoning.', example: 'From the dark clouds, we inferred rain was coming.' },
+    { word: 'Contrast', definition: 'Point out differences between two things.', example: 'Contrast the two poems\' tones side by side.' },
+    { word: 'Justify', definition: 'Give good reasons for a claim or action.', example: 'Justify your answer with two pieces of evidence.' },
+    { word: 'Imply', definition: 'Suggest something without stating it directly.', example: 'His tone implied he was not convinced.' },
+    { word: 'Consequence', definition: 'A result or effect of an action.', example: 'One consequence of sleeping less is weaker memory.' },
+    { word: 'Significant', definition: 'Important or meaningful enough to matter.', example: 'The change in scores was statistically significant.' },
+    { word: 'Perspective', definition: 'A particular point of view.', example: 'Seeing the issue from another perspective changes the answer.' }
+  ];
+  return topic && topic !== 'general' ? words.slice(0, 6) : words;
+}
+
+function offlineTimeline(period) {
+  const maps = {
+    'Ancient History': [['c. 3500 BCE', 'Writing invented in Mesopotamia — history begins'], ['c. 2560 BCE', 'Great Pyramid of Giza built'], ['c. 500 BCE', 'Classical Greece — democracy and philosophy flourish'], ['27 BCE', 'Roman Empire established'], ['476 CE', 'Fall of the Western Roman Empire']],
+    'Medieval Period': [['476 CE', 'Middle Ages begin in Europe'], ['622 CE', 'Islam founded — a Golden Age of learning follows'], ['800 CE', 'Charlemagne crowned Holy Roman Emperor'], ['1066', 'Norman Conquest of England'], ['1347', 'Black Death sweeps Europe'], ['1453', 'Fall of Constantinople — the Middle Ages end']],
+    'Modern History': [['1492', 'Columbus reaches the Americas'], ['1517', 'The Reformation begins'], ['1776', 'American Declaration of Independence'], ['1789', 'French Revolution'], ['1914–1918', 'World War I'], ['1939–1945', 'World War II']],
+    '20th Century': [['1903', 'First powered flight'], ['1914–1918', 'World War I'], ['1929', 'Great Depression begins'], ['1939–1945', 'World War II'], ['1945', 'United Nations founded'], ['1969', 'Moon landing'], ['1989', 'Berlin Wall falls'], ['1991', 'Soviet Union dissolves']],
+    'World History Overview': [['c. 3500 BCE', 'First civilizations: Mesopotamia, Egypt, Indus, China'], ['c. 500 BCE', 'Classical era: Greece, Rome, Persia, India, China'], ['c. 600–1500 CE', 'Medieval era: trade routes, religions, and empires'], ['c. 1500–1800', 'Age of exploration, science, and revolution'], ['c. 1800–1900', 'Industrial Revolution reshapes the world'], ['1900–today', 'Global conflicts, technology, and interconnected economies']]
+  };
+  const list = maps[period] || maps['World History Overview'];
+  return list.map(x => '- **' + x[0] + '** — ' + x[1]).join('\n') + '\n\n**Study tip:** For each event, ask *what changed* and *why then* — causes beat dates on exams.';
+}
+
+const OFFLINE_LANG_GREET = { spanish: '¡Hola!', french: 'Bonjour !', german: 'Hallo!', japanese: 'こんにちは', mandarin: '你好', italian: 'Ciao!', portuguese: 'Olá!', arabic: 'مرحبا' };
+const OFFLINE_LANG_PHRASES = {
+  spanish: ['¿Cómo estás?', '¿Puedes repetir, por favor?', 'No entiendo.', '¿Qué significa esta palabra?'],
+  french: ['Comment ça va ?', 'Pouvez-vous répéter, s\'il vous plaît ?', 'Je ne comprends pas.', 'Qu\'est-ce que ça veut dire ?'],
+  german: ['Wie geht\'s?', 'Kannst du das bitte wiederholen?', 'Ich verstehe das nicht.', 'Was bedeutet dieses Wort?'],
+  japanese: ['お元気ですか？', 'もう一度言っていただけますか？', 'わかりません。', 'この言葉はどういう意味ですか？'],
+  mandarin: ['你好吗？', '请再说一遍。', '我不明白。', '这个词是什么意思？'],
+  italian: ['Come stai?', 'Puoi ripetere, per favore?', 'Non capisco.', 'Cosa significa questa parola?'],
+  portuguese: ['Como você está?', 'Pode repetir, por favor?', 'Não entendo.', 'O que significa esta palavra?'],
+  arabic: ['كيف حالك؟', 'هل يمكنك التكرار من فضلك؟', 'لا أفهم.', 'ماذا تعني هذه الكلمة؟']
+};
+function offlineSpeakingExercise(lang, level) {
+  const g = OFFLINE_LANG_GREET[lang] || 'Hello!';
+  const phrases = OFFLINE_LANG_PHRASES[lang] || ['How are you?', 'Can you repeat that, please?', 'I do not understand.', 'What does this word mean?'];
+  return '**Speaking practice — ' + lang + ' (' + level + ')**\n\n**Warm-up:** Say ' + g + ' out loud three times, focusing on pronunciation.\n\n' +
+    '**Key phrases to practice**\n' + phrases.map(p => '- "' + p + '"').join('\n') + '\n\n' +
+    '**Mini dialogue**\n' + g + ' — How are you?\nFine, thanks. And you?\nI\'m good too. Shall we practice the phrases above?\n\n' +
+    '**Challenge:** Record yourself saying all four phrases, then play it back and compare with the written text.';
+}
+function offlineListeningPassage(lang) {
+  const g = OFFLINE_LANG_GREET[lang] || 'Hello!';
+  return '**Listening passage (' + lang + ')**\n\n' + g + ' Today is a good day to practice. I study a little every day, and it helps me remember more. When I do not understand, I ask again politely. Little by little, it gets easier.\n\n' +
+    '**Comprehension questions**\n1. How often does the speaker study?\n2. What does the speaker do when they do not understand?\n3. Why does the speaker say practice helps?\n\n**Answers:** 1. A little every day. 2. They ask again politely. 3. Little by little it gets easier.';
+}
+function offlineReadingPassage(lang, level) {
+  const g = OFFLINE_LANG_GREET[lang] || 'Hello!';
+  return '**Reading passage (' + lang + ', ' + level + ')**\n\n' + g + ' This is a short passage about learning. Reading every day is one of the best ways to grow your vocabulary. Start with short texts you mostly understand, look up a few new words, and re-read until the passage feels easy.\n\n' +
+    '**Comprehension questions**\n1. What is one best way to grow your vocabulary?\n2. What should you do with new words?\n3. When should you re-read the passage?\n\n**Answers:** 1. Reading every day. 2. Look them up. 3. Until it feels easy.';
+}
+function offlineWritingPrompt(lang) {
+  return '**Writing prompt (' + lang + ')**\n\nWrite 80–120 words about a typical day in your life. Try to use: time words (today, then, after), feelings, and one question you often ask.\n\n' +
+    '**Before you start**\n- Write 5 words you will need, then check their spelling.\n- Write one sentence per idea — no need to be perfect.\n\n' +
+    '**After you finish**\n- Read it aloud and fix anything that sounds wrong.\n- Count the words and add one more detail sentence if you are under the target.';
+}
+
+function offlineExerciseGuide(type) {
+  const maps = {
+    'Cardio': ['Warm-up (5 min): brisk walk or light jog', 'Main (20 min): alternate 1 min fast / 2 min easy, or a steady jog', 'Cool-down (5 min): walk + deep breathing', 'Safety: stay hydrated, stop if dizzy, build up gradually'],
+    'Strength Training': ['Warm-up (5 min): arm circles, leg swings, light cardio', 'Main: 3 sets of 8–12 reps — squats, push-ups (or wall push-ups), rows, plank', 'Rest 45–60s between sets', 'Cool-down: gentle stretching', 'Safety: perfect form before adding weight'],
+    'Flexibility & Stretching': ['Warm-up (3 min): march in place', 'Hold each stretch 20–30s without bouncing', 'Cover: neck, shoulders, hamstrings, quads, back', 'Breathe slowly through each hold', 'Safety: stretch to mild tension, never pain'],
+    'HIIT Workouts': ['Warm-up (5 min): easy cardio + dynamic stretches', 'Work intervals: 20s all-out effort, 10s rest — 8 rounds', 'Choose exercises you can do safely: sprints, jumping jacks, mountain climbers', 'Cool-down (5 min): walk + slow breathing', 'Safety: modify intensity; stop if breathless beyond control'],
+    'Yoga & Meditation': ['Start seated: 5 slow breaths in and out', 'Flow: cat–cow, downward dog, child\'s pose, cobra', 'Finish with 5 minutes of meditation — focus on your breath', 'Safety: move slowly; never force a stretch']
+  };
+  const steps = maps[type] || maps['Cardio'];
+  return '**' + type + ' guide (offline template)**\n\n' + steps.map((s, i) => (i + 1) + '. ' + s).join('\n') + '\n\n**Golden rule:** consistency beats intensity — 20 minutes daily beats 2 hours once a week.';
+}
+
+function offlineBodySystem(system) {
+  const maps = {
+    'Skeletal System': ['Job: structure, protection of organs, movement, and making blood cells', 'Key parts: bones, joints, cartilage, marrow', 'Fun fact: an adult has 206 bones; babies have about 300 that fuse together'],
+    'Muscular System': ['Job: movement, posture, heat production', 'Key parts: skeletal, smooth, and cardiac muscle', 'Fun fact: you use about 200 muscles to take a single step'],
+    'Circulatory System': ['Job: transport oxygen, nutrients, and waste; fight infection', 'Key parts: heart, blood, arteries, veins, capillaries', 'Fun fact: your heart beats about 100,000 times a day'],
+    'Respiratory System': ['Job: gas exchange — oxygen in, carbon dioxide out', 'Key parts: nose, trachea, bronchi, lungs, diaphragm', 'Fun fact: you breathe about 20,000 times a day without thinking'],
+    'Nervous System': ['Job: fast communication and control of the body', 'Key parts: brain, spinal cord, nerves, neurons', 'Fun fact: signals can travel along nerves at over 100 m/s'],
+    'Digestive System': ['Job: break food into nutrients the body can use', 'Key parts: mouth, esophagus, stomach, intestines, liver, pancreas', 'Fun fact: the small intestine is about 6 metres long — folded up inside you'],
+    'Immune System': ['Job: defend against infection and remember past invaders', 'Key parts: white blood cells, lymph nodes, antibodies, skin', 'Fun fact: vaccines teach your immune system to recognize threats safely']
+  };
+  const lines = maps[system] || maps['Skeletal System'];
+  return '**' + system + '**\n\n' + lines.map(l => '- ' + l).join('\n') + '\n\n**Study tip:** draw the system from memory, label it, then check your notes — the drawing is the test.';
+}
+
+function offlineNutrition(q) {
+  const t = (q || '').toLowerCase();
+  const tips = [];
+  if (/protein/.test(t)) tips.push('Protein builds and repairs tissue. Aim for a source at most meals: eggs, beans, lentils, dairy, fish, or lean meat.');
+  if (/sugar|sweet/.test(t)) tips.push('Sugar gives quick energy but fades fast. Pair sweets with protein or fiber to slow the spike.');
+  if (/water|hydrat/.test(t)) tips.push('Drink water steadily through the day — thirst already means you are slightly behind. A reusable bottle you can see helps.');
+  if (/sleep|tired|fatigue/.test(t)) tips.push('Sleep is when memory and recovery happen. 7–9 hours, consistent schedule, screens off before bed.');
+  if (/breakfast|morning/.test(t)) tips.push('A balanced breakfast (protein + fiber + some carbs) sets up steady energy for studying.');
+  if (/vegetable|fruit|fiber/.test(t)) tips.push('Fruit and vegetables bring fiber and vitamins — aim for a variety of colors across the week.');
+  if (tips.length === 0) tips.push('General wellness: balance movement, nutrition, sleep, and stress — small daily habits beat dramatic one-off changes.');
+  tips.push('This is general wellness information, not medical advice — talk to a doctor about anything specific to you.');
+  return '**Nutrition & wellness notes**\n\n' + tips.map(t2 => '- ' + t2).join('\n');
+}
+
+function offlineResources(topic) {
+  const t = (topic || '').toLowerCase();
+  const curated = [];
+  const add = (title, url, type, desc) => curated.push({ title, url, type, description: desc });
+  if (/math|algebra|calculus|geometry|physics|science|chem|bio/.test(t)) add('Khan Academy — ' + topic, 'https://www.khanacademy.org/', 'practice', 'Free video lessons and interactive practice with instant feedback.');
+  if (/code|program|python|javascript|computer|web/.test(t)) add('MDN Web Docs', 'https://developer.mozilla.org/', 'reference', 'The definitive free reference for web technologies and JavaScript.');
+  if (/histor|war|world|ancient/.test(t)) add('Wikipedia — ' + topic, 'https://en.wikipedia.org/wiki/Special:Search?search=' + encodeURIComponent(topic), 'reference', 'Start here for a reliable overview with citations for deeper reading.');
+  if (/essay|writing|english|grammar/.test(t)) add('Purdue OWL', 'https://owl.purdue.edu/owl/purdue_owl.html', 'reference', 'Free writing and citation guides used by students worldwide.');
+  if (/spanish|french|german|japanese|language|mandarin/.test(t)) add('Duolingo', 'https://www.duolingo.com/', 'practice', 'Gamified daily practice for most major languages.');
+  if (/exam|test|sat|study skill/.test(t)) add('Khan Academy SAT Prep', 'https://www.khanacademy.org/sat', 'course', 'Free, official-style SAT practice with personalized recommendations.');
+  add('Wikipedia — ' + topic, 'https://en.wikipedia.org/wiki/Special:Search?search=' + encodeURIComponent(topic), 'reference', 'Reliable overview with citations for deeper reading.');
+  add('Khan Academy', 'https://www.khanacademy.org/', 'practice', 'Free lessons and practice for most school subjects.');
+  add('Crash Course', 'https://thecrashcourse.com/', 'video', 'Fast, engaging video series across many subjects.');
+  return curated.slice(0, 6);
+}
+
+function offlineScriptFor(topic) {
+  return [
+    { role: 'Partner', text: 'Hi! How is it going today?', hint: 'Friendly greeting' },
+    { role: 'You', text: 'Pretty good, thanks. How about you?', hint: 'Answer and ask back' },
+    { role: 'Partner', text: 'Great. By the way, ' + topic + ' — what do you think about it?', hint: 'They want your opinion' },
+    { role: 'You', text: 'I think ' + topic + ' is interesting. What do you think?', hint: 'Share one thought, then ask' }
+  ];
+}
+
+function offlineStudyGuide(topic, subject) {
+  return '**' + topic + ' — Study Guide**\n\n' +
+    '**1. Big picture**\n- Write one sentence that captures what ' + topic + ' is about.\n- List the 3–5 key terms and define each in your own words.\n\n' +
+    '**2. Core ideas**\n- ' + topic + ' works through a clear chain: start simple, follow the steps, connect to examples.\n- Use the checkpoints below to test yourself as you go.\n\n' +
+    '**3. Practice questions**\n1. Define ' + topic + ' without looking at your notes.\n2. Give one real-world example of ' + topic + '.\n3. Explain how ' + topic + ' connects to ' + (subject || 'your other subjects') + '.\n4. What is the most common mistake students make with ' + topic + '?\n5. Summarize ' + topic + ' in exactly three sentences.\n\n' +
+    '**4. Study tips**\n- Active recall beats re-reading: quiz yourself, then check.\n- Space your review across several days.\n- Teach ' + topic + ' to someone else to find your gaps.\n- Sleep well — memory consolidates while you rest.';
+}
+
+function offlineStudyPlan(subject, topic, days, hours) {
+  const d = Math.max(2, +days || 7);
+  const h = Math.max(1, +hours || 2);
+  const plan = [];
+  for (let i = 1; i <= Math.min(d, 7); i++) {
+    const step = i === 1 ? 'Overview: skim ' + (topic || subject) + ' and list everything it covers.' :
+      i === 2 ? 'Learn: work through the core ideas, making notes in your own words.' :
+      i === 3 ? 'Practice: do problems or questions on each core idea.' :
+      i === 4 ? 'Recall: close your notes and blurt everything you remember.' :
+      i === 5 ? 'Gaps: review exactly what you missed yesterday, then re-test.' :
+      i === 6 ? 'Simulate: take a timed practice test under exam conditions.' :
+      'Review: skim your notes and redo the hardest problems.';
+    plan.push('**Day ' + i + ' (' + h + 'h):** ' + step);
+  }
+  return '**' + (topic || subject) + ' — study plan (' + d + ' days, ~' + h + 'h/day)**\n\n' + plan.join('\n') + '\n\n' +
+    '**Golden rules**\n- Active recall beats re-reading.\n- Space your review across days, not all at once.\n- Sleep well — memory consolidates while you rest.';
+}
+
+function offlinePracticeFeedback(mode, text) {
+  const words = (text || '').trim().split(/\s+/).filter(Boolean).length;
+  const sentences = (text || '').split(/[.!?]+/).filter(s => s.trim().length > 1).length;
+  const avg = sentences ? Math.round(words / sentences) : 0;
+  const modeTxt = mode === 'speech' ? 'Speech Practice' : mode === 'presentation' ? 'Presentation Feedback' : 'AI Crowd (Audience Reactions)';
+  let out = '**' + modeTxt + ' — offline feedback**\n\n';
+  out += '**At a glance** — ' + words + ' words, ' + sentences + ' sentences (avg ' + avg + ' words/sentence).\n\n';
+  if (mode === 'speech' || mode === 'presentation') {
+    out += '**Pacing** — ' + (avg > 22 ? 'Sentences run long; add pauses after key points so listeners can follow.' : 'Pacing looks natural; keep a deliberate pause after every main point.') + '\n\n' +
+      '**Clarity** — Replace jargon with plain words; define anything technical the first time you say it.\n\n' +
+      '**Filler words** — Listen for "um", "like", "you know". Pausing silently is calmer than filling with a filler word.\n\n' +
+      '**Confidence** — Stand tall, slow down by 10%, and make eye contact with different parts of the room.\n\n' +
+      '**Score estimate:** ' + Math.min(9, Math.max(6, 7 + (avg >= 10 && avg <= 20 ? 1 : 0))) + '/10 — practice once more, then it is exam-ready.';
+  } else {
+    out += '**Audience reactions**\n- 👏 Applause after the opening — strong hook.\n- 🤔 Murmurs at the complex part — slow down and give an example there.\n- 📝 People take notes at your statistics — keep those numbers concrete.\n- 🙋 Likely questions: "Can you repeat the main point?" and "How does this apply to me?"\n\n**Overall vibe:** engaged and interested. End with a clear takeaway line so they leave with one sentence to remember.';
+  }
+  return out;
 }
