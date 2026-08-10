@@ -39,3 +39,27 @@ jobs:
 
       - name: Validate build
         run: node build.js
+
+  smoke:
+    name: Headless app smoke test (all tabs render)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run headless smoke test
+        env:
+          CI: "true"
+          ELECTRON_DISABLE_SANDBOX: "1"
+        run: |
+          # xvfb gives Electron a virtual display; the smoke test sweeps all
+          # 28 tabs and fails on console errors or broken panels.
+          xvfb-run -a npm run test:qa

@@ -61,6 +61,13 @@ function isExpectedConsole(text) {
 
 app.disableHardwareAcceleration();
 
+// Chromium's sandbox needs disabling on CI runners (root user, no user
+// namespaces). Harmless on dev machines.
+if (process.env.CI || process.env.ELECTRON_DISABLE_SANDBOX) {
+  app.commandLine.appendSwitch('no-sandbox');
+  app.commandLine.appendSwitch('disable-gpu');
+}
+
 app.whenReady().then(() => {
   const win = new BrowserWindow({
     show: false,

@@ -111,6 +111,23 @@ removed from the code, but it is visible in git history. Rotate it in the
 Groq dashboard (https://console.groq.com → API Keys) so the exposed copy stops
 working.
 
+## Current state (live-verified 2026-08-10)
+
+Automated probes confirmed the following — each item is still pending and needs
+one of the click-throughs above:
+
+| Check | Result | Evidence |
+|---|---|---|
+| **B. RLS migration** | ❌ **NOT applied — data is exposed** | anon key read of `users` returns real rows (`user_9xov6qxr6ce8h`, …). The old permissive policies are still live, so anyone can read every user's profile/snapshots |
+| **A. Anonymous sign-ins** | ❌ Disabled | `POST /auth/v1/signup {}` → `anonymous_provider_disabled` |
+| **C. `SUPABASE_SERVICE_KEY`** | ❌ Not set | `vercel env ls` shows only `GROQ_API_KEY` |
+| **D. `INSTALLERS_PAT`** | ❌ Not set | `gh secret list` empty; release Publish job skips |
+| **E. Upstash vars** | ❌ Not set | `vercel env ls` |
+| **mate_profiles table** | ❌ Missing | `PGRST205: Could not find the table` |
+
+Run steps **B then A then C** — in that order — to close the exposure. Until
+B runs, assume every user's cloud data is publicly readable.
+
 ## Rollback
 
 To revert to the old (insecure, not recommended) behavior, drop the new
