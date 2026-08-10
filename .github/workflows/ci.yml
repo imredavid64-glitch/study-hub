@@ -19,6 +19,21 @@ jobs:
             node --check "$f" || exit 1
           done
 
+      - name: Secret-leak guard
+        run: |
+          # Fail the build if a tracked file contains a known secret pattern
+          # (Groq keys, OpenAI keys, GitHub PATs, private keys, JWT-style tokens).
+          # NOTE: the Supabase ANON key in cloud-core.js is public by design and
+          # intentionally not flagged. Only service-role secrets are caught
+          # (the base64 of "role":"service_role" inside the JWT, plus sbp_).
+          if grep -rInE "(gsk_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}|gh[pous]_[A-Za-z0-9]{30,}|AIza[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z]+ PRIVATE KEY-----|sbp_[A-Za-z0-9]{20,}|eyJ[A-Za-z0-9_-]{0,200}InJvbGUiOiJzZXJ2aWNlX3JvbGUi)" \
+            --include='*.js' --include='*.html' --include='*.json' --include='*.md' --include='*.sql' --include='*.yml' --include='*.yaml' \
+            --exclude-dir=node_modules --exclude-dir=release --exclude-dir=www --exclude-dir=downloads --exclude-dir=.qa --exclude-dir=docs --exclude-dir=assets --exclude-dir=music --exclude-dir=ios --exclude-dir=android --exclude-dir=supabase --exclude-dir=.vercel .; then
+            echo "::error::Secret pattern detected in tracked files — rotate and remove it."
+            exit 1
+          fi
+          echo "No secret patterns found"
+
       - name: Run test suite
         run: npm test
 
