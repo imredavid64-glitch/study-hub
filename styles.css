@@ -4349,3 +4349,221 @@ body.is-mobile .music-player { z-index: 999; }
   border-color: color-mix(in srgb, #ef4444 35%, var(--border));
   color: var(--muted);
 }
+
+/* ==========================================================================
+   DESIGN POLISH v2 — layered depth, refined surfaces, motion & dark-mode love
+   Appended as overrides so themes + density settings keep working.
+   ========================================================================== */
+
+/* --- Selection, scrollbars, keyboard focus --- */
+::selection {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  color: var(--ink);
+}
+
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 32%, transparent);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--muted) 55%, transparent);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, white 20%);
+  outline-offset: 2px;
+}
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  outline-offset: 2px;
+}
+
+/* --- Cards: layered shadows, lit top edge, accent glow on hover --- */
+.card {
+  position: relative;
+  border-color: rgba(24, 60, 60, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 1px 2px rgba(18, 36, 34, 0.05),
+    0 10px 28px rgba(18, 36, 34, 0.08);
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+}
+.card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--accent) 22%, rgba(24, 60, 60, 0.08));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 2px 6px rgba(18, 36, 34, 0.06),
+    0 18px 44px color-mix(in srgb, var(--accent) 14%, rgba(18, 36, 34, 0.14));
+}
+
+/* --- Sidebar: inner light, active pill glow + indicator --- */
+.sidebar {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    var(--shadow);
+}
+.nav-btn {
+  position: relative;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.nav-btn:hover {
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.nav-btn.active {
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 30%, rgba(0, 0, 0, 0.25)), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.nav-btn.active::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 55%;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+/* --- Topbar: sticky glass --- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  background: color-mix(in srgb, var(--bg) 74%, transparent);
+  border-radius: 14px;
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+/* --- Primary buttons: gradient, depth, lift --- */
+button:where(:not(.ghost):not(.nav-btn):not(.theme-swatch):not(.palette-swatch):not(.calc-btn):not(.mobile-nav-item):not(.chip):not(.empty-state-button):not(.shortcut-key):not(.toast-close)) {
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent) 82%, white 18%) 0%,
+    var(--accent) 55%,
+    color-mix(in srgb, var(--accent) 90%, black 10%) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 1px 2px rgba(0, 0, 0, 0.18),
+    0 3px 10px color-mix(in srgb, var(--accent) 26%, transparent);
+  transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease;
+}
+button:where(:not(.ghost):not(.nav-btn):not(.theme-swatch):not(.palette-swatch):not(.calc-btn):not(.mobile-nav-item):not(.chip):not(.empty-state-button):not(.shortcut-key):not(.toast-close)):hover {
+  transform: translateY(-2px);
+  filter: brightness(1.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    0 2px 4px rgba(0, 0, 0, 0.16),
+    0 8px 20px color-mix(in srgb, var(--accent) 38%, transparent);
+}
+
+/* --- Ghost buttons: crisp border + accent tint --- */
+button.ghost, .btn-ghost {
+  border: 1px solid color-mix(in srgb, var(--muted) 22%, transparent);
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+button.ghost:hover, .btn-ghost:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* --- Inputs: soft inset, refined focus ring --- */
+input, textarea, select {
+  box-shadow: inset 0 1px 2px rgba(18, 36, 34, 0.05);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+input::placeholder, textarea::placeholder {
+  color: color-mix(in srgb, var(--muted) 72%, transparent);
+}
+input:focus, textarea:focus, select:focus {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent),
+    inset 0 1px 2px rgba(18, 36, 34, 0.04);
+}
+
+/* --- Metric numbers: accent gradient --- */
+.metric h3 {
+  background: linear-gradient(135deg, var(--accent) 10%, color-mix(in srgb, var(--accent) 62%, white 38%) 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* --- List items: gentle hover --- */
+.list li, .item {
+  transition: transform 0.15s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+.list li:hover, .item:hover {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+  box-shadow: 0 3px 12px rgba(18, 36, 34, 0.06);
+}
+
+/* --- Assistant chat bubbles: softer, tinted --- */
+.chat-bubble.assistant, .chat-bubble.ai {
+  background: color-mix(in srgb, var(--accent-soft) 40%, var(--panel));
+  box-shadow: 0 2px 10px rgba(18, 36, 34, 0.05);
+}
+
+/* --- Tab entrance: subtle rise --- */
+.tab.active {
+  animation: tabIn 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes tabIn {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ===================== DARK MODE ===================== */
+[data-dark="true"] .card {
+  border-color: rgba(255, 255, 255, 0.07);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 12px 32px rgba(0, 0, 0, 0.45);
+}
+[data-dark="true"] .card:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, rgba(255, 255, 255, 0.07));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 2px 6px rgba(0, 0, 0, 0.4),
+    0 20px 48px color-mix(in srgb, var(--accent) 16%, rgba(0, 0, 0, 0.55));
+}
+[data-dark="true"] .topbar {
+  background: color-mix(in srgb, #101010 66%, transparent);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+[data-dark="true"] input, [data-dark="true"] textarea, [data-dark="true"] select {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+[data-dark="true"] input:focus, [data-dark="true"] textarea:focus, [data-dark="true"] select:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent), inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+[data-dark="true"] .metric h3 {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 72%, white 28%) 10%, color-mix(in srgb, var(--accent) 45%, white 55%) 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+[data-dark="true"] .chat-bubble.assistant, [data-dark="true"] .chat-bubble.ai {
+  background: color-mix(in srgb, var(--accent) 14%, #121212);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+[data-dark="true"] ::selection {
+  background: color-mix(in srgb, var(--accent) 40%, transparent);
+  color: #fff;
+}
+[data-dark="true"] ::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, #888 35%, transparent);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}

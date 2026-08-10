@@ -752,7 +752,9 @@ function setupLearningStyle() {
 }
 function updateAppForLearningStyle() {
   if (studentLearningStyle === 'visual') {
-    qsa('.card').forEach(c => {
+    // Exclude the topbar (it's a .card too but is sticky chrome — a thick
+    // border and position:relative there would break its sticky glass look).
+    qsa('.card:not(.topbar)').forEach(c => {
       c.style.border = '2px solid var(--accent)';
       c.style.position = 'relative';
     });
