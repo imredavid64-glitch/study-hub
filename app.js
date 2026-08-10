@@ -729,6 +729,8 @@ function showTab(tabId) {
   const btn = qs(`.nav-btn[data-tab="${tabId}"]`);
   if (btn) btn.classList.add('active');
   if (tabId === 'analytics' && typeof renderCharts === 'function') renderCharts();
+  // The study map is initialized lazily because its container is 0×0 while hidden.
+  if (tabId === 'studymap' && window.__studyMapRefresh) setTimeout(window.__studyMapRefresh, 0);
   updateWelcomeTitle();
   if (typeof Mobile !== 'undefined' && Mobile.syncMobileNav) Mobile.syncMobileNav(tabId);
 }
@@ -3094,9 +3096,27 @@ function studyMapSuggest(query, limit) {
   return scored.slice(0, limit || 8).map(s => s.place);
 }
 
+const STUDYMAP_COLORS = {
+  library: '#2563eb',
+  sat_centre: '#8b5cf6',
+  foreign_lang_exam_centre: '#0d9488',
+  gov_offices: '#dc2626',
+  airport: '#ea580c',
+  other_places: '#64748b'
+};
+const STUDYMAP_ICONS = {
+  library: '📚',
+  sat_centre: '🎓',
+  foreign_lang_exam_centre: '🌍',
+  gov_offices: '🏛️',
+  airport: '✈️',
+  other_places: '📍'
+};
+
 function setupStudyMap() {
   const typeSel = $('smTypeFilter'), citySel = $('smCityFilter'), search = $('smSearch');
   const resetBtn = $('smResetBtn'), countEl = $('smCount'), listEl = $('smList'), mapEl = $('smMap');
+  const nearBtn = $('smNearMeBtn'), legendEl = $('smLegend');
   if (!mapEl) return;
   const places = getAllStudyMapPlaces();
 
@@ -3109,53 +3129,170 @@ function setupStudyMap() {
     const o = document.createElement('option'); o.value = c; o.textContent = c.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
     citySel.appendChild(o);
   });
+  // Legend
+  if (legendEl) {
+    Object.keys(STUDYMAP_CATEGORY_LABELS).forEach(t => {
+      const chip = document.createElement('span');
+      chip.className = 'sm-legend-chip';
+      chip.style.setProperty('--lc', STUDYMAP_COLORS[t] || '#64748b');
+      chip.textContent = (STUDYMAP_ICONS[t] || '📍') + ' ' + STUDYMAP_CATEGORY_LABELS[t];
+      legendEl.appendChild(chip);
+    });
+  }
 
-  let map = null, markers = [], markerById = {};
-  try {
-    if (typeof window.L !== 'undefined' && mapEl) {
+  let map = null, markers = [], markerById = {}, mapReady = false;
+
+  function distKm(lat1, lng1, lat2, lng2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+  function makeIcon(p) {
+    const c = STUDYMAP_COLORS[p.type] || '#64748b';
+    return window.L.divIcon({
+      className: 'sm-marker-wrap',
+      html: '<div class="sm-marker" style="--mc:' + c + '">' + (STUDYMAP_ICONS[p.type] || '📍') + '</div>',
+      iconSize: [34, 34],
+      iconAnchor: [17, 17],
+      popupAnchor: [0, -18]
+    });
+  }
+  function clusterKey(p, zoom) {
+    const cell = zoom <= 5 ? 8 : zoom <= 7 ? 4 : zoom <= 8 ? 2 : 1;
+    return Math.round(p.lat / cell) + ',' + Math.round(p.lng / cell);
+  }
+  function popupHtml(p) {
+    return '<strong>' + escapeHtml(p.name) + '</strong><br>' + escapeHtml(p.address || '') +
+      (p.exam ? '<br><em>' + escapeHtml(p.exam) + '</em>' : '') +
+      '<br><a href="' + escapeHtml(p.gmaps_link || '#') + '" target="_blank" rel="noreferrer">Open in Google Maps →</a>';
+  }
+  // The map is created lazily: while the tab is hidden its container is 0×0,
+  // and fitBounds on a 0-sized map collapses to world zoom 0 (a single blurry
+  // tile + an unreadable blob of markers). We init on first show instead.
+  function initMap() {
+    if (mapReady || typeof window.L === 'undefined' || !mapEl) return;
+    try {
       map = window.L.map(mapEl, { scrollWheelZoom: false });
       window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors', maxZoom: 18 }).addTo(map);
-      map.setView([20, 0], 2);
-    }
-  } catch (e) { map = null; }
+      map.setView([21, 78], 5); // India-first default; render() re-fits on filters
+      window.addEventListener('resize', () => { if (map) map.invalidateSize(); });
+      mapReady = true;
+    } catch (e) { map = null; }
+  }
 
-  function render() {
-    const filtered = studyMapQuery({ type: typeSel.value, city: citySel.value, q: (search.value || '').trim() });
-    countEl.textContent = filtered.length + ' of ' + places.length + ' places';
-
-    // List (always available, doubles as fallback when the map can't load)
+  function renderList(items) {
     listEl.innerHTML = '';
-    if (filtered.length === 0) { listEl.innerHTML = '<p class="subtle">No places match your filters.</p>'; }
-    filtered.slice(0, 100).forEach(p => {
+    if (items.length === 0) { listEl.innerHTML = '<p class="subtle">No places match your filters.</p>'; return; }
+    items.slice(0, 100).forEach(p => {
       const d = document.createElement('div'); d.className = 'item sm-place-item';
       d.innerHTML = '<strong>' + escapeHtml(p.name) + '</strong> <span class="badge">' + escapeHtml(p.typeLabel || p.type) + '</span><p class="subtle">' + escapeHtml(p.address || '') + ' · ' + escapeHtml(p.cityLabel || p.city) + '</p>';
       d.addEventListener('click', () => {
-        if (map && p.lat && p.lng) { map.setView([p.lat, p.lng], 14); if (markerById[p.id]) markerById[p.id].openPopup(); }
+        if (map && p.lat && p.lng) {
+          map.setView([p.lat, p.lng], 14);
+          // Markers are clustered at low zoom; wait for the re-render, then pop.
+          setTimeout(() => { if (markerById[p.id]) markerById[p.id].openPopup(); }, 350);
+        }
       });
       listEl.appendChild(d);
     });
-
-    // Map markers
-    if (map) {
-      markers.forEach(m => map.removeLayer(m)); markers = []; markerById = {};
-      filtered.forEach(p => {
-        if (!p.lat || !p.lng) return;
-        const m = window.L.marker([p.lat, p.lng]).addTo(map);
-        m.bindPopup('<strong>' + escapeHtml(p.name) + '</strong><br>' + escapeHtml(p.address || '') + '<br><a href="' + escapeHtml(p.gmaps_link || '#') + '" target="_blank" rel="noreferrer">Open in Google Maps →</a>');
-        markerById[p.id] = m; markers.push(m);
-      });
-      const withCoords = filtered.filter(p => p.lat && p.lng);
-      if (withCoords.length === 1) map.setView([withCoords[0].lat, withCoords[0].lng], 14);
-      else if (withCoords.length > 1) map.fitBounds(window.L.latLngBounds(withCoords.map(p => [p.lat, p.lng])));
-      else map.setView([20, 0], 2);
-    }
   }
 
-  typeSel.addEventListener('change', render);
-  citySel.addEventListener('change', render);
-  search.addEventListener('input', render);
-  resetBtn.addEventListener('click', () => { typeSel.value = ''; citySel.value = ''; search.value = ''; render(); });
-  render();
+  function renderMarkers(items, opts) {
+    if (!map) return;
+    opts = opts || {};
+    markers.forEach(m => map.removeLayer(m)); markers = []; markerById = {};
+    const withCoords = items.filter(p => p.lat && p.lng);
+    if (withCoords.length === 0) { if (!opts.keepView) map.setView([21, 78], 5); return; }
+    const zoom = map.getZoom();
+    const clusterThreshold = 9;
+    if (zoom < clusterThreshold && withCoords.length > 12) {
+      // Lightweight grid clustering: at low zoom show count bubbles instead of
+      // an unreadable pile of overlapping pins.
+      const groups = {};
+      withCoords.forEach(p => {
+        const k = clusterKey(p, zoom);
+        (groups[k] = groups[k] || []).push(p);
+      });
+      Object.keys(groups).forEach(k => {
+        const g = groups[k];
+        if (g.length === 1) {
+          const p = g[0];
+          const m = window.L.marker([p.lat, p.lng], { icon: makeIcon(p) }).addTo(map);
+          m.bindPopup(popupHtml(p));
+          markerById[p.id] = m; markers.push(m);
+          return;
+        }
+        const cLat = g.reduce((s, p) => s + p.lat, 0) / g.length;
+        const cLng = g.reduce((s, p) => s + p.lng, 0) / g.length;
+        const m = window.L.marker([cLat, cLng], {
+          icon: window.L.divIcon({
+            className: 'sm-cluster-wrap',
+            html: '<div class="sm-cluster">' + g.length + '</div>',
+            iconSize: [36, 36],
+            iconAnchor: [18, 18]
+          })
+        }).addTo(map);
+        m.bindPopup('<strong>' + g.length + ' places here</strong><br>' + g.slice(0, 6).map(p => escapeHtml(p.name)).join('<br>') + (g.length > 6 ? '<br><em>+' + (g.length - 6) + ' more — click to zoom in</em>' : ''));
+        m.on('click', () => map.setView([cLat, cLng], Math.min(zoom + 2, 14)));
+        markers.push(m);
+      });
+    } else {
+      withCoords.forEach(p => {
+        const m = window.L.marker([p.lat, p.lng], { icon: makeIcon(p) }).addTo(map);
+        m.bindPopup(popupHtml(p));
+        markerById[p.id] = m; markers.push(m);
+      });
+    }
+    if (opts.keepView) return;
+    if (withCoords.length === 1) map.setView([withCoords[0].lat, withCoords[0].lng], 14);
+    else if (withCoords.length > 150) map.setView([21, 78], 5); // world-spanning set: stay readable, clusters handle density
+    else map.fitBounds(window.L.latLngBounds(withCoords.map(p => [p.lat, p.lng])), { maxZoom: 12, padding: [24, 24] });
+  }
+
+  function render(opts) {
+    const filtered = studyMapQuery({ type: typeSel.value, city: citySel.value, q: (search.value || '').trim() });
+    countEl.textContent = filtered.length + ' of ' + places.length + ' places';
+    renderList(filtered);
+    renderMarkers(filtered, opts);
+  }
+
+  typeSel.addEventListener('change', () => render({ fit: true }));
+  citySel.addEventListener('change', () => render({ fit: true }));
+  search.addEventListener('input', () => render({ fit: true }));
+  resetBtn.addEventListener('click', () => { typeSel.value = ''; citySel.value = ''; search.value = ''; render({ fit: true }); });
+
+  // Called from showTab() every time the Study Map tab becomes visible.
+  window.__studyMapRefresh = function() {
+    initMap();
+    if (map) { map.invalidateSize(); render({ keepView: true }); }
+  };
+
+  if (nearBtn) nearBtn.addEventListener('click', () => {
+    initMap();
+    if (!map) { showToast('Map library not loaded — the places list still works.'); return; }
+    if (!navigator.geolocation) { showToast('Geolocation is not supported in this browser.'); return; }
+    nearBtn.disabled = true; nearBtn.textContent = 'Locating…';
+    navigator.geolocation.getCurrentPosition(pos => {
+      nearBtn.disabled = false; nearBtn.textContent = '📍 Near me';
+      const lat = pos.coords.latitude, lng = pos.coords.longitude;
+      const nearby = places
+        .filter(p => p.lat && p.lng && distKm(lat, lng, p.lat, p.lng) <= 50)
+        .sort((a, b) => distKm(lat, lng, a.lat, a.lng) - distKm(lat, lng, b.lat, b.lng));
+      search.value = ''; typeSel.value = ''; citySel.value = '';
+      countEl.textContent = nearby.length + ' places within 50 km of you';
+      renderList(nearby);
+      map.setView([lat, lng], 11);
+      renderMarkers(nearby, {});
+      showToast(nearby.length ? nearby.length + ' places near you' : 'No places within 50 km of you');
+    }, err => {
+      nearBtn.disabled = false; nearBtn.textContent = '📍 Near me';
+      showToast('Could not get your location — check permissions.');
+    }, { timeout: 8000, maximumAge: 300000 });
+  });
+
+  render({}); // list + count work even before the map is first shown
 }
 
 // Build AI context from the study map when the student asks about places.
@@ -6624,8 +6761,9 @@ function setupGenerators() {
     inlinePrompt('Add a branch', 'New branch label (attach to the last node)', function(label) {
       if (!label || !label.trim()) return;
       var parent = mm.nodes[mm.nodes.length - 1];
-      addMapNode('m' + Date.now(), label.trim().slice(0, 34), parent.x + 130, parent.y + 50);
-      mm.edges.push({ from: parent.id, to: 'm' + Date.now() });
+      var nid = 'm' + Date.now();
+      addMapNode(nid, label.trim().slice(0, 34), parent.x + 130, parent.y + 50);
+      mm.edges.push({ from: parent.id, to: nid });
       renderMindMap();
     });
   });
@@ -6748,6 +6886,42 @@ function setupGenerators() {
     }
     return scenes;
   }
+  // Offline fallback: a real, playable micro-film built from the topic — no AI
+  // needed. Scenes get generated Pollinations visuals + narration (TTS).
+  function fallbackFilm(topic, sceneCount) {
+    var beats = [
+      { t: 'Introduction', v: 'an establishing shot introducing the topic with big friendly labels', n: 'Here is what ' + topic + ' is, and why it is worth knowing.' },
+      { t: 'Key ideas', v: 'the main pieces of the topic arranged like a labelled diagram', n: 'The key ideas of ' + topic + ' are easier to remember when you see them clearly.' },
+      { t: 'How it works', v: 'a step by step animated diagram of the process with numbered arrows', n: 'Here is how ' + topic + ' works, step by step.' },
+      { t: 'Real world', v: 'the topic shown in a real everyday scene with annotation arrows', n: 'You can spot ' + topic + ' in the real world all around you.' },
+      { t: 'Why it matters', v: 'an inspiring wide shot connecting the topic to bigger ideas', n: 'Understanding ' + topic + ' matters because it connects to so much else you will learn.' },
+      { t: 'Quick recap', v: 'a clean summary board with the key points listed', n: 'Quick recap: ' + topic + ' is about seeing the big picture, one piece at a time.' }
+    ];
+    var scenes = [];
+    for (var i = 0; i < sceneCount && i < beats.length; i++) {
+      var b = beats[i];
+      var visualPrompt = 'educational film still of ' + topic + ' - ' + b.v + ', cinematic, colorful, clean, textbook quality, labeled, 16:9';
+      scenes.push({
+        narration: b.n,
+        visual: b.t + ' — ' + b.v,
+        seconds: 5,
+        img: 'https://image.pollinations.ai/prompt/' + encodeURIComponent(visualPrompt) + '?width=800&height=450&nologo=true&seed=' + (1000 + i * 131 + Math.floor(Math.random() * 900))
+      });
+    }
+    return scenes;
+  }
+  function renderFilm(topic, note) {
+    var filmTitle = document.createElement('h4');
+    filmTitle.innerHTML = '<span class="icon icon-sm icon-film"></span> ' + escapeHtml(topic);
+    filmOut.innerHTML = '';
+    filmOut.appendChild(filmTitle);
+    var summary = document.createElement('p');
+    summary.className = 'subtle';
+    summary.textContent = (note ? note + ' · ' : '') + filmScenes.length + ' scenes · press ▶ to play (turn sound on for narration)';
+    filmOut.appendChild(summary);
+    playerEl.classList.remove('hidden');
+    showFilmScene(0, false);
+  }
   if (filmBtn && filmTopic && filmOut && playerEl) {
     filmBtn.addEventListener('click', async function() {
       var topic = filmTopic.value.trim();
@@ -6765,18 +6939,14 @@ function setupGenerators() {
           var visualPrompt = 'educational film still of ' + topic + ' - ' + s.visual + ', cinematic, colorful, clean, textbook quality, labeled, 16:9';
           s.img = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(visualPrompt) + '?width=800&height=450&nologo=true&seed=' + (1000 + i * 131 + Math.floor(Math.random() * 900));
         });
-        var filmTitle = document.createElement('h4');
-        filmTitle.innerHTML = '<span class="icon icon-sm icon-film"></span> ' + escapeHtml(topic);
-        filmOut.innerHTML = '';
-        filmOut.appendChild(filmTitle);
-        var summary = document.createElement('p');
-        summary.className = 'subtle';
-        summary.textContent = filmScenes.length + ' scenes · press ▶ to play (turn sound on for narration)';
-        filmOut.appendChild(summary);
-        playerEl.classList.remove('hidden');
-        showFilmScene(0, false);
+        renderFilm(topic);
+        showToast('Film ready — press ▶ to play');
       } catch (err) {
-        filmOut.innerHTML = '<p class="subtle">Could not make the film. Please try again.</p>';
+        // AI unavailable (no proxy / no key): still produce a watchable film
+        // from the topic — real visuals + narration, no AI needed.
+        filmScenes = fallbackFilm(topic, sceneCount);
+        renderFilm(topic, 'offline template — AI unavailable');
+        showToast('Offline film template used — press ▶ to play');
         logErrors('filmgen')(err);
       }
     });
@@ -6909,33 +7079,62 @@ function setupGenerators() {
 
   // ---- Concept Model Generator ----
   var modelBtn = $('genModelBtn'), modelTopic = $('genModelTopic'), modelOut = $('genModelOut');
+  function renderConceptModel(model, topic) {
+    var html = '<h4><span class="icon icon-sm icon-chart"></span> Model: ' + escapeHtml(model.concept || topic) + '</h4>';
+    html += '<div class="gen-model-parts">';
+    (model.parts || []).forEach(function(p, i) {
+      html += '<details class="gen-model-part"' + (i === 0 ? ' open' : '') + '><summary><b>' + (i + 1) + '. ' + escapeHtml(p.name) + '</b></summary><p>' + escapeHtml(p.howItWorks || '') + '</p>' + (p.connectsTo && p.connectsTo.length ? '<p class="subtle">Connects to: ' + p.connectsTo.map(c => escapeHtml(c)).join(', ') + '</p>' : '') + '</details>';
+    });
+    html += '</div>';
+    if (model.flows && model.flows.length) {
+      html += '<h5 style="margin-top:10px">Flow</h5><div class="gen-model-flow">';
+      model.flows.forEach(function(f) {
+        html += '<div class="gen-model-flow-step"><span class="badge">' + escapeHtml(f.from) + '</span> &#8594; <span class="badge">' + escapeHtml(f.to) + '</span><span class="subtle"> — ' + escapeHtml(f.what || '') + '</span></div>';
+      });
+      html += '</div>';
+    }
+    modelOut.innerHTML = html;
+  }
+  // Offline fallback: a useful step-by-step concept model without AI.
+  function fallbackConceptModel(topic) {
+    var parts = [
+      { name: 'Definition', howItWorks: 'What ' + topic + ' is, in one clear sentence you can say out loud.', connectsTo: ['Key components'] },
+      { name: 'Key components', howItWorks: 'The pieces that make ' + topic + ' what it is — name each one and the job it does.', connectsTo: ['How it works'] },
+      { name: 'How it works', howItWorks: 'The step-by-step process: what happens first, next, and last. Trace the cause-and-effect chain.', connectsTo: ['Real-world examples'] },
+      { name: 'Real-world examples', howItWorks: 'Concrete cases where you have seen ' + topic + ' in action — everyday examples stick better than abstract ones.', connectsTo: ['Why it matters'] },
+      { name: 'Why it matters', howItWorks: 'The real-world use of ' + topic + ' and the problems it solves.', connectsTo: ['Study tips'] },
+      { name: 'Study tips', howItWorks: 'How to remember it: teach it to someone, draw it, make a mnemonic, or quiz yourself tonight.', connectsTo: [] }
+    ];
+    return {
+      concept: topic,
+      parts: parts,
+      flows: [
+        { from: 'Definition', to: 'Key components', what: 'names the pieces' },
+        { from: 'Key components', to: 'How it works', what: 'assembles them into a process' },
+        { from: 'How it works', to: 'Real-world examples', what: 'see it in practice' },
+        { from: 'Real-world examples', to: 'Why it matters', what: 'value and impact' },
+        { from: 'Why it matters', to: 'Study tips', what: 'turn understanding into memory' }
+      ]
+    };
+  }
   if (modelBtn && modelTopic && modelOut) {
     modelBtn.addEventListener('click', async function() {
       var topic = modelTopic.value.trim();
       if (!topic) { showToast('Enter a concept to model.'); modelTopic.focus(); return; }
       modelOut.innerHTML = '<p class="subtle">Building the concept model...</p>';
+      var model = null;
       try {
         var txt = await groqChat([{ role: 'system', content: 'Explain how a concept works as an interactive working model. Return JSON ONLY: {concept:string, parts:[{name:string, howItWorks:string, connectsTo:[string]}], flows:[{from:string, to:string, what:string}]}. Each part must be a short labeled step. Include 4-7 parts.' }, { role: 'user', content: 'Concept: ' + topic }], { maxTokens: 2048, temperature: 0.6 });
-        var model;
         try { model = JSON.parse(txt.replace(/```json|```/g, '').trim()); }
         catch (e) { model = null; }
         if (!model || !model.parts) throw new Error('bad json');
-        var html = '<h4><span class="icon icon-sm icon-chart"></span> Model: ' + escapeHtml(model.concept || topic) + '</h4>';
-        html += '<div class="gen-model-parts">';
-        model.parts.forEach(function(p, i) {
-          html += '<details class="gen-model-part" open="' + (i === 0) + '"><summary><b>' + (i + 1) + '. ' + escapeHtml(p.name) + '</b></summary><p>' + escapeHtml(p.howItWorks || '') + '</p>' + (p.connectsTo && p.connectsTo.length ? '<p class="subtle">Connects to: ' + p.connectsTo.map(c => escapeHtml(c)).join(', ') + '</p>' : '') + '</details>';
-        });
-        html += '</div>';
-        if (model.flows && model.flows.length) {
-          html += '<h5 style="margin-top:10px">Flow</h5><div class="gen-model-flow">';
-          model.flows.forEach(function(f) {
-            html += '<div class="gen-model-flow-step"><span class="badge">' + escapeHtml(f.from) + '</span> &#8594; <span class="badge">' + escapeHtml(f.to) + '</span><span class="subtle"> — ' + escapeHtml(f.what || '') + '</span></div>';
-          });
-          html += '</div>';
-        }
-        modelOut.innerHTML = html;
+        renderConceptModel(model, topic);
+        showToast('Concept model built');
       } catch (err) {
-        modelOut.innerHTML = '<p class="subtle">Could not build the concept model. Please try again.</p>';
+        // AI unavailable — still give a useful working model.
+        model = fallbackConceptModel(topic);
+        renderConceptModel(model, topic);
+        showToast('Offline model template used (AI unavailable)');
         logErrors('modelgen')(err);
       }
     });

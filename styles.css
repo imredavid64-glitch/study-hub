@@ -3736,8 +3736,8 @@ canvas {
 
 /* ===== STUDY MAP ===== */
 .sm-map {
-  height: 420px;
-  border-radius: 12px;
+  height: 500px;
+  border-radius: 14px;
   border: 1px solid var(--border);
   overflow: hidden;
   background: #e8ecef;
@@ -3755,6 +3755,84 @@ canvas {
 
 .sm-place-item {
   cursor: pointer;
+}
+
+/* Category pins */
+.sm-marker-wrap {
+  background: transparent;
+  border: none;
+}
+.sm-marker {
+  width: 32px;
+  height: 32px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: var(--mc);
+  border: 2px solid #fff;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.sm-marker > span, .sm-marker {
+  transform: rotate(-45deg);
+}
+.sm-marker {
+  color: #fff;
+}
+.sm-marker .sm-marker-icon {
+  transform: rotate(45deg);
+}
+.sm-marker:hover {
+  transform: rotate(-45deg) scale(1.18);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.4);
+}
+/* Cluster bubbles */
+.sm-cluster-wrap {
+  background: transparent;
+  border: none;
+}
+.sm-cluster {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 88%, black 12%);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+  animation: smClusterPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes smClusterPop {
+  from { transform: scale(0.4); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.sm-cluster:hover {
+  transform: scale(1.12);
+  box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 40%, rgba(0, 0, 0, 0.3));
+}
+/* Legend */
+.sm-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sm-legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--lc) 40%, var(--border));
+  background: color-mix(in srgb, var(--lc) 8%, var(--panel));
+  color: var(--ink);
 }
 
 /* ===== CALENDAR ===== */
@@ -4749,4 +4827,185 @@ input:focus, textarea:focus, select:focus {
     opacity: 1 !important; transform: none !important; filter: none !important;
   }
   .lp-reveal { opacity: 1; transform: none; transition: none; }
+}
+
+/* ============================================================
+   MAIN UI EFFECTS — living surfaces for the app itself
+   (complements the landing page effects; respects reduced motion)
+   ============================================================ */
+
+/* --- 1. Animated ambient aurora behind the whole app --- */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 42% at 22% 28%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%),
+    radial-gradient(30% 34% at 82% 14%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 70%),
+    radial-gradient(44% 40% at 68% 86%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 70%);
+  animation: uiAurora 38s ease-in-out infinite alternate;
+  will-change: transform;
+}
+@keyframes uiAurora {
+  0%   { transform: translate3d(-2%, -1%, 0) scale(1); }
+  50%  { transform: translate3d(2%, 2%, 0) scale(1.06); }
+  100% { transform: translate3d(-1%, 1.5%, 0) scale(1.02); }
+}
+[data-dark="true"] body::before {
+  background:
+    radial-gradient(38% 42% at 22% 28%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 70%),
+    radial-gradient(30% 34% at 82% 14%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%),
+    radial-gradient(44% 40% at 68% 86%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 70%);
+}
+
+/* --- 2. Tab entry: cards rise in with a light stagger --- */
+.tab.active > .card,
+.tab.active > .split-grid > .card,
+.tab.active > .social-grid > .card {
+  animation: uiCardIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.tab.active > .card:nth-child(2),
+.tab.active > .split-grid > .card:nth-child(2),
+.tab.active > .social-grid > .card:nth-child(2) { animation-delay: 0.06s; }
+.tab.active > .card:nth-child(3),
+.tab.active > .split-grid > .card:nth-child(3),
+.tab.active > .social-grid > .card:nth-child(3) { animation-delay: 0.12s; }
+.tab.active > .card:nth-child(4),
+.tab.active > .split-grid > .card:nth-child(4),
+.tab.active > .social-grid > .card:nth-child(4) { animation-delay: 0.18s; }
+.tab.active > .card:nth-child(5),
+.tab.active > .split-grid > .card:nth-child(5) { animation-delay: 0.24s; }
+.tab.active > .card:nth-child(6),
+.tab.active > .split-grid > .card:nth-child(6) { animation-delay: 0.3s; }
+.tab.active > .card:nth-child(7) { animation-delay: 0.36s; }
+.tab.active > .card:nth-child(8) { animation-delay: 0.42s; }
+.tab.active > .card:nth-child(n + 9) { animation-delay: 0.48s; }
+@keyframes uiCardIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); filter: blur(2px); }
+  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+/* --- 3. Card sheen sweep on hover (clipped to the card shape) --- */
+.card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.45) 50%, transparent 58%);
+  transform: translateX(-135%);
+  transition: transform 0.75s ease;
+  pointer-events: none;
+  clip-path: inset(0 round 14px);
+}
+.card:hover::after { transform: translateX(135%); }
+[data-dark="true"] .card::after {
+  background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.07) 50%, transparent 58%);
+}
+
+/* --- 4. Active nav pill: breathing glow --- */
+.nav-btn.active {
+  animation: navBreath 3.4s ease-in-out infinite;
+}
+@keyframes navBreath {
+  0%, 100% {
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 30%, rgba(0, 0, 0, 0.25)), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 4px 22px color-mix(in srgb, var(--accent) 52%, rgba(0, 0, 0, 0.3)), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  }
+}
+
+/* --- 5. Buttons: tactile press + glow bloom --- */
+button:where(:not(.ghost):not(.nav-btn):not(.theme-swatch):not(.palette-swatch):not(.calc-btn):not(.mobile-nav-item):not(.chip):not(.empty-state-button):not(.shortcut-key):not(.toast-close)):active {
+  transform: translateY(0) scale(0.97);
+  filter: brightness(1.02);
+}
+button.ghost:active, .btn-ghost:active {
+  transform: scale(0.97);
+}
+/* Focus glow (keyboard users) */
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 2px;
+}
+
+/* --- 6. Streak / XP values: shimmering accent --- */
+.streak-value, .xp-value, #streakValue, #xpValue {
+  background: linear-gradient(120deg, var(--accent) 20%, color-mix(in srgb, var(--accent) 45%, white 55%) 45%, var(--accent) 70%);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: uiShimmer 5s linear infinite;
+}
+[data-dark="true"] .streak-value, [data-dark="true"] .xp-value,
+[data-dark="true"] #streakValue, [data-dark="true"] #xpValue {
+  background: linear-gradient(120deg, var(--accent-soft) 20%, color-mix(in srgb, var(--accent-soft) 50%, white 50%) 45%, var(--accent-soft) 70%);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+@keyframes uiShimmer {
+  to { background-position: 220% center; }
+}
+
+/* --- 7. Topbar: subtle shine edge that tracks the mouse via hover ---
+   (topbar stays sticky; sticky is a positioned ancestor for the ::after) */
+.topbar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(105deg, transparent 45%, rgba(255, 255, 255, 0.35) 50%, transparent 55%);
+  background-size: 250% 100%;
+  background-position: 120% 0;
+  transition: background-position 0.9s ease;
+  pointer-events: none;
+}
+.topbar:hover::after { background-position: -20% 0; }
+[data-dark="true"] .topbar::after {
+  background: linear-gradient(105deg, transparent 45%, rgba(255, 255, 255, 0.06) 50%, transparent 55%);
+  background-size: 250% 100%;
+}
+
+/* --- 8. Mobile nav: active item glow --- */
+.mobile-nav-item.active {
+  color: var(--accent);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* --- 9. List items: left accent tick on hover --- */
+.item, .list li {
+  position: relative;
+}
+.item::before, .list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 20%;
+  bottom: 20%;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--accent);
+  opacity: 0;
+  transform: scaleY(0.4);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.item:hover::before, .list li:hover::before {
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+/* --- Reduced motion: keep it calm --- */
+@media (prefers-reduced-motion: reduce) {
+  body::before { animation: none; }
+  .tab.active > .card,
+  .tab.active > .split-grid > .card,
+  .tab.active > .social-grid > .card { animation: none; }
+  .card::after, .topbar::after { transition: none; }
+  .nav-btn.active, .streak-value, .xp-value { animation: none; }
+  .card:hover::after, .topbar:hover::after { background-position: 120% 0; }
 }
