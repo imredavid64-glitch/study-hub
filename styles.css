@@ -4567,3 +4567,186 @@ input:focus, textarea:focus, select:focus {
   border: 3px solid transparent;
   background-clip: padding-box;
 }
+
+/* ==========================================================================
+   LANDING PAGE EFFECTS — original animated landing (onboarding step 0)
+   ========================================================================== */
+
+/* --- Full-bleed hero (never squished by the setup-mode card) --- */
+.lp-hero {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  background:
+    radial-gradient(42% 55% at 12% 18%, color-mix(in srgb, var(--accent) 55%, transparent) 0%, transparent 62%),
+    radial-gradient(38% 48% at 88% 12%, rgba(124, 58, 237, 0.45) 0%, transparent 60%),
+    radial-gradient(50% 60% at 50% 108%, rgba(56, 189, 248, 0.28) 0%, transparent 65%),
+    linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #0f0c29 100%);
+  background-size: 220% 220%, 210% 210%, 230% 230%, 100% 100%;
+  background-position: 0% 0%, 100% 0%, 50% 100%, 0% 0%;
+  animation: lpAurora 26s ease-in-out infinite alternate;
+}
+@keyframes lpAurora {
+  0%   { background-position: 0% 0%, 100% 0%, 50% 100%, 0% 0%; }
+  50%  { background-position: 55% 35%, 25% 55%, 80% 40%, 0% 0%; }
+  100% { background-position: 30% 100%, 90% 30%, 15% 90%, 0% 0%; }
+}
+
+/* --- Floating study orbs (slow rise, soft glow, varied hue/size/delay) --- */
+.lp-orbs {
+  position: absolute; inset: 0; overflow: hidden;
+  pointer-events: none; z-index: 0;
+}
+.lp-orbs span {
+  position: absolute;
+  left: var(--o-x, 50%); bottom: -140px;
+  width: calc(88px * var(--o-s, 1)); height: calc(88px * var(--o-s, 1));
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 32%, color-mix(in srgb, var(--accent) 58%, transparent) 0%, transparent 68%);
+  filter: blur(1px);
+  opacity: 0.5;
+  animation: lpOrb 16s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation-delay: var(--o-d, 0s);
+  will-change: transform, opacity;
+}
+.lp-orbs span:nth-child(2n) {
+  background: radial-gradient(circle at 32% 32%, rgba(124, 58, 237, 0.5) 0%, transparent 68%);
+}
+.lp-orbs span:nth-child(3n) {
+  background: radial-gradient(circle at 32% 32%, rgba(56, 189, 248, 0.45) 0%, transparent 68%);
+}
+@keyframes lpOrb {
+  0%   { transform: translate(0, 0) scale(1); opacity: 0; }
+  8%   { opacity: 0.5; }
+  25%  { transform: translate(42px, -26vh) scale(1.14); }
+  50%  { transform: translate(-30px, -52vh) scale(0.9); opacity: 0.4; }
+  75%  { transform: translate(24px, -78vh) scale(1.1); }
+  92%  { opacity: 0.5; }
+  100% { transform: translate(-10px, -106vh) scale(0.95); opacity: 0; }
+}
+
+/* --- Headline: staggered line reveal + shimmering gradient --- */
+.lp-title .lp-line {
+  display: block;
+  opacity: 0;
+  transform: translateY(60px) rotate(1.5deg);
+  filter: blur(4px);
+  animation: lpLineUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.lp-title .lp-line:nth-child(1) { animation-delay: 0.15s; }
+.lp-title .lp-line:nth-child(2) { animation-delay: 0.34s; }
+@keyframes lpLineUp {
+  to { opacity: 1; transform: translateY(0) rotate(0); filter: blur(0); }
+}
+.lp-gradient {
+  display: inline-block;
+  background: linear-gradient(120deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 45%, #fff) 30%, var(--accent) 50%, #38bdf8 78%, var(--accent) 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: lpShimmer 7s linear infinite;
+}
+@keyframes lpShimmer { to { background-position: -220% 0; } }
+
+/* --- Badge: entrance + twinkling sparkle --- */
+.lp-badge {
+  animation: lpBadgeIn 0.8s ease 0.05s both;
+}
+.lp-badge::after {
+  content: '✦';
+  margin-left: 8px;
+  display: inline-block;
+  color: #fbbf24;
+  animation: lpTwinkle 2.4s ease-in-out infinite;
+}
+@keyframes lpBadgeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes lpTwinkle {
+  0%, 100% { opacity: 0.35; transform: scale(0.85) rotate(0deg); }
+  50%      { opacity: 1;    transform: scale(1.2) rotate(90deg); }
+}
+
+/* --- Subtitle + CTAs: gentle rise --- */
+.lp-subtitle { animation: lpBadgeIn 0.9s ease 0.5s both; }
+.lp-hero-btns { animation: lpBadgeIn 0.9s ease 0.62s both; }
+.lp-stats { animation: lpBadgeIn 0.9s ease 0.78s both; }
+
+/* --- CTA shine sweep on hover --- */
+.lp-cta, .lp-cta-sm { position: relative; overflow: hidden; }
+.lp-cta::after, .lp-cta-sm::after {
+  content: ''; position: absolute; top: 0; left: -80%; width: 55%; height: 100%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transform: skewX(-20deg);
+  pointer-events: none;
+  transition: left 0.55s ease;
+}
+.lp-cta:hover::after, .lp-cta-sm:hover::after { left: 130%; }
+
+/* --- 3D tilt cards with animated conic border ring --- */
+@property --lp-angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+.lp-tilt {
+  transform-style: preserve-3d;
+  transition: transform 0.18s ease-out, box-shadow 0.25s ease;
+  will-change: transform;
+}
+.lp-tilt:hover { box-shadow: 0 22px 54px color-mix(in srgb, var(--accent) 18%, rgba(0, 0, 0, 0.12)); }
+.lp-step, .lp-feature-card { position: relative; }
+.lp-step::before, .lp-feature-card::before {
+  content: ''; position: absolute; inset: -1px; border-radius: inherit; padding: 1.5px;
+  background: conic-gradient(from var(--lp-angle), transparent 0%, transparent 62%, color-mix(in srgb, var(--accent) 60%, transparent) 84%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  animation: lpBorderSpin 4.5s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+.lp-tilt:hover::before { opacity: 1; }
+@keyframes lpBorderSpin { to { --lp-angle: 360deg; } }
+
+/* --- Scroll-triggered section reveal --- */
+.lp-reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.65s ease, transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lp-reveal.in { opacity: 1; transform: none; }
+
+/* --- Glass nav once the hero scrolls away --- */
+.lp-nav {
+  transition: background 0.3s ease, box-shadow 0.3s ease, padding 0.3s ease;
+  border-radius: 16px;
+}
+.lp-nav.scrolled {
+  position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+  width: min(1080px, calc(100% - 32px));
+  box-sizing: border-box;
+  background: rgba(15, 12, 41, 0.62);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px 22px;
+  z-index: 50;
+}
+
+/* --- Small screens: keep it light --- */
+@media (max-width: 720px) {
+  .lp-orbs { display: none; }
+  .lp-title { font-size: 2.9rem; }
+  .lp-nav.scrolled { width: calc(100% - 20px); top: 8px; }
+}
+
+/* --- Respect reduced-motion preferences --- */
+@media (prefers-reduced-motion: reduce) {
+  .lp-hero, .lp-orbs span, .lp-title .lp-line, .lp-gradient, .lp-badge, .lp-badge::after, .lp-step::before, .lp-feature-card::before {
+    animation: none !important;
+  }
+  .lp-title .lp-line, .lp-badge, .lp-subtitle, .lp-hero-btns, .lp-stats {
+    opacity: 1 !important; transform: none !important; filter: none !important;
+  }
+  .lp-reveal { opacity: 1; transform: none; transition: none; }
+}

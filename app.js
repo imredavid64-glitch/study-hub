@@ -4157,6 +4157,54 @@ function renderMathFormulas() {
 }
 
 // ===== ONBOARDING WIZARD =====
+function initLandingEffects() {
+  // 1. 3D tilt on feature/step cards (mouse-following)
+  document.querySelectorAll('.lp-tilt').forEach(function(card) {
+    card.addEventListener('mousemove', function(e) {
+      var r = card.getBoundingClientRect();
+      var x = (e.clientX - r.left) / r.width - 0.5;
+      var y = (e.clientY - r.top) / r.height - 0.5;
+      card.style.transform = 'perspective(900px) rotateY(' + (x * 7).toFixed(2) + 'deg) rotateX(' + (-y * 7).toFixed(2) + 'deg) translateY(-4px)';
+      card.style.setProperty('--mx', ((x + 0.5) * 100).toFixed(1) + '%');
+      card.style.setProperty('--my', ((y + 0.5) * 100).toFixed(1) + '%');
+    });
+    card.addEventListener('mouseleave', function() { card.style.transform = ''; });
+  });
+  // 2. Scroll-triggered reveal for sections/cards (the modal is the scroll container)
+  var scrollRoot = document.getElementById('setupModal');
+  var revealables = document.querySelectorAll('.lp-reveal');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function(entries) {
+      entries.forEach(function(en) {
+        if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
+      });
+    }, { threshold: 0.12, root: scrollRoot });
+    revealables.forEach(function(el) { io.observe(el); });
+  } else {
+    revealables.forEach(function(el) { el.classList.add('in'); });
+  }
+  // 3. Count-up stats (12 → 12+, 100 → 100%)
+  document.querySelectorAll('.lp-stat-num[data-count]').forEach(function(el) {
+    var target = parseInt(el.dataset.count, 10), suffix = el.dataset.suffix || '';
+    var t0 = null;
+    function step(ts) {
+      if (!t0) t0 = ts;
+      var p = Math.min((ts - t0) / 1200, 1);
+      var eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.round(target * eased) + suffix;
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  });
+  // 4. Glass nav once the hero scrolls away
+  var nav = document.querySelector('.lp-nav');
+  if (nav && scrollRoot) {
+    var onScroll = function() { nav.classList.toggle('scrolled', scrollRoot.scrollTop > 30); };
+    scrollRoot.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
+}
+
 var FEATURES = [
   { icon: '<span class="icon icon-sm icon-timer"></span>', title: 'Pomodoro Timer', desc: 'Focus with timed study sessions and breaks. Track your total study hours and build streaks.' },
   { icon: '<span class="icon icon-sm icon-card"></span>', title: 'Smart Flashcards', desc: 'Create decks with spaced repetition (SM-2). Flip, rate, and watch your retention grow.' },
@@ -4242,42 +4290,45 @@ function renderSetupStep() {
   if (setupState.step === 0) {
     backBtn.style.display = 'none'; nextBtn.style.display = 'none'; finishBtn.style.display = 'none';
     if (footer) footer.style.display = 'none';
+    // The landing is full-bleed — never let the 520px setup-mode card style leak in
+    content.className = 'onboarding-content';
     content.innerHTML =
       '<div class="lp">' +
         '<div class="lp-hero">' +
+          '<div class="lp-orbs" aria-hidden="true"><span style="--o-x:6%;--o-s:1;--o-d:0s"></span><span style="--o-x:18%;--o-s:0.7;--o-d:2.1s"></span><span style="--o-x:78%;--o-s:1.25;--o-d:4.6s"></span><span style="--o-x:88%;--o-s:0.8;--o-d:1.2s"></span><span style="--o-x:45%;--o-s:1.6;--o-d:3.4s"></span><span style="--o-x:64%;--o-s:0.6;--o-d:5.8s"></span></div>' +
           '<nav class="lp-nav"><div class="lp-logo"><span class="icon icon-sm icon-book"></span> Study Hub</div><div class="lp-nav-links"><a href="#features">Features</a><a href="#how">How It Works</a><button class="lp-cta-sm" id="onbGetStartedNav">Get Started</button></div></nav>' +
           '<div class="lp-hero-inner">' +
             '<div class="lp-badge"><span class="icon icon-sm icon-star"></span> Free · No sign-up required</div>' +
-            '<h1 class="lp-title">Your All-in-One<br><span class="lp-gradient">Academic Command Center</span></h1>' +
+            '<h1 class="lp-title"><span class="lp-line">Your All-in-One</span><span class="lp-line"><span class="lp-gradient">Academic Command Center</span></span></h1>' +
              '<p class="lp-subtitle"><strong>78% of students abandon passive study apps within two weeks.</strong> Study Hub combines AI micro-learning with active peer feedback to double retention.</p>' +
             '<div class="lp-hero-btns">' +
               '<button class="lp-cta" id="onbGetStarted1">Get Started Free →</button>' +
               '<button class="lp-cta-secondary" onclick="document.getElementById(\'features\').scrollIntoView({behavior:\'smooth\'})">Explore Features</button>' +
             '</div>' +
             '<div class="lp-stats">' +
-              '<div class="lp-stat"><span class="lp-stat-num">12+</span><span class="lp-stat-label">Study Tools</span></div>' +
+              '<div class="lp-stat"><span class="lp-stat-num" data-count="12">0</span><span class="lp-stat-label">Study Tools</span></div>' +
               '<div class="lp-stat"><span class="lp-stat-num">AI</span><span class="lp-stat-label">Powered Tutor</span></div>' +
-              '<div class="lp-stat"><span class="lp-stat-num">100%</span><span class="lp-stat-label">Free & Offline</span></div>' +
+              '<div class="lp-stat"><span class="lp-stat-num" data-count="100" data-suffix="%">0</span><span class="lp-stat-label">Free & Offline</span></div>' +
             '</div>' +
           '</div>' +
         '</div>' +
 
-        '<div class="lp-section" id="how">' +
+        '<div class="lp-section lp-reveal" id="how">' +
           '<h2 class="lp-section-title">How It Works</h2>' +
           '<p class="lp-section-sub">Three simple steps to supercharge your studying.</p>' +
           '<div class="lp-steps">' +
-            '<div class="lp-step"><div class="lp-step-num">1</div><div class="lp-step-icon"><span class="icon icon-sm icon-note"></span></div><h3>Set Up Your Profile</h3><p>Tell us your name, major, and study goals — we\'ll personalize everything.</p></div>' +
-            '<div class="lp-step"><div class="lp-step-num">2</div><div class="lp-step-icon"><span class="icon icon-sm icon-book"></span></div><h3>Choose Your Tools</h3><p>Pick from 12+ study tools: Pomodoro timer, flashcards, AI tutor, quizzes, notes, and more.</p></div>' +
-            '<div class="lp-step"><div class="lp-step-num">3</div><div class="lp-step-icon"><span class="icon icon-sm icon-target"></span></div><h3>Start Studying</h3><p>Track sessions, review with spaced repetition, and watch your grades improve.</p></div>' +
+            '<div class="lp-step lp-tilt lp-reveal"><div class="lp-step-num">1</div><div class="lp-step-icon"><span class="icon icon-sm icon-note"></span></div><h3>Set Up Your Profile</h3><p>Tell us your name, major, and study goals — we\'ll personalize everything.</p></div>' +
+            '<div class="lp-step lp-tilt lp-reveal"><div class="lp-step-num">2</div><div class="lp-step-icon"><span class="icon icon-sm icon-book"></span></div><h3>Choose Your Tools</h3><p>Pick from 12+ study tools: Pomodoro timer, flashcards, AI tutor, quizzes, notes, and more.</p></div>' +
+            '<div class="lp-step lp-tilt lp-reveal"><div class="lp-step-num">3</div><div class="lp-step-icon"><span class="icon icon-sm icon-target"></span></div><h3>Start Studying</h3><p>Track sessions, review with spaced repetition, and watch your grades improve.</p></div>' +
           '</div>' +
         '</div>' +
 
-        '<div class="lp-section lp-features" id="features">' +
+        '<div class="lp-section lp-features lp-reveal" id="features">' +
           '<h2 class="lp-section-title">Everything You Need to Study Better</h2>' +
           '<p class="lp-section-sub">12 powerful tools designed to work together seamlessly.</p>' +
           '<div class="lp-feature-grid">' +
             FEATURES.map(function(f) {
-              return '<div class="lp-feature-card">' +
+              return '<div class="lp-feature-card lp-tilt lp-reveal">' +
                 '<div class="lp-feature-icon">' + f.icon + '</div>' +
                 '<h3>' + f.title + '</h3>' +
                 '<p>' + f.desc + '</p>' +
@@ -4286,23 +4337,23 @@ function renderSetupStep() {
           '</div>' +
         '</div>' +
 
-        '<div class="lp-section lp-why">' +
+        '<div class="lp-section lp-why lp-reveal">' +
           '<h2 class="lp-section-title">Why Students Love Study Hub</h2>' +
           '<div class="lp-testimonials">' +
-            '<div class="lp-testimonial"><div class="lp-test-text">"The AI tutor helped me understand calculus in minutes. The Pomodoro timer keeps me focused for hours."</div><div class="lp-test-author">— Alex, Computer Science</div></div>' +
-            '<div class="lp-testimonial"><div class="lp-test-text">"I went from a 3.0 to a 3.8 GPA using the spaced repetition flashcards. This app is incredible."</div><div class="lp-test-author">— Sarah, Biology</div></div>' +
-            '<div class="lp-testimonial"><div class="lp-test-text">"The fact that everything is free and works offline is amazing. I use it every single day."</div><div class="lp-test-author">— Marcus, Engineering</div></div>' +
+            '<div class="lp-testimonial lp-reveal"><div class="lp-test-text">"The AI tutor helped me understand calculus in minutes. The Pomodoro timer keeps me focused for hours."</div><div class="lp-test-author">— Alex, Computer Science</div></div>' +
+            '<div class="lp-testimonial lp-reveal"><div class="lp-test-text">"I went from a 3.0 to a 3.8 GPA using the spaced repetition flashcards. This app is incredible."</div><div class="lp-test-author">— Sarah, Biology</div></div>' +
+            '<div class="lp-testimonial lp-reveal"><div class="lp-test-text">"The fact that everything is free and works offline is amazing. I use it every single day."</div><div class="lp-test-author">— Marcus, Engineering</div></div>' +
           '</div>' +
         '</div>' +
 
-        '<div class="lp-cta-section">' +
+        '<div class="lp-cta-section lp-reveal">' +
           '<h2>Ready to Transform Your Study Habits?</h2>' +
           '<p>Join thousands of students using Study Hub to study smarter, not harder.</p>' +
           '<button class="lp-cta" id="onbGetStarted2">Set Up Your Profile →</button>' +
           '<p class="lp-hint">No account needed. Your data is stored locally on your device.</p>' +
         '</div>' +
 
-        '<footer class="lp-footer">' +
+        '<footer class="lp-footer lp-reveal">' +
           '<p>Study Hub — Built for students who want to study smarter.</p>' +
         '</footer>' +
       '</div>';
@@ -4313,6 +4364,7 @@ function renderSetupStep() {
     if (gsNav) gsNav.addEventListener('click', goToSetup);
     if (gs1) gs1.addEventListener('click', goToSetup);
     if (gs2) gs2.addEventListener('click', goToSetup);
+    initLandingEffects();
   } else {
     if (footer) footer.style.display = 'flex';
     backBtn.style.display = setupState.step > 1 ? '' : 'none';
