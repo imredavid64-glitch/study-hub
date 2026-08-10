@@ -57,11 +57,27 @@ curl -X POST https://study-hub-plum-omega.vercel.app/api/mates \
 - `{"error":"Origin not allowed"}` → the origin allowlist rejected the caller
   (add it via `ALLOWED_ORIGINS`, see below)
 
+## Optional: durable rate limiting
+
+Rate limiting works out of the box per function instance. To make limits
+shared across all instances (and to enforce the daily quota reliably), add an
+Upstash Redis REST database and set in Vercel env:
+
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
+
 ## Optional: origin allowlist
 
 Both `/api/groq` and `/api/mates` accept requests from the app domain, its
 Vercel previews, localhost, and `file://` (Electron). To allow other origins,
 set `ALLOWED_ORIGINS` (comma-separated, `*` for everything) in Vercel env.
+
+## Rotate the old Groq key
+
+The client-side Groq fallback key that shipped in earlier versions has been
+removed from the code, but it is visible in git history. Rotate it in the
+Groq dashboard (https://console.groq.com → API Keys) so the exposed copy stops
+working.
 
 ## Rollback
 

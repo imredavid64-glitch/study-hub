@@ -623,12 +623,10 @@ function getSubjectColor(subject) {
 
 // ===== GROQ AI =====
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
-// Local fallback key for static / file:// / Electron builds where the /api/groq
-// serverless proxy is unavailable. In production the key lives server-side in
-// .env.local (GROQ_API_KEY) — this client copy is only used as a last resort.
-if (typeof window !== 'undefined' && !window._GROQ_FALLBACK_KEY) {
-  window._GROQ_FALLBACK_KEY = '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';
-}
+// The API key lives server-side only (.env.local / Vercel GROQ_API_KEY); all
+// normal calls go through the /api/groq proxy. Static/file:// and Electron
+// builds can optionally set their own key in Settings (stored on this device
+// only, never uploaded) for when the proxy is unreachable.
 let studentLearningStyle = '';
 async function groqChat(messages, options = {}) {
   const model = options.model || 'llama-3.1-8b-instant';
@@ -648,18 +646,19 @@ async function groqChat(messages, options = {}) {
     }
   } catch (e) { /* fall through to local fallback */ }
   // Local fallback for file:// or dev builds where the proxy is unavailable.
-  const localKey = window._GROQ_FALLBACK_KEY;
-  if (localKey) {
+  // Uses the user's OWN key from Settings — never a bundled, shared key.
+  const customKey = (state.settings && state.settings.customGroqKey) || '';
+  if (customKey) {
     const res = await fetch(GROQ_ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localKey}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${customKey}` },
       body: JSON.stringify(payload)
     });
     if (!res.ok) throw new Error(`Groq API error ${res.status}`);
     const data = await res.json();
     return data.choices?.[0]?.message?.content || '';
   }
-  throw new Error('Groq proxy unavailable');
+  throw new Error('AI proxy unreachable and no custom key set — add your own Groq key in Settings → Cloud Sync & Privacy for offline/desktop builds.');
 }
 
 // ===== UTILITIES =====
@@ -2654,6 +2653,23 @@ function setupSettings() {
       showToast('Cloud status refreshed');
     });
   }
+  const groqKeyInput = $('customGroqKeyInput');
+  if (groqKeyInput) {
+    groqKeyInput.value = (state.settings && state.settings.customGroqKey) || '';
+    const saveKey = $('saveGroqKeyBtn');
+    const clearKey = $('clearGroqKeyBtn');
+    if (saveKey) saveKey.addEventListener('click', () => {
+      const v = groqKeyInput.value.trim();
+      if (!/^gsk_[A-Za-z0-9]+$/.test(v)) { showToast('Enter a valid Groq key (starts with gsk_)'); return; }
+      state.settings.customGroqKey = v;
+      saveState(); showToast('Custom AI key saved for offline builds');
+    });
+    if (clearKey) clearKey.addEventListener('click', () => {
+      state.settings.customGroqKey = '';
+      groqKeyInput.value = '';
+      saveState(); showToast('Custom AI key cleared');
+    });
+  }
   $('profileForm').addEventListener('submit', e => {
     e.preventDefault();
     state.profile.name = $('profileName').value || 'Scholar';
@@ -3671,6 +3687,74 @@ function redrawSaved() {
   img.src = wbSaved;
 }
 
+// ===== SAFE MATH EVALUATOR =====
+// Replaces new Function in the graph plotters. Parses a strict whitelist of
+// tokens (numbers, x, pi, e, + - * / ^, parens, known functions) — anything
+// else throws, so no code can ever execute from the input.
+function safeEvalMath(expr, x) {
+  var s = String(expr || '').toLowerCase().replace(/\s+/g, '').replace(/\u2212/g, '-').replace(/\*\*/g, '^');
+  if (!s) s = 'x^2';
+  var i = 0;
+  function peek() { return s[i]; }
+  function eat(c) { if (s[i] === c) { i++; return true; } return false; }
+  function isDigit(c) { return c !== undefined && c >= '0' && c <= '9'; }
+  function parseNumber() {
+    var n = '';
+    while (peek() !== undefined && /[0-9.]/.test(peek())) n += s[i++];
+    var v = +n;
+    if (!isFinite(v)) throw new Error('bad number');
+    return v;
+  }
+  function parsePrimary() {
+    if (eat('(')) { var v = parseExpr(); if (!eat(')')) throw new Error('unbalanced parens'); return v; }
+    if (isDigit(peek()) || peek() === '.') return parseNumber();
+    var name = '';
+    while (peek() !== undefined && /[a-z0-9]/.test(peek())) name += s[i++];
+    if (!name) throw new Error('unexpected character');
+    if (name === 'x') return x;
+    if (name === 'pi') return Math.PI;
+    if (name === 'e') return Math.E;
+    var fns = { sin: Math.sin, cos: Math.cos, tan: Math.tan, asin: Math.asin, acos: Math.acos, atan: Math.atan, sqrt: Math.sqrt, abs: Math.abs, log: Math.log10, ln: Math.log, exp: Math.exp, floor: Math.floor, ceil: Math.ceil, round: Math.round };
+    if (fns[name] !== undefined) {
+      if (!eat('(')) throw new Error('expected ( after ' + name);
+      var arg = parseExpr();
+      if (!eat(')')) throw new Error('unbalanced parens in ' + name);
+      return fns[name](arg);
+    }
+    if (name === 'pow') {
+      if (!eat('(')) throw new Error('expected ( after pow');
+      var a = parseExpr();
+      if (!eat(',')) throw new Error('expected , in pow');
+      var b = parseExpr();
+      if (!eat(')')) throw new Error('unbalanced parens in pow');
+      return Math.pow(a, b);
+    }
+    throw new Error('unknown symbol: ' + name);
+  }
+  function parsePower() {
+    var base = parsePrimary();
+    if (peek() === '^') { i++; return Math.pow(base, parseUnary()); }
+    return base;
+  }
+  function parseUnary() {
+    if (peek() === '-') { i++; return -parseUnary(); }
+    if (peek() === '+') { i++; return parseUnary(); }
+    return parsePower();
+  }
+  function parseTerm() {
+    var v = parseUnary();
+    while (peek() === '*' || peek() === '/') { var op = s[i++]; var r = parseUnary(); v = op === '*' ? v * r : v / r; }
+    return v;
+  }
+  function parseExpr() {
+    var v = parseTerm();
+    while (peek() === '+' || peek() === '-') { var op = s[i++]; var r = parseTerm(); v = op === '+' ? v + r : v - r; }
+    return v;
+  }
+  var result = parseExpr();
+  if (i < s.length) throw new Error('unexpected input: ' + s.slice(i));
+  return result;
+}
 
 // ===== SUBJECTS TAB =====
 let calcExpr = "";
@@ -3733,7 +3817,7 @@ function setupSubjects() {
         ctx.beginPath(); ctx.moveTo(x0, padding); ctx.lineTo(x0, padding + plotH); ctx.stroke();
         var fnText = (mathPanel.querySelector('#graphFunction') || {}).value || "x^2";
         try {
-          var compiled = new Function("x", "with(Math){return " + fnText.replace(/\^/g, "**") + "}");
+          var compiled = function(x) { return safeEvalMath(fnText, x); };
           ctx.strokeStyle = "#0f766e"; ctx.lineWidth = 2.5; ctx.beginPath(); var first = true;
           for (var px = 0; px <= plotW; px++) {
             var x = xMin + (px / plotW) * (xMax - xMin);
@@ -5776,7 +5860,7 @@ function setupCalculator() {
       // Plot function
       var fnText = ($('graphFnInput') ? $('graphFnInput').value : 'x^2') || 'x^2';
       try {
-        var compiled = new Function('x', 'with(Math){return ' + fnText.replace(/\^/g, '**').replace(/\bpi\b/g, 'Math.PI').replace(/\be\b/g, 'Math.E') + '}');
+        var compiled = function(x) { return safeEvalMath(fnText, x); };
         ctx.strokeStyle = lineColor; ctx.lineWidth = lineWidth;
         ctx.beginPath(); var started = false;
         var xMin = cam.cx - W / 2 / cam.scale, xMax = cam.cx + W / 2 / cam.scale;

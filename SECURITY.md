@@ -22,22 +22,24 @@
 | `GROQ_API_KEY` | Vercel env (`.env.local` locally) | Server-side only via `/api/groq` |
 | `SUPABASE_SERVICE_KEY` | Vercel env | Server-side only via `/api/mates` |
 | Supabase `anon_key` | `cloud-core.js` (client) | Public by design; RLS is the boundary |
-| Groq fallback key | `app.js` (`window._GROQ_FALLBACK_KEY`) | **Known tradeoff** — see below |
+| Groq fallback key | ~~`app.js`~~ | **Removed from code** — see below |
 
-> Known tradeoff: a client-side Groq fallback key still ships in `app.js` so
-> static/file:// and Electron builds can call Groq directly when the
-> `/api/groq` proxy is unreachable. Anyone who views the deployed JS can
-> extract it. The deployed site prefers the proxy, but this key should be
-> **rotated and removed** (making static builds prompt for their own key) as
-> the next hardening step.
+> The client-side Groq fallback key (`window._GROQ_FALLBACK_KEY`) shipped in
+> earlier versions and was committed to git history. It has been **removed**
+> from the code; offline/desktop builds now use a per-user key entered in
+> Settings (stored only on that device). Because the old key is visible in
+> repo history, **rotate it in the Groq dashboard** to invalidate the exposed
+> copy.
 
 ## Serverless endpoints
 
 - `/api/groq` — Groq chat proxy. Guarded by an **origin allowlist**, a
-  best-effort **in-memory rate limit** (30 req/min/IP), a **model allowlist**,
-  and server-side caps on `max_tokens` (≤ 8192), message count (≤ 30), and
-  per-message length (≤ 12k chars). Extend `ALLOWED_ORIGINS` in Vercel env for
-  additional origins.
+  **durable rate limit** (30 req/min/IP + 400 req/day/IP), a **model
+  allowlist**, and server-side caps on `max_tokens` (≤ 8192), message count
+  (≤ 30), and per-message length (≤ 12k chars). Set `UPSTASH_REDIS_REST_URL`
+  + `UPSTASH_REDIS_REST_TOKEN` in Vercel env to make the limiter shared across
+  all serverless instances; without them it falls back to per-instance memory.
+  Extend `ALLOWED_ORIGINS` in Vercel env for additional origins.
 - `/api/mates` — study-mate matcher. Same origin allowlist + rate limit; reads
   only opt-in profiles via the service key.
 
@@ -45,13 +47,11 @@
 
 All user- and AI-generated content is escaped before entering the DOM
 (`escapeHtml` / markdown rendering that escapes first). The postMessage OAuth
-handshake verifies `event.origin`. Two known items remain:
-
-- The graph plotters (`app.js`) compile the user's function string with
-  `new Function` — a self-XSS / code-execution sink. Replace with a safe
-  expression parser.
-- `oauth2callback.html` renders the `error` URL fragment unescaped (crafted-URL
-  only), and the Electron window has no `setWindowOpenHandler` navigation guard.
+handshake verifies `event.origin`. The graph plotters use a strict
+whitelist expression parser (`safeEvalMath`) instead of `new Function`, the
+OAuth callback escapes its error parameter, and the Electron window denies
+all navigation away from the local app and opens external links in the system
+browser.
 
 ## Report
 

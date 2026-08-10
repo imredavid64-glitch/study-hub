@@ -24,7 +24,10 @@
       } else {
         var error = params.get('error');
         if (error) {
-          document.body.innerHTML = '<p>Authorization failed: ' + error + '</p>';
+          document.body.innerHTML = '';
+          var p = document.createElement('p');
+          p.textContent = 'Authorization failed: ' + error;
+          document.body.appendChild(p);
         } else {
           document.body.innerHTML = '<p>No access token received. Please try again.</p>';
         }

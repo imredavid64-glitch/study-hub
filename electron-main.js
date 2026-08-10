@@ -83,5 +83,17 @@ app.whenReady().then(createWindow);
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 
+// Navigation hardening: external links open in the system browser instead of
+// navigating the app window, and the window can never leave the local app.
+app.on('web-contents-created', (_event, contents) => {
+  contents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:/i.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  contents.on('will-navigate', (event, url) => {
+    if (!url.startsWith('file:')) event.preventDefault();
+  });
+});
+
 ipcMain.handle('get-app-version', () => app.getVersion());
 ipcMain.handle('get-app-path', () => app.getAppPath());

@@ -10,7 +10,7 @@ module.exports = async function matesEndpoint(req, res) {
   res.setHeader('Content-Type', 'application/json');
   if (req.method === 'OPTIONS') { res.status(204).end(); return; }
 
-  const denied = checkRequest(req, { maxPerMinute: 30 });
+  const denied = await checkRequest(req, { maxPerMinute: 30 });
   if (denied) {
     res.status(403).json({ error: denied });
     return;
