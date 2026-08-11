@@ -988,6 +988,7 @@ function renderDashboard() {
     { id:'flashcardRate',title:'Card Shark',       desc:'Rate 10 flashcards after review',                  icon:'card',   check:function(s){return s.flashcards.filter(function(f){return f.interval>1}).length>=10} },
     { id:'wellRounded',  title:'Well Rounded',     desc:'Use 4 different study tools',                      icon:'star',   check:function(s){var c=0;if(s.flashcards.length>=3)c++;if(s.quizAttempts.length>=3)c++;if(s.notes.length>=3)c++;if(s.sessions.length>=5)c++;if(s.flashcards.length>=3)c++;return c>=4} },
     { id:'mockMaster',   title:'Mock Master',      desc:'Complete a mock test',                             icon:'quiz',   check:function(s){return s.mockTestHistory.length>=1} },
+    { id:'walkthrough',  title:'Walkthrough Pro',  desc:'Finish all 6 steps of a goal walkthrough',        icon:'target', check:function(s){return (s.walkthroughProgress && Object.values(s.walkthroughProgress).some(p => p && p.celebrated)) || ((s.settings._ach||{}).walkthroughsCompleted||0)>=1} },
     { id:'socialStart',  title:'Social Start',     desc:'Connect with the community tab',                   icon:'voice',  check:function(s){return true} },
   ];
 
@@ -1115,6 +1116,7 @@ function generateGoalWalkthrough(goalId) {
     </div>
     <div class="wt-footer">
       <button class="btn" data-wt="addtasks">➕ Add all as planner tasks</button>
+      <button class="btn btn-ghost" data-wt="print">🖨 Print checklist</button>
       <button class="btn btn-ghost wt-close">Close</button>
     </div>
   </div>`;
@@ -1149,6 +1151,7 @@ function generateGoalWalkthrough(goalId) {
       else if (kind === 'explain') { if (typeof startExplainItBack === 'function') startExplainItBack(b.dataset.topic); showTab('ai-tutor'); close(); }
       else if (kind === 'review') { addWalkthroughTasks(g, d, perDay, true); markWtStep(g.id, 'review', Math.round(perDay * 0.5)); showToast('Review sessions scheduled'); }
       else if (kind === 'addtasks') { addWalkthroughTasks(g, d, perDay, false); showToast('Plan added to your board'); }
+      else if (kind === 'print') { printWalkthroughChecklist(g, d); close(); }
     });
   });
 }
@@ -1218,6 +1221,36 @@ function markWtStep(goalId, key, mins) {
     state.sessions.push({ id: uid(), date: new Date().toISOString(), subject: goal.subject || 'General', objective: 'Walkthrough: ' + (WT_STEP_LABELS[key] || key), minutes: mins, quality: 5, method: 'walkthrough', deep: false, notes: '' });
   }
   saveState(); renderGoalWalkthroughs(); renderDashboard();
+  // 🏆 Walkthrough completed — celebrate once and auto-schedule the final review run.
+  if (wtDoneCount(goalId) >= WT_STEP_KEYS.length && !p.celebrated) {
+    p.celebrated = true;
+    state.settings._ach = state.settings._ach || { goalsCompleted: 0, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 };
+    state.settings._ach.walkthroughsCompleted = (state.settings._ach.walkthroughsCompleted || 0) + 1;
+    saveState(); renderDashboard();
+    try {
+      if (typeof showToast === 'function') showToast('🏆 Walkthrough complete — final review scheduled!');
+      scheduleFinalReview(goal);
+    } catch (e) { /* non-fatal */ }
+  }
+}
+
+function scheduleFinalReview(goal) {
+  // Auto-plan a retrieval-only run-up to the deadline once all walkthrough steps are done.
+  if (!goal || !goal.deadline) return;
+  const dd = daysUntil(goal.deadline);
+  const subj = goal.subject || 'General';
+  const existing = new Set(state.tasks.map(t => String(t.title).toLowerCase()));
+  const mk = (title, offset) => {
+    const dueD = new Date(); dueD.setDate(dueD.getDate() + offset);
+    const titleL = String(title).toLowerCase();
+    if (existing.has(titleL)) return;
+    state.tasks.push({ id: uid(), title, subject: subj, due: dueD.toISOString().split('T')[0], effort: 1, status: 'todo', createdAt: todayStr() });
+    existing.add(titleL);
+  };
+  mk(`🔁 Final review: ${subj}`, Math.max(1, dd - 1));
+  mk(`⏱️ Timed practice: ${subj}`, Math.max(1, dd - 3));
+  mk(`🎤 Teach it back: ${subj}`, Math.max(1, dd - 2));
+  saveState(); if (typeof renderKanban === 'function') renderKanban(); renderDashboard();
 }
 
 function autoCompleteWtStep(activityType, matchText) {
@@ -1257,6 +1290,47 @@ function addWalkthroughTasks(goal, data, perDay, reviewOnly) {
   saveState(); renderKanban(); renderDashboard();
 }
 
+function printWalkthroughChecklist(goal, data) {
+  const ddLeft = daysUntil(goal.deadline);
+  const phase = examPhase(ddLeft);
+  const subj = goal.subject || 'General';
+  const prog = wtProgress(goal.id);
+  const stepsHtml = WT_STEP_KEYS.map((k, i) => `<tr class="${prog.steps[k] ? 'done' : ''}">
+    <td class="check">${prog.steps[k] ? '☑' : '☐'}</td>
+    <td><strong>${i + 1}. ${WT_STEP_LABELS[k]}</strong></td>
+    <td>${prog.steps[k] ? 'Done' : 'To do'}</td>
+  </tr>`).join('');
+  const guideBody = prog.guide ? `<div class="print-guide">${renderMarkdown(prog.guide.content)}</div>` : '<p class="subtle">No study guide generated yet.</p>';
+  const topics = (data && data.topics && data.topics.length ? data.topics : [goal.title]).map(t => `<li>${escapeHtml(t)}</li>`).join('');
+  const sheet = document.createElement('div');
+  sheet.className = 'print-sheet';
+  sheet.innerHTML = `
+    <div class="print-head">
+      <h1>🎯 ${escapeHtml(goal.title)}</h1>
+      <p>${escapeHtml(subj)} · ${ddLeft >= 0 ? 'D−' + ddLeft : 'Overdue'} · ${phase.label} · Deadline ${escapeHtml(formatDate(goal.deadline))} · ${goal.hours || 8}h planned</p>
+    </div>
+    <h2>Checklist</h2>
+    <table class="print-table">
+      <thead><tr><th></th><th>Step</th><th>Status</th></tr></thead>
+      <tbody>${stepsHtml}</tbody>
+    </table>
+    <h2>Topics</h2>
+    <ul class="print-topics">${topics}</ul>
+    <h2>Study Guide</h2>
+    ${guideBody}
+    <div class="print-notes">
+      <h2>Notes</h2>
+      <div class="print-lines"></div>
+    </div>
+  `;
+  document.body.appendChild(sheet);
+  sheet.classList.add('print-active');
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => { sheet.remove(); }, 400);
+  }, 60);
+}
+
 // ===== PLANNER =====
 function setupPlanner() {
   $('goalForm').addEventListener('submit', e => {
@@ -1281,12 +1355,28 @@ function renderGoals() {
     return; 
   }
   state.goals.slice().reverse().forEach(g => {
-    const d = document.createElement('div'); d.className = 'item';
+    const d = document.createElement('div'); d.className = 'item goal-planner-item';
     const dd = daysUntil(g.deadline);
-    d.innerHTML = `<strong>${escapeHtml(g.title)}</strong> <span class="subtle">${escapeHtml(g.subject)} — ${dd >= 0 ? dd + 'd left' : 'Overdue'}</span> <span class="badge">${g.priority}</span>
-    <p class="small">${g.hours}h planned</p>
-    <button class="ghost small" data-complete-goal="${g.id}" style="color:var(--success);font-size:0.75rem">Complete</button>`;
+    const done = wtDoneCount(g.id);
+    const pct = Math.round(done / WT_STEP_KEYS.length * 100);
+    const dots = WT_STEP_KEYS.map(k => `<span class="wt-dot${wtProgress(g.id).steps[k] ? ' done' : ''}" title="${WT_STEP_LABELS[k]}"></span>`).join('');
+    d.innerHTML = `<span class="wt-ring wt-ring-sm" style="--wt-pct:${pct}"><span class="wt-ring-inner">${done}/${WT_STEP_KEYS.length}</span></span>
+    <span class="goal-planner-body">
+      <strong>${escapeHtml(g.title)}</strong> <span class="subtle">${escapeHtml(g.subject)} — ${dd >= 0 ? dd + 'd left' : 'Overdue'}</span> <span class="badge">${g.priority}</span>
+      <span class="wt-dots">${dots}</span>
+      <span class="small">${g.hours}h planned</span>
+    </span>
+    <span class="goal-planner-actions">
+      <button class="ghost small" data-walkthrough="${g.id}" style="font-size:0.75rem">🚀 Walkthrough</button>
+      <button class="ghost small" data-complete-goal="${g.id}" style="color:var(--success);font-size:0.75rem">Complete</button>
+    </span>`;
     el.appendChild(d);
+  });
+  qsa('#goalList [data-walkthrough]').forEach(function(b) {
+    b.addEventListener('click', function(e) {
+      e.stopPropagation();
+      generateGoalWalkthrough(this.dataset.walkthrough);
+    });
   });
   qsa('[data-complete-goal]').forEach(function(b) {
     b.addEventListener('click', function() {
