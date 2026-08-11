@@ -4629,9 +4629,9 @@ function renderSetupStep() {
       '<div class="lp">' +
         '<div class="lp-hero">' +
           '<div class="lp-orbs" aria-hidden="true"><span style="--o-x:6%;--o-s:1;--o-d:0s"></span><span style="--o-x:18%;--o-s:0.7;--o-d:2.1s"></span><span style="--o-x:78%;--o-s:1.25;--o-d:4.6s"></span><span style="--o-x:88%;--o-s:0.8;--o-d:1.2s"></span><span style="--o-x:45%;--o-s:1.6;--o-d:3.4s"></span><span style="--o-x:64%;--o-s:0.6;--o-d:5.8s"></span></div>' +
-          '<nav class="lp-nav"><div class="lp-logo"><span class="icon icon-sm icon-book"></span> Study Hub</div><div class="lp-nav-links"><a href="#features">Features</a><a href="#how">How It Works</a><button class="lp-cta-sm" id="onbGetStartedNav">Get Started</button></div></nav>' +
+          '<nav class="lp-nav"><div class="lp-logo"><span class="icon icon-sm icon-book"></span> Study Hub</div><div class="lp-nav-links"><a href="#features">Features</a><a href="#sdg">SDG 4</a><a href="#how">How It Works</a><button class="lp-cta-sm" id="onbGetStartedNav">Get Started</button></div></nav>' +
           '<div class="lp-hero-inner">' +
-            '<div class="lp-badge"><span class="icon icon-sm icon-star"></span> Free · No sign-up required</div>' +
+            '<div class="lp-badges"><div class="lp-badge"><span class="icon icon-sm icon-star"></span> Free · No sign-up required</div><a class="lp-badge lp-badge-sdg" href="#sdg"><span class="sdg-dot"></span> UN SDG 4 · Quality Education</a></div>' +
             '<h1 class="lp-title"><span class="lp-line">Your All-in-One</span><span class="lp-line"><span class="lp-gradient">Academic Command Center</span></span></h1>' +
              '<p class="lp-subtitle"><strong>78% of students abandon passive study apps within two weeks.</strong> Study Hub combines AI micro-learning with active peer feedback to double retention.</p>' +
             '<div class="lp-hero-btns">' +
@@ -4670,6 +4670,30 @@ function renderSetupStep() {
           '</div>' +
         '</div>' +
 
+        '<div class="lp-section lp-sdg lp-reveal" id="sdg">' +
+          '<div class="lp-sdg-banner">' +
+            '<div class="lp-sdg-emblem" aria-hidden="true"><svg viewBox="0 0 64 64" width="78" height="78"><rect x="3" y="3" width="58" height="58" rx="12" fill="#C5192D"/><text x="32" y="45" text-anchor="middle" font-size="34" font-weight="800" fill="#fff" font-family="system-ui, sans-serif">4</text></svg></div>' +
+            '<div class="lp-sdg-head">' +
+              '<span class="lp-sdg-tag">UN Sustainable Development Goal 4</span>' +
+              '<h2 class="lp-section-title">Quality Education for Everyone</h2>' +
+              '<p class="lp-sdg-goal">“Ensure inclusive and equitable quality education and promote lifelong learning opportunities for all.”</p>' +
+            '</div>' +
+          '</div>' +
+          '<p class="lp-section-sub">Study Hub turns peer-reviewed learning science into free tools — because a great education should not depend on your budget.</p>' +
+          '<div class="lp-research-grid">' +
+            '<div class="lp-research-card lp-tilt lp-reveal"><span class="lp-research-num">1</span><h3>Spaced Repetition</h3><p>Reviews time themselves to the forgetting curve — rated the single most effective technique in <em>Improving Students’ Learning</em> (Dunlosky et al., 2013).</p></div>' +
+            '<div class="lp-research-card lp-tilt lp-reveal"><span class="lp-research-num">2</span><h3>Retrieval Practice</h3><p>Quizzes and blurts force recall instead of re-reading. Testing yourself beats re-reading for long-term memory (Roediger &amp; Karpicke, 2006).</p></div>' +
+            '<div class="lp-research-card lp-tilt lp-reveal"><span class="lp-research-num">3</span><h3>Interleaving</h3><p>Mixed practice across topics trains you to pick the right strategy — the way real exams do (Rohrer, 2012).</p></div>' +
+            '<div class="lp-research-card lp-tilt lp-reveal"><span class="lp-research-num">4</span><h3>Dual Coding</h3><p>Study maps pair words with pictures, doubling your memory pathways (Paivio, 1986).</p></div>' +
+            '<div class="lp-research-card lp-tilt lp-reveal"><span class="lp-research-num">5</span><h3>Self-Explanation</h3><p>The AI tutor asks you to explain ideas in your own words — explaining beats highlighting (Chi et al., 1994).</p></div>' +
+            '<div class="lp-research-card lp-tilt lp-reveal"><span class="lp-research-num">6</span><h3>Instant Feedback</h3><p>AI and peer feedback in the Study Room correct mistakes while they are still cheap to fix (Hattie &amp; Timperley, 2007).</p></div>' +
+          '</div>' +
+          '<div class="lp-sdg-pledge lp-reveal">' +
+            '<div class="lp-sdg-pledge-icon"><span class="icon icon-lg icon-star"></span></div>' +
+            '<div class="lp-sdg-pledge-text"><strong>100% free. Works offline. No ads, no paywalls, no data selling.</strong><p>Every Study Hub feature — AI tutor, flashcards, quizzes, study maps — works with zero cost, forever. Quality education is not a luxury.</p></div>' +
+          '</div>' +
+        '</div>' +
+
         '<div class="lp-section lp-why lp-reveal">' +
           '<h2 class="lp-section-title">Why Students Love Study Hub</h2>' +
           '<div class="lp-testimonials">' +
@@ -4688,6 +4712,7 @@ function renderSetupStep() {
 
         '<footer class="lp-footer lp-reveal">' +
           '<p>Study Hub — Built for students who want to study smarter.</p>' +
+          '<p style="margin-top:8px;opacity:0.8">Aligned with UN SDG 4 · Quality Education — free, research-based learning for all.</p>' +
         '</footer>' +
       '</div>';
     var gsNav = $('onbGetStartedNav');

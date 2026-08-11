@@ -5009,3 +5009,76 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .nav-btn.active, .streak-value, .xp-value { animation: none; }
   .card:hover::after, .topbar:hover::after { background-position: 120% 0; }
 }
+
+/* ===== LANDING: SDG 4 QUALITY EDUCATION SECTION ===== */
+.lp-badges { display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.lp-badge-sdg {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(197, 25, 45, 0.14); border: 1px solid rgba(197, 25, 45, 0.4);
+  color: #fff; text-decoration: none; cursor: pointer; transition: all 0.2s ease;
+}
+.lp-badge-sdg:hover { background: rgba(197, 25, 45, 0.28); transform: translateY(-1px); }
+.sdg-dot {
+  width: 11px; height: 11px; border-radius: 3px; flex: none;
+  background: #C5192D; box-shadow: 0 0 0 2px rgba(197, 25, 45, 0.35);
+}
+
+.lp-sdg { padding-top: 96px; }
+.lp-sdg-banner {
+  display: flex; align-items: center; gap: 32px;
+  background: linear-gradient(135deg, #C5192D 0%, #7f1020 100%);
+  border-radius: 28px; padding: 40px 44px; margin-bottom: 48px;
+  box-shadow: 0 24px 60px rgba(197, 25, 45, 0.28);
+  position: relative; overflow: hidden;
+}
+.lp-sdg-banner::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(620px 220px at 88% -25%, rgba(255,255,255,0.18), transparent 60%);
+}
+.lp-sdg-emblem { flex: none; filter: drop-shadow(0 8px 20px rgba(0,0,0,0.35)); }
+.lp-sdg-head { position: relative; }
+.lp-sdg-tag {
+  display: inline-block; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.16em;
+  color: rgba(255,255,255,0.72); text-transform: uppercase; margin-bottom: 8px;
+}
+.lp-sdg-head .lp-section-title { color: #fff; text-align: left; margin-bottom: 8px; font-size: 1.9rem; }
+.lp-sdg-goal {
+  color: rgba(255,255,255,0.92); font-size: 1.05rem; line-height: 1.6; margin: 0; max-width: 640px; font-style: italic;
+}
+
+.lp-research-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.lp-research-card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 20px;
+  padding: 26px 24px 28px; position: relative; overflow: hidden; transition: all 0.25s ease;
+}
+.lp-research-card:hover { transform: translateY(-4px); box-shadow: 0 14px 44px rgba(0,0,0,0.08); }
+.lp-research-num {
+  position: absolute; top: 14px; right: 18px;
+  font-size: 2.6rem; font-weight: 900; line-height: 1;
+  color: rgba(197, 25, 45, 0.14); letter-spacing: -0.04em; user-select: none;
+}
+.lp-research-card h3 { font-size: 1.02rem; font-weight: 700; margin: 0 0 8px; color: var(--ink); }
+.lp-research-card p { font-size: 0.85rem; color: var(--muted); line-height: 1.55; margin: 0; }
+.lp-research-card em { color: var(--ink); font-style: italic; }
+
+.lp-sdg-pledge {
+  display: flex; align-items: center; gap: 20px;
+  margin-top: 44px; padding: 28px 32px;
+  background: var(--surface); border: 1px dashed var(--border); border-radius: 20px;
+}
+.lp-sdg-pledge-icon {
+  flex: none; width: 54px; height: 54px; border-radius: 50%;
+  background: rgba(197, 25, 45, 0.12); display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
+}
+.lp-sdg-pledge-text strong { font-size: 1.02rem; color: var(--ink); }
+.lp-sdg-pledge-text p { margin: 6px 0 0; font-size: 0.88rem; color: var(--muted); line-height: 1.55; }
+
+[data-dark="true"] .lp-sdg-banner { box-shadow: 0 24px 70px rgba(197, 25, 45, 0.4); }
+[data-dark="true"] .lp-research-num { color: rgba(197, 25, 45, 0.35); }
+
+@media (max-width: 760px) {
+  .lp-sdg-banner { flex-direction: column; text-align: center; padding: 32px 24px; }
+  .lp-sdg-head .lp-section-title { text-align: center; }
+  .lp-research-grid { grid-template-columns: 1fr; }
+  .lp-sdg-pledge { flex-direction: column; text-align: center; }
+}
