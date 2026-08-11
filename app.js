@@ -1007,6 +1007,8 @@ function renderDashboard() {
   ach.innerHTML = achHtml;
   if (typeof renderExamRadar === 'function') renderExamRadar();
   if (typeof renderReviewQueue === 'function') renderReviewQueue();
+  if (typeof renderBehindNudge === 'function') renderBehindNudge();
+  if (typeof renderExamLockBanner === 'function') renderExamLockBanner();
   } catch(e) { if (typeof console !== 'undefined') console.warn('renderDashboard:', e); }
 }
 
@@ -3068,6 +3070,132 @@ function renderReviewQueue() {
     el.querySelectorAll('[data-rq-explain]').forEach(b => b.addEventListener('click', () => { const t = b.dataset.rqExplain; showTab('ai-tutor'); setTimeout(() => startExplainItBack(t), 150); }));
     el.querySelectorAll('[data-rq-done]').forEach(b => b.addEventListener('click', () => markReviewReviewed(b.dataset.rqDone)));
   });
+  if (typeof renderReviewBlock === 'function') renderReviewBlock();
+}
+
+// ===== DAILY REVIEW BLOCK =====
+const REVIEW_TIME_EST = { quiz: 10, flashcard: 5, blurt: 8, mock: 15, explain: 8, session: 12 };
+function renderReviewBlock() {
+  const el = $('reviewBlock');
+  if (!el) return;
+  seedReviewQueueFromLog();
+  const due = (state.reviewQueue || []).filter(i => i.due <= todayStr()).sort((a, b) => (b.count || 1) - (a.count || 1));
+  const countEl = $('reviewBlockCount');
+  if (countEl) countEl.textContent = due.length > 0 ? `${due.length} item${due.length > 1 ? 's' : ''} · ${due.reduce((s, i) => s + (REVIEW_TIME_EST[i.source] || 8), 0)} min` : '';
+  if (due.length === 0) {
+    el.innerHTML = '<p class="subtle">No reviews due today. Miss quiz questions or flashcards and they land here as a timed review block.</p>';
+    return;
+  }
+  const total = due.reduce((s, i) => s + (REVIEW_TIME_EST[i.source] || 8), 0);
+  let html = `<div class="review-block-summary"><strong>${due.length} reviews · ~${total} min today</strong><button class="btn btn-sm" id="reviewBlockAddBtn">📌 Add all as tasks</button></div>`;
+  html += '<div class="review-block-list">';
+  due.slice(0, 10).forEach(i => {
+    const est = REVIEW_TIME_EST[i.source] || 8;
+    html += `<div class="review-block-item">
+      <span class="small" style="opacity:0.7">${est} min</span>
+      <div class="review-block-body"><strong>${escapeHtml(i.topic)}</strong><span class="small" style="opacity:0.7"> — ${escapeHtml(i.concept)} · ×${i.count}</span></div>
+      <button class="btn btn-sm btn-ghost" data-rb-start="${escapeHtml(i.topic)}">Start</button>
+    </div>`;
+  });
+  if (due.length > 10) html += `<p class="small" style="opacity:0.6">+${due.length - 10} more</p>`;
+  html += '</div>';
+  el.innerHTML = html;
+  el.querySelectorAll('[data-rb-start]').forEach(b => b.addEventListener('click', () => { const t = b.dataset.rbStart; const q = $('quizTopic'); if (q) q.value = t; showTab('quizzes'); }));
+  const addBtn = el.querySelector('#reviewBlockAddBtn');
+  if (addBtn) addBtn.addEventListener('click', () => {
+    let added = 0;
+    const today = todayStr();
+    const dupes = (state.tasks || []).filter(t => t.status !== 'done').map(t => String(t.title).toLowerCase());
+    due.slice(0, 10).forEach(i => {
+      const title = `🔁 Review: ${i.topic} — ${i.concept}`;
+      if (dupes.includes(title.toLowerCase())) return;
+      state.tasks.push({ id: uid(), title, subject: i.topic, due: today, effort: Math.max(1, Math.round((REVIEW_TIME_EST[i.source] || 8) / 10)), status: 'todo', createdAt: today, source: 'review-block' });
+      dupes.push(title.toLowerCase()); added++;
+    });
+    if (added === 0) { showToast('Review tasks already on your board'); return; }
+    saveState(); renderKanban(); renderDashboard(); showToast(`Added ${added} review task${added > 1 ? 's' : ''} to your board`);
+  });
+}
+
+// ===== BEHIND-ON-TOPIC NUDGE =====
+function renderBehindNudge() {
+  const el = $('behindNudge');
+  if (!el) return;
+  const dismissed = (state.settings && state.settings.dismissedNudges) || {};
+  const twoWeeks = new Date(Date.now() - 14 * 86400000);
+  const oneWeek = new Date(Date.now() - 7 * 86400000);
+  const log = state.confusionLog || [];
+  const topics = {};
+  log.forEach(e => {
+    const t = e.topic || 'General';
+    if (new Date(e.date) >= twoWeeks) {
+      if (!topics[t]) topics[t] = 0;
+      topics[t]++;
+    }
+  });
+  const needy = Object.entries(topics)
+    .filter(([t]) => !dismissed[t])
+    .map(([t, count]) => {
+      const mins = state.sessions.filter(s => s.subject === t && new Date(s.date) >= oneWeek).reduce((s, x) => s + (x.minutes || 0), 0);
+      return { topic: t, count, mins };
+    })
+    .filter(x => x.count >= 2 && x.mins === 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+  if (needy.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="behind-nudge">' + needy.map(x => `
+    <div class="behind-nudge-item">
+      <span class="behind-nudge-msg">⚠️ <strong>${escapeHtml(x.topic)}</strong> — ${x.count} confusion moment${x.count > 1 ? 's' : ''} in 2 weeks, no study sessions in 7 days. You are falling behind on this.</span>
+      <div class="inline wrap" style="gap:6px">
+        <button class="btn btn-sm" data-nudge-start="${escapeHtml(x.topic)}">📝 Review now</button>
+        <button class="btn btn-sm btn-ghost" data-nudge-dismiss="${escapeHtml(x.topic)}">Dismiss</button>
+      </div>
+    </div>`).join('') + '</div>';
+  el.querySelectorAll('[data-nudge-start]').forEach(b => b.addEventListener('click', () => { const t = b.dataset.nudgeStart; const q = $('quizTopic'); if (q) q.value = t; showTab('quizzes'); }));
+  el.querySelectorAll('[data-nudge-dismiss]').forEach(b => b.addEventListener('click', () => {
+    state.settings.dismissedNudges = state.settings.dismissedNudges || {};
+    state.settings.dismissedNudges[b.dataset.nudgeDismiss] = true;
+    saveState(); renderBehindNudge();
+  }));
+}
+
+// ===== EXAM LOCK (FOCUS MODE) =====
+const EXAM_LOCK_TABS = ['dashboard', 'planner', 'sessions', 'flashcards', 'recalls', 'quizzes', 'notes', 'ai-tutor', 'ai-voice', 'studyguide', 'studyroom', 'calculator', 'calendar', 'settings', 'downloads'];
+function examLockActive() {
+  const l = state.settings && state.settings.examLock;
+  return !!(l && l.active && l.endsAt && l.endsAt >= todayStr());
+}
+function applyExamLockNav() {
+  const active = examLockActive();
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    b.classList.toggle('nav-hidden', active && !EXAM_LOCK_TABS.includes(b.dataset.tab));
+  });
+  const st = $('examLockStatus');
+  if (st) {
+    const l = state.settings && state.settings.examLock;
+    if (active) {
+      const d = Math.max(0, daysUntil(l.endsAt));
+      st.textContent = `🔒 Active — locked until ${formatDate(l.endsAt)} (${d} day${d !== 1 ? 's' : ''} left). New-material, social, and distraction features are hidden.`;
+    } else {
+      st.textContent = 'Not active. Lock before an exam to hide everything except retrieval tools.';
+    }
+  }
+  const ub = $('examUnlockBtn');
+  if (ub) ub.classList.toggle('hidden', !active);
+}
+function renderExamLockBanner() {
+  const el = $('examLockBanner');
+  if (!el) return;
+  const l = state.settings && state.settings.examLock;
+  if (!examLockActive()) { el.innerHTML = ''; return; }
+  const d = Math.max(0, daysUntil(l.endsAt));
+  el.innerHTML = `<div class="exam-lock-banner">
+    <div><strong>🔒 Exam Lock — ${escapeHtml(l.subject || 'Exam')}</strong>
+    <span class="small" style="display:block;opacity:0.85">${d === 0 ? 'Exam day! Final retrieval pass.' : d + ' day' + (d > 1 ? 's' : '') + ' left. New-material and distraction features are hidden — pure retrieval.'}</span></div>
+    <button class="btn btn-sm btn-ghost" id="examLockUnlockBannerBtn">Unlock</button>
+  </div>`;
+  const btn = el.querySelector('#examLockUnlockBannerBtn');
+  if (btn) btn.addEventListener('click', () => { state.settings.examLock.active = false; saveState(); applyExamLockNav(); renderExamLockBanner(); renderDashboard(); showToast('Exam lock disabled'); });
 }
 
 // ===== EXAM RADAR =====
@@ -3233,6 +3361,25 @@ function updateCloudStatusUI() {
 window.onCloudStatusChange = updateCloudStatusUI;
 
 function setupSettings() {
+  // Exam lock: auto-expire stale locks and wire controls.
+  try {
+    const l = state.settings && state.settings.examLock;
+    if (l && l.active && l.endsAt && l.endsAt < todayStr()) { l.active = false; saveState(); }
+    const lockBtn = $('examLockBtn');
+    if (lockBtn) lockBtn.addEventListener('click', () => {
+      const subject = ($('examLockSubject') || {}).value || 'Exam';
+      const days = Math.max(1, Math.min(21, +($('examLockDays') || { value: 7 }).value || 7));
+      const d = new Date(); d.setDate(d.getDate() + days);
+      state.settings.examLock = { active: true, subject, endsAt: d.toISOString().split('T')[0] };
+      saveState(); applyExamLockNav(); renderExamLockBanner(); renderDashboard(); showToast(`Exam lock on — ${subject} in ${days} day${days > 1 ? 's' : ''}`);
+    });
+    const unlockBtn = $('examUnlockBtn');
+    if (unlockBtn) unlockBtn.addEventListener('click', () => {
+      if (state.settings.examLock) state.settings.examLock.active = false;
+      saveState(); applyExamLockNav(); renderExamLockBanner(); renderDashboard(); showToast('Exam lock disabled');
+    });
+    if (typeof applyExamLockNav === 'function') applyExamLockNav();
+  } catch (e) { /* exam lock must never break settings */ }
   const cloudRetry = $('cloudRetryBtn');
   if (cloudRetry) {
     cloudRetry.addEventListener('click', async () => {
@@ -6175,6 +6322,8 @@ function init() {
   safeCall(setupStudyRoom);
   safeCall(setupAnalytics);
   safeCall(setupSettings);
+  safeCall(applyExamLockNav);
+  safeCall(renderExamLockBanner);
   safeCall(updateCloudStatusUI);
   safeCall(setupMusicPlayer);
   safeCall(setupPlaylists);
