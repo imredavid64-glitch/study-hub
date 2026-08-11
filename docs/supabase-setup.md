@@ -111,7 +111,7 @@ removed from the code, but it is visible in git history. Rotate it in the
 Groq dashboard (https://console.groq.com → API Keys) so the exposed copy stops
 working.
 
-## Current state (live-verified 2026-08-10)
+## Current state (live-verified 2026-08-11)
 
 Automated probes confirmed the following — each item is still pending and needs
 one of the click-throughs above:

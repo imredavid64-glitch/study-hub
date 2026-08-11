@@ -136,6 +136,10 @@
               <ul id="todayAgendaList" class="list"></ul>
             </article>
           </div>
+          <article class="card">
+            <h3>🎯 Exam Radar</h3>
+            <div id="examRadar" class="exam-radar"></div>
+          </article>
           <div class="split-grid">
             <article class="card">
               <h3>👥 Peer Activity Feed</h3>
@@ -749,6 +753,7 @@
                 <input id="aiChatInput" placeholder="Ask the tutor or request study help..." />
                 <button id="aiSendBtn">Send</button>
               </div>
+              <button id="explainItBackBtn" class="btn btn-ghost" style="margin-top:8px;width:100%">🎤 Explain It Back — speak a topic and get it graded</button>
             </article>
             <article class="card">
               <h3>Study Preferences</h3>
@@ -2155,6 +2160,10 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
           <article class="card">
             <h3>Activity Heatmap (Last 28 days)</h3>
             <div id="activityHeatmap" class="heatmap"></div>
+          </article>
+          <article class="card">
+            <h3>🧠 Confusion Heatmap <span id="confusionCount" class="badge"></span></h3>
+            <div id="confusionHeatmap" class="confusion-heatmap"></div>
           </article>
           <article class="card">
             <h3>Grade Analysis</h3>

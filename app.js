@@ -179,6 +179,7 @@ const DEFAULT_STATE = {
     settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', font: 'default', density: 'comfortable', radius: 'soft', layout: 'balanced', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', stickyNotes: [], warmupStats: { bestStreak: 0, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, _ach: { goalsCompleted: 0, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
   goals: [], tasks: [], sessions: [], flashcards: [], notes: [], assignments: [],
   reflections: [], quizAttempts: [], mockTestHistory: [], recallHistory: [],
+  confusionLog: [],
   resources: [],
   aiChatHistory: [], lessonChatHistory: [], voiceTranscript: [],
   musicTrackIndex: 0, musicVolume: 70, musicPlaying: false,
@@ -194,7 +195,8 @@ const DEMO_DATA = {
   goals: [
     { id: 'demo_goal_1', title: 'Ace AP Physics Exam', subject: 'AP Physics', deadline: '2026-12-15', priority: 'high', hours: 20, createdAt: '2026-08-01' },
     { id: 'demo_goal_2', title: 'SAT Score 1500+', subject: 'SAT Prep', deadline: '2026-11-01', priority: 'high', hours: 30, createdAt: '2026-08-01' },
-    { id: 'demo_goal_3', title: 'Master Organic Chemistry', subject: 'Organic Chemistry', deadline: '2026-10-20', priority: 'medium', hours: 15, createdAt: '2026-08-01' }
+    { id: 'demo_goal_3', title: 'Master Organic Chemistry', subject: 'Organic Chemistry', deadline: '2026-10-20', priority: 'medium', hours: 15, createdAt: '2026-08-01' },
+    { id: 'demo_goal_4', title: 'Organic Chemistry Unit Quiz', subject: 'Organic Chemistry', deadline: '2026-08-18', priority: 'high', hours: 4, createdAt: '2026-08-11' }
   ],
   tasks: [
     { id: 'demo_task_1', title: 'Review AP Physics Kinematics', subject: 'AP Physics', due: '2026-08-15', effort: 3, status: 'done', createdAt: '2026-08-01' },
@@ -262,6 +264,14 @@ const DEMO_DATA = {
   ],
   quizAttempts: [
     { id: 'demo_quiz_1', topic: 'AP Physics Practice', subject: 'AP Physics', questions: 5, correct: 5, score: 5, total: 5, percentage: 100, pct: 100, date: '2026-08-07T14:00:00Z', xpEarned: 40 }
+  ],
+  confusionLog: [
+    { id: 'demo_cf_1', date: '2026-08-06', topic: 'AP Physics', concept: 'Kinematic equation for displacement', source: 'quiz' },
+    { id: 'demo_cf_2', date: '2026-08-08', topic: 'AP Physics', concept: 'Difference between speed and velocity', source: 'flashcard' },
+    { id: 'demo_cf_3', date: '2026-08-08', topic: 'Organic Chemistry', concept: 'Nomenclature naming rules', source: 'quiz' },
+    { id: 'demo_cf_4', date: '2026-08-10', topic: 'Organic Chemistry', concept: 'Functional groups identification', source: 'blurt' },
+    { id: 'demo_cf_5', date: '2026-08-10', topic: 'SAT Prep', concept: 'Quadratic word problems', source: 'quiz' },
+    { id: 'demo_cf_6', date: '2026-08-11', topic: 'SAT Prep', concept: 'Coordinate geometry on the SAT', source: 'mock' }
   ],
   notes: [
     { id: 'demo_note_1', title: 'AP Physics Kinematics', subject: 'AP Physics', content: '# Kinematics Notes\n\n## Key Equations\n- v = u + at\n- s = ut + 0.5at^2\n- v^2 = u^2 + 2as\n\n## Concepts\n- Displacement vs Distance\n- Speed vs Velocity\n- Acceleration', style: 'freeform', tags: 'physics,kinematics', createdAt: '2026-08-01' }
@@ -669,6 +679,13 @@ function daysUntil(d) {
   return Math.ceil((new Date(d) - new Date()) / (1000 * 60 * 60 * 24));
 }
 function todayStr() { return new Date().toISOString().split('T')[0]; }
+function logConfusion(topic, concept, source) {
+  try {
+    if (!state.confusionLog) state.confusionLog = [];
+    state.confusionLog.push({ id: uid(), date: todayStr(), topic: String(topic || 'General').trim().slice(0, 60), concept: String(concept || topic || 'Unknown').trim().slice(0, 120), source: source || 'quiz' });
+    if (state.confusionLog.length > 500) state.confusionLog = state.confusionLog.slice(-500);
+  } catch (e) { /* confusion logging must never break the flow */ }
+}
 function escapeHtml(t) {
   const d = document.createElement('div');
   d.textContent = t;
@@ -728,7 +745,7 @@ function showTab(tabId) {
   if (tab) tab.classList.add('active');
   const btn = qs(`.nav-btn[data-tab="${tabId}"]`);
   if (btn) btn.classList.add('active');
-  if (tabId === 'analytics' && typeof renderCharts === 'function') renderCharts();
+  if (tabId === 'analytics' && typeof renderCharts === 'function') { renderCharts(); if (typeof renderConfusionHeatmap === 'function') renderConfusionHeatmap(); }
   // The study map is initialized lazily because its container is 0×0 while hidden.
   if (tabId === 'studymap' && window.__studyMapRefresh) setTimeout(window.__studyMapRefresh, 0);
   updateWelcomeTitle();
@@ -932,6 +949,7 @@ function renderDashboard() {
   });
   achHtml += '</div>';
   ach.innerHTML = achHtml;
+  if (typeof renderExamRadar === 'function') renderExamRadar();
   } catch(e) { if (typeof console !== 'undefined') console.warn('renderDashboard:', e); }
 }
 
@@ -1049,7 +1067,10 @@ function setupTimer() {
   });
   $('sessionForm').addEventListener('submit', e => {
     e.preventDefault();
-    state.sessions.push({ id: uid(), date: new Date().toISOString(), subject: $('sessionSubject').value, objective: $('sessionObjective').value, minutes: +$('sessionMinutes').value, quality: +$('sessionQuality').value, method: $('sessionMethod').value, deep: $('sessionDeep').checked, notes: $('sessionNotes').value });
+    const subj = $('sessionSubject').value;
+    const qual = +$('sessionQuality').value;
+    state.sessions.push({ id: uid(), date: new Date().toISOString(), subject: subj, objective: $('sessionObjective').value, minutes: +$('sessionMinutes').value, quality: qual, method: $('sessionMethod').value, deep: $('sessionDeep').checked, notes: $('sessionNotes').value });
+    if (qual < 5) logConfusion(subj, $('sessionObjective').value || subj, 'session');
     saveState(); renderSessionHistory(); renderDashboard(); $('sessionForm').reset(); showToast('Session logged');
   });
   resetTimerDisplay();
@@ -1216,7 +1237,8 @@ function rateCurrentFlashcard(rating) {
   const c = fcState.cards[fcState.index];
   const card = state.flashcards.find(x => x.id === c.id);
   if (!card) return;
-  if (rating === 1) { card.ease = Math.max(1.3, card.ease - 0.2); card.repetitions = 0; card.interval = 0; }
+  if (rating === 1) { card.ease = Math.max(1.3, card.ease - 0.2); card.repetitions = 0; card.interval = 0; logConfusion(card.deck, card.question, 'flashcard'); }
+  else if (rating === 3) { card.ease = Math.max(1.3, card.ease - 0.15); card.interval = Math.max(1, card.interval * card.ease); card.repetitions++; logConfusion(card.deck, card.question, 'flashcard'); }
   else if (rating === 3) { card.ease = Math.max(1.3, card.ease - 0.15); card.interval = Math.max(1, card.interval * card.ease); card.repetitions++; }
   else if (rating === 4) { card.ease += 0.0; card.interval = card.interval === 0 ? 1 : Math.round(card.interval * card.ease); card.repetitions++; }
   else if (rating === 5) { card.ease += 0.15; card.interval = card.interval === 0 ? 1 : Math.round(card.interval * card.ease); card.repetitions++; }
@@ -1358,15 +1380,17 @@ function renderQuizQuestion() {
 function submitQuiz() {
   quizState.submitted = true;
   let correct = 0;
+  const topic = $('quizTopic').value || 'General';
   quizState.questions.forEach((q, i) => {
     const userAns = (quizState.answers[i] || '').trim().toLowerCase();
     const correctAns = (q.answer || '').trim().toLowerCase();
     if (userAns === correctAns) correct++;
+    else logConfusion(topic, (q.question || '').replace(/^Q\d+[:.]\s*/i, '').trim(), 'quiz');
   });
   const pct = Math.round(correct / quizState.questions.length * 100);
   $('quizResult').textContent = `Score: ${correct}/${quizState.questions.length} (${pct}%)`;
-  state.quizAttempts.push({ id: uid(), date: todayStr(), topic: $('quizTopic').value || 'General', score: correct, total: quizState.questions.length, pct });
-  saveState(); renderQuizHistory(); showToast('Quiz submitted');
+  state.quizAttempts.push({ id: uid(), date: todayStr(), topic, score: correct, total: quizState.questions.length, pct });
+  saveState(); renderQuizHistory(); renderConfusionHeatmap(); showToast('Quiz submitted');
 }
 function renderQuizHistory() {
   const el = $('quizAttemptList');
@@ -1446,13 +1470,15 @@ function renderMockQuestion() {
 function submitMockTest() {
   clearInterval(mockState.timer);
   let correct = 0;
+  const subject = $('mockTestSubject').value || 'General';
   mockState.questions.forEach((q, i) => {
     if ((mockState.answers[i] || '').trim().toLowerCase() === (q.answer || '').trim().toLowerCase()) correct++;
+    else logConfusion(subject, (q.question || '').replace(/^Q\d+[:.]\s*/i, '').trim(), 'mock');
   });
   const pct = Math.round(correct / mockState.questions.length * 100);
   $('mockTestResult').innerHTML = `<strong>Mock Test Score: ${correct}/${mockState.questions.length} (${pct}%)</strong>`;
-  state.mockTestHistory.push({ id: uid(), date: todayStr(), subject: $('mockTestSubject').value, score: correct, total: mockState.questions.length, pct });
-  saveState(); renderMockTestHistory(); showToast('Mock test submitted');
+  state.mockTestHistory.push({ id: uid(), date: todayStr(), subject, score: correct, total: mockState.questions.length, pct });
+  saveState(); renderMockTestHistory(); renderConfusionHeatmap(); showToast('Mock test submitted');
 }
 function renderMockTestHistory() {
   const el = $('mockTestHistory');
@@ -1530,6 +1556,7 @@ async function scoreBlurt() {
     <p><strong>Covered:</strong> ${(result.coverage || []).join(', ') || 'None'}</p>
     <p><strong>Missing:</strong> ${(result.missing || []).join(', ') || 'Nothing identified'}</p>`;
     state.recallHistory.push({ id: uid(), date: todayStr(), topic, score: result.score, feedback: result.feedback });
+    if (result.score < 60) logConfusion(topic, topic, 'blurt');
     saveState(); renderRecallHistory();
   } catch (e) {
     // AI unavailable — local keyword-overlap scoring still gives real feedback.
@@ -1540,6 +1567,7 @@ async function scoreBlurt() {
     <p><strong>Covered:</strong> ${result.coverage.join(', ') || 'None'}</p>
     <p><strong>Missing:</strong> ${result.missing.join(', ') || 'Nothing identified'}</p>`;
     state.recallHistory.push({ id: uid(), date: todayStr(), topic, score: result.score, feedback: result.feedback });
+    if (result.score < 60) logConfusion(topic, topic, 'blurt');
     saveState(); renderRecallHistory();
     logErrors('blurt')(e);
   }
@@ -2311,6 +2339,8 @@ function setupAITutor() {
   const thinkChk = $('showAiThinking');
   if (thinkChk) thinkChk.checked = state.settings.showAiThinking || false;
   renderAiSessionHistory();
+  const explainBtn = $('explainItBackBtn');
+  if (explainBtn) explainBtn.addEventListener('click', () => startExplainItBack());
 }
 async function sendAiChat() {
   const input = $('aiChatInput');
@@ -2399,6 +2429,148 @@ function commitAiAction(a) {
     saveState(); renderCalendar(); renderCalendarEvents();
     showToast('Event added to calendar');
   }
+}
+// ===== EXPLAIN-IT-BACK (voice-graded self-explanation) =====
+let explainRec = null;
+function pickExplainTopic() {
+  const log = state.confusionLog || [];
+  if (log.length > 0) {
+    const counts = {};
+    log.forEach(e => { counts[e.topic] = (counts[e.topic] || 0) + 1; });
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+    if (top) return top[0];
+  }
+  const decks = [...new Set(state.flashcards.map(c => c.deck).filter(Boolean))];
+  if (decks.length > 0) return decks[decks.length - 1];
+  const quizTopics = [...new Set(state.quizAttempts.map(q => q.topic).filter(Boolean))];
+  if (quizTopics.length > 0) return quizTopics[quizTopics.length - 1];
+  const notes = state.notes || [];
+  if (notes.length > 0) return notes[notes.length - 1].title || notes[notes.length - 1].subject || 'your current topic';
+  return '';
+}
+function conceptKeywords(topic) {
+  const stop = new Set(['the', 'and', 'for', 'with', 'from', 'your', 'that', 'this', 'what', 'how', 'why', 'about', 'into', 'over', 'under', 'onto', 'explain', 'tell', 'give', 'using', 'words']);
+  return String(topic).toLowerCase().split(/[^a-z0-9]+/i).filter(w => w.length > 3 && !stop.has(w)).slice(0, 6).join(', ');
+}
+function offlineExplainScore(topic, text) {
+  const resp = (text || '').toLowerCase();
+  const kws = conceptKeywords(topic).split(/[,\s]+/).filter(Boolean);
+  const covered = kws.filter(k => resp.includes(k));
+  const missing = kws.filter(k => !resp.includes(k));
+  const coverage = kws.length ? covered.length / kws.length : 0;
+  const sentences = resp.split(/[.!?]+/).filter(s => s.trim().split(/\s+/).length > 3).length;
+  const hasExample = /example|for instance|like|such as|e\.g\.|picture|imagine/.test(resp);
+  const connectors = (resp.match(/because|so that|means|causes|leads to|results in|therefore|if .+ then|works by|depends on/g) || []).length;
+  const lengthScore = Math.min(15, Math.round((resp.split(/\s+/).filter(Boolean).length / 18) * 10));
+  const score = Math.round(Math.min(100, Math.max(8, coverage * 50 + Math.min(12, sentences * 4) + (hasExample ? 15 : 0) + Math.min(12, connectors * 4) + lengthScore)));
+  const strengths = [];
+  if (coverage > 0.5) strengths.push('covered the core terms');
+  if (hasExample) strengths.push('gave a real example');
+  if (connectors > 0) strengths.push('explained cause and effect');
+  if (sentences >= 2) strengths.push('built a complete explanation');
+  if (strengths.length === 0) strengths.push('made an attempt — keep going');
+  const gaps = [];
+  if (coverage < 0.5) gaps.push('missed key terms like ' + (missing.slice(0, 3).join(', ') || 'the core idea'));
+  if (!hasExample) gaps.push('no real-world example yet');
+  if (sentences < 2) gaps.push('explain in full sentences, not fragments');
+  if (gaps.length === 0) gaps.push('nothing major — try a harder topic');
+  const feedback = score >= 70 ? 'Clear explanation — a friend would understand this.' : score >= 40 ? 'Good start — tighten the missing pieces and try again.' : 'Re-read your notes on ' + topic + ', then explain it again in your own words.';
+  return { score, feedback, coverage: strengths, missing: gaps };
+}
+async function gradeExplanation(topic, text, bubble) {
+  if (!text || !text.trim()) { showToast('Nothing to grade — speak or type your explanation first'); return; }
+  const status = document.createElement('div');
+  status.className = 'chat-bubble assistant';
+  status.innerHTML = '<p class="subtle">Grading your explanation…</p>';
+  bubble.parentNode.insertBefore(status, bubble.nextSibling);
+  try {
+    const kws = conceptKeywords(topic);
+    const txt = await groqChat([{ role: 'system', content: 'You are a kind, precise teacher grading a student\'s spoken explanation. The student was asked to explain a concept in their own words, as if teaching a friend. Return ONLY valid JSON: {score:0-100, strengths:[], gaps:[], followup:string}. Grade for accuracy, completeness, and whether a real learner could understand it. Be encouraging but honest.' }, { role: 'user', content: `Concept: ${topic}. Key terms to look for: ${kws}. Student's explanation: ${text}` }], { maxTokens: 700 });
+    const r = JSON.parse(txt.replace(/```json|```/g, '').trim());
+    renderExplainGrade(topic, text, r.score, r.strengths || [], r.gaps || [], r.followup || '', status);
+  } catch (e) {
+    const r = offlineExplainScore(topic, text);
+    renderExplainGrade(topic, text, r.score, r.coverage, r.missing, 'Try again after reviewing — then explain it once more from memory.', status);
+    logErrors('explainGrade')(e);
+  }
+}
+function renderExplainGrade(topic, text, score, strengths, gaps, followup, statusEl) {
+  const s = Math.max(0, Math.min(100, Math.round(score)));
+  statusEl.innerHTML = `<div class="explain-grade">
+    <div class="explain-grade-head"><span class="score-chip ${s > 70 ? 'good' : s > 40 ? 'mid' : 'low'}">${s}% understanding</span><span class="small" style="opacity:0.6">${escapeHtml(topic)}</span></div>
+    <p class="small" style="opacity:0.85;margin:6px 0"><strong>Strengths:</strong> ${(strengths || []).slice(0, 3).map(escapeHtml).join(' · ') || '—'}</p>
+    <p class="small" style="opacity:0.85;margin:4px 0"><strong>Gaps to review:</strong> ${(gaps || []).slice(0, 3).map(escapeHtml).join(' · ') || 'Nothing major'}</p>
+    <p class="small" style="margin:6px 0 0"><strong>Next:</strong> ${escapeHtml(followup || 'Review the gaps, then explain it again from memory.')}</p>
+    <div class="inline" style="gap:8px;margin-top:8px">
+      <button class="btn btn-sm" data-explain-quiz="${escapeHtml(topic)}">📝 Quiz me on this</button>
+      <button class="btn btn-sm btn-ghost" data-explain-again="${escapeHtml(topic)}">🔁 Explain again</button>
+    </div>
+  </div>`;
+  statusEl.querySelector('[data-explain-quiz]').addEventListener('click', () => { const q = $('quizTopic'); if (q) q.value = topic; showTab('quizzes'); });
+  statusEl.querySelector('[data-explain-again]').addEventListener('click', () => { statusEl.remove(); startExplainItBack(topic); });
+  if (s < 60) logConfusion(topic, topic, 'explain');
+  state.recallHistory.push({ id: uid(), date: todayStr(), topic, score: s, feedback: 'Explain-it-back: ' + (gaps || []).slice(0, 2).join(', ') || followup });
+  saveState();
+  if (typeof renderRecallHistory === 'function') renderRecallHistory();
+}
+function startExplainItBack(presetTopic) {
+  const convHistory = $('aiChatHistory');
+  if (!convHistory) return;
+  const topic = (presetTopic || pickExplainTopic() || ($('aiChatInput') && $('aiChatInput').value.trim()) || '').trim();
+  const bubble = document.createElement('div');
+  bubble.className = 'chat-bubble assistant';
+  if (!topic) {
+    bubble.innerHTML = '<p>🎤 <strong>Explain-it-back</strong> — type a topic in the chat box, then tap the button again, and I\'ll ask you to explain it in your own words and grade your spoken answer.</p>';
+    convHistory.appendChild(bubble);
+    convHistory.scrollTop = convHistory.scrollHeight;
+    return;
+  }
+  const kws = conceptKeywords(topic);
+  bubble.innerHTML = `<div class="explain-prompt">
+    <p><strong>🎤 Explain-it-back · ${escapeHtml(topic)}</strong></p>
+    <p>Explain <em>${escapeHtml(topic)}</em> in your own words, like you're teaching a friend who knows nothing about it. Cover the key ideas${kws ? ' (e.g. ' + escapeHtml(kws) + ')' : ''} and give one real example. Speak your answer or type it below.</p>
+    <div class="inline" style="gap:8px">
+      <button class="btn btn-sm" id="explainMicBtn">🎤 Tap to speak</button>
+    </div>
+    <textarea id="explainTypeBox" rows="3" placeholder="Or type your explanation here…" style="width:100%;margin-top:8px"></textarea>
+    <div class="inline" style="gap:8px;margin-top:8px">
+      <button class="btn btn-sm" id="explainGradeBtn">Grade my explanation</button>
+      <button class="btn btn-sm btn-ghost" id="explainCancelBtn">Cancel</button>
+    </div>
+    <p class="small" id="explainMicStatus" style="opacity:0.7;margin-top:6px"></p>
+  </div>`;
+  convHistory.appendChild(bubble);
+  convHistory.scrollTop = convHistory.scrollHeight;
+  let rec = null;
+  const micBtn = bubble.querySelector('#explainMicBtn');
+  const typeBox = bubble.querySelector('#explainTypeBox');
+  const status = bubble.querySelector('#explainMicStatus');
+  const hasSpeech = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+  micBtn.addEventListener('click', () => {
+    if (!hasSpeech) { status.textContent = 'Speech recognition unavailable here — type your answer instead.'; return; }
+    if (rec) { try { rec.stop(); } catch (e) {} rec = null; micBtn.textContent = '🎤 Tap to speak'; status.textContent = ''; return; }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    rec = new SR();
+    rec.lang = 'en-US';
+    rec.interimResults = true;
+    rec.continuous = false;
+    rec.onresult = e => {
+      let t = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) t += e.results[i][0].transcript;
+      typeBox.value = t;
+      status.textContent = 'Listening… speak now';
+    };
+    rec.onend = () => { micBtn.textContent = '🎤 Tap to speak'; if (typeBox.value) status.textContent = 'Captured ✓ — tap “Grade my explanation”.'; else status.textContent = ''; };
+    rec.onerror = e => { status.textContent = 'Speech error (' + e.error + ') — type your answer instead.'; micBtn.textContent = '🎤 Tap to speak'; };
+    micBtn.textContent = '⏹ Stop listening';
+    status.textContent = 'Listening… speak now';
+    try { rec.start(); } catch (e) { status.textContent = 'Could not start the microphone — type your answer instead.'; micBtn.textContent = '🎤 Tap to speak'; }
+  });
+  bubble.querySelector('#explainGradeBtn').addEventListener('click', () => gradeExplanation(topic, typeBox.value, bubble));
+  bubble.querySelector('#explainCancelBtn').addEventListener('click', () => { if (rec) { try { rec.stop(); } catch (e) {} } bubble.remove(); });
+  typeBox.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); gradeExplanation(topic, typeBox.value, bubble); } });
+  state.aiChatHistory.push({ role: 'user', content: '[Explain-it-back] Topic: ' + topic, timestamp: new Date().toISOString() });
+  saveState();
 }
 function renderAiSessionHistory() {
   const el = $('aiSessionHistory');
@@ -2709,6 +2881,140 @@ function renderHeatmap() {
   summary.style.cssText = 'grid-column:1/-1;margin-top:6px;font-size:0.75rem;opacity:0.6';
   summary.textContent = `${totalActive} active days | ${Math.round(totalMinutes / 60 * 10) / 10}h total | ${totalMinutes > 0 ? Math.round(totalMinutes / Math.max(totalActive, 1)) + ' min/day avg' : 'No study data'}`;
   el.appendChild(summary);
+}
+
+// ===== CONFUSION HEATMAP =====
+const CONFUSION_SOURCE_LABELS = { quiz: 'Quiz', mock: 'Mock test', blurt: 'Blurt', flashcard: 'Flashcard', session: 'Session', explain: 'Explain-it-back' };
+const CONFUSION_SOURCE_ICONS = { quiz: '❓', mock: '📝', blurt: '🧠', flashcard: '🃏', session: '⏱', explain: '🎤' };
+function renderConfusionHeatmap() {
+  const el = $('confusionHeatmap');
+  if (!el) return;
+  const log = state.confusionLog || [];
+  const countEl = $('confusionCount');
+  if (countEl) countEl.textContent = log.length > 0 ? `${log.length} tracked` : '';
+  if (log.length === 0) {
+    el.innerHTML = '<p class="subtle">No confusion tracked yet. Miss a quiz question, rate a flashcard "Again", or score under 60% on a blurt and it will show up here as a hot spot to review.</p>';
+    return;
+  }
+  const days = [];
+  for (let i = 13; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); days.push(d.toISOString().split('T')[0]); }
+  const topics = {};
+  log.forEach(e => {
+    const t = e.topic || 'General';
+    if (!topics[t]) topics[t] = { total: 0, recent: 0, byDay: {}, concepts: {}, sources: {} };
+    const rec = topics[t];
+    rec.total++;
+    rec.sources[e.source || 'quiz'] = (rec.sources[e.source || 'quiz'] || 0) + 1;
+    if (days.includes(e.date)) rec.recent++;
+    rec.byDay[e.date] = (rec.byDay[e.date] || 0) + 1;
+    const key = (e.concept || 'Unknown').slice(0, 70);
+    if (!rec.concepts[key]) rec.concepts[key] = { count: 0, last: e.date };
+    rec.concepts[key].count++;
+    if (e.date > rec.concepts[key].last) rec.concepts[key].last = e.date;
+  });
+  const ranked = Object.entries(topics).sort((a, b) => {
+    const a7 = Object.entries(a[1].byDay).filter(([d]) => days.slice(-7).includes(d)).reduce((s, [, c]) => s + c, 0);
+    const b7 = Object.entries(b[1].byDay).filter(([d]) => days.slice(-7).includes(d)).reduce((s, [, c]) => s + c, 0);
+    return b7 - a7 || b[1].total - a[1].total;
+  }).slice(0, 8);
+  const maxDay = Math.max(1, ...ranked.map(([, r]) => Math.max(...Object.values(r.byDay))));
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  let html = '<div class="confusion-grid">';
+  html += '<div class="confusion-corner"></div>';
+  days.forEach(d => { const dt = new Date(d + 'T00:00:00'); const age = Math.round((today - dt) / 86400000); html += `<div class="confusion-day${age % 7 === 0 ? ' confusion-week' : ''}">${age === 0 ? 'Today' : age === 1 ? '1d' : age % 7 === 0 ? dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</div>`; });
+  ranked.forEach(([topic, rec]) => {
+    const score = Math.min(100, Math.round(rec.total * 14 + rec.recent * 10));
+    const tone = score > 60 ? 'var(--danger)' : score > 30 ? 'var(--warning)' : 'var(--muted)';
+    html += `<div class="confusion-topic" title="${escapeHtml(topic)}">${escapeHtml(topic)}<div class="confusion-score" style="--w:${Math.min(100, rec.total * 8)}%;color:${tone}">${rec.total}</div></div>`;
+    days.forEach(d => {
+      const c = rec.byDay[d] || 0;
+      const lvl = c === 0 ? 0 : c === 1 ? 1 : c === 2 ? 2 : c <= 4 ? 3 : 4;
+      const srcs = log.filter(e => e.topic === topic && e.date === d).map(e => CONFUSION_SOURCE_ICONS[e.source || 'quiz'] || '•').join(' ');
+      html += `<div class="confusion-cell${lvl > 0 ? ' cl-' + lvl : ''}" title="${escapeHtml(topic)} — ${formatDate(d)}: ${c} confusion moment${c > 1 ? 's' : ''} ${srcs ? '(' + srcs + ')' : ''}"></div>`;
+    });
+  });
+  html += '</div>';
+  html += '<div class="confusion-legend"><span>Fewer</span><span class="confusion-cell cl-1"></span><span class="confusion-cell cl-2"></span><span class="confusion-cell cl-3"></span><span class="confusion-cell cl-4"></span><span>More</span></div>';
+  html += '<div class="confusion-list">';
+  ranked.forEach(([topic, rec]) => {
+    const score = Math.min(100, Math.round(rec.total * 14 + rec.recent * 10));
+    const topConcepts = Object.entries(rec.concepts).sort((a, b) => b[1].count - a[1].count).slice(0, 3);
+    const srcChips = Object.entries(rec.sources).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([s, c]) => `<span class="confusion-src">${CONFUSION_SOURCE_ICONS[s] || '•'} ${CONFUSION_SOURCE_LABELS[s] || s} ×${c}</span>`).join(' ');
+    html += `<div class="confusion-item">
+      <div class="row-between"><strong>${escapeHtml(topic)}</strong><span class="badge" style="background:${score > 60 ? 'var(--danger)' : score > 30 ? 'var(--warning)' : 'var(--muted)'};color:#fff">${score} confusion score</span></div>
+      <p class="small" style="margin:4px 0">${srcChips}</p>
+      <ul class="confusion-concepts">${topConcepts.map(([c, ci]) => `<li>${escapeHtml(c)} <span class="small" style="opacity:0.6">×${ci.count}${ci.last ? ' · ' + formatDate(ci.last) : ''}</span></li>`).join('')}</ul>
+      <div class="inline" style="gap:8px;margin-top:6px">
+        <button class="btn btn-sm" data-fix-quiz="${escapeHtml(topic)}">📝 Practice quiz</button>
+        <button class="btn btn-sm btn-ghost" data-fix-flash="${escapeHtml(topic)}">🃏 Flashcards</button>
+        <button class="btn btn-sm btn-ghost" data-fix-explain="${escapeHtml(topic)}">🎤 Explain it back</button>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+  el.querySelectorAll('[data-fix-quiz]').forEach(b => b.addEventListener('click', () => { const t = b.dataset.fixQuiz; const q = $('quizTopic'); if (q) q.value = t; showTab('quizzes'); }));
+  el.querySelectorAll('[data-fix-flash]').forEach(b => b.addEventListener('click', () => { const t = b.dataset.fixFlash; const inp = $('flashcardAiInput'); if (inp) inp.value = t; showTab('flashcards'); }));
+  el.querySelectorAll('[data-fix-explain]').forEach(b => b.addEventListener('click', () => { const t = b.dataset.fixExplain; showTab('ai-tutor'); setTimeout(() => startExplainItBack(t), 150); }));
+}
+
+// ===== EXAM RADAR =====
+function upcomingDeadlines() {
+  const out = [];
+  (state.goals || []).forEach(g => { if (g.deadline) out.push({ title: g.title, subject: g.subject || 'General', date: g.deadline, kind: 'goal', hours: g.hours }); });
+  (state.assignments || []).forEach(a => { if (a.dueDate || a.due) out.push({ title: a.title, subject: a.course || a.subject || 'General', date: a.dueDate || a.due, kind: 'assignment' }); });
+  return out.filter(x => x.date).map(x => ({ ...x, days: daysUntil(x.date) })).sort((a, b) => a.days - b.days);
+}
+function examPhase(days) {
+  if (days <= 3) return { label: 'RETRIEVAL ONLY', tip: 'Stop learning new material. Full retrieval: practice tests, past papers, flashcards, explain-it-back.', cls: 'exam-urgent' };
+  if (days <= 7) return { label: 'RETRIEVAL PHASE', tip: 'Switch from learning to practice: quizzes, blurts, and interleaved mixed-topic review.', cls: 'exam-soon' };
+  return { label: 'LEARNING PHASE', tip: 'Keep learning new material with spaced repetition and active recall.', cls: 'exam-ahead' };
+}
+function renderExamRadar() {
+  const el = $('examRadar');
+  if (!el) return;
+  const deadlines = upcomingDeadlines().filter(x => x.days >= 0);
+  if (deadlines.length === 0) {
+    el.innerHTML = '<p class="subtle">No upcoming exams or deadlines. Set a goal with a deadline to activate the Exam Radar.</p>';
+    return;
+  }
+  const nearest = deadlines[0];
+  const phase = examPhase(nearest.days);
+  const recentMins = (subject) => state.sessions.filter(s => s.subject === subject && new Date(s.date) >= new Date(Date.now() - 7 * 86400000)).reduce((s, x) => s + (x.minutes || 0), 0);
+  const noRecentWork = recentMins(nearest.subject) === 0;
+  let html = `<div class="exam-radar-banner ${phase.cls}">
+    <div class="exam-radar-head">
+      <span class="exam-radar-countdown">${nearest.days <= 0 ? 'D-DAY 🚨' : 'D−' + nearest.days}</span>
+      <div>
+        <strong>${escapeHtml(nearest.title)}</strong>
+        <span class="small" style="display:block;opacity:0.85">${escapeHtml(nearest.subject)} · ${phase.label}</span>
+      </div>
+    </div>
+    <p class="small" style="margin:6px 0 0">${phase.tip}</p>
+    ${noRecentWork ? `<p class="small" style="margin:6px 0 0;font-weight:700">⚠️ No study sessions logged for ${escapeHtml(nearest.subject)} in the last 7 days — start today.</p>` : ''}
+  </div>`;
+  html += '<div class="exam-radar-list">';
+  deadlines.slice(0, 5).forEach(x => {
+    const ph = examPhase(x.days);
+    const mins = recentMins(x.subject);
+    const weeksToGo = Math.max(1, Math.ceil(x.days / 7));
+    const targetMins = Math.min(100, Math.round(mins / (x.kind === 'goal' && x.hours ? x.hours * 60 / weeksToGo : 120)) * 100);
+    html += `<div class="exam-radar-item ${ph.cls}">
+      <span class="exam-radar-countdown sm">${x.days <= 0 ? 'NOW' : 'D−' + x.days}</span>
+      <div class="exam-radar-item-body">
+        <div class="row-between"><strong>${escapeHtml(x.title)}</strong><span class="small" style="opacity:0.7">${formatDate(x.date)}</span></div>
+        <div class="small" style="opacity:0.85">${escapeHtml(x.subject)} · ${ph.label}</div>
+        <div class="progress" style="margin-top:4px;height:6px"><span style="width:${Math.min(100, targetMins)}%;background:${x.days <= 3 ? 'var(--danger)' : x.days <= 7 ? 'var(--warning)' : 'var(--success)'}"></span></div>
+        <span class="small" style="opacity:0.6">${mins} min studied (7d)</span>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+  if (nearest.days <= 3) {
+    const mt = $('missionText');
+    if (mt) mt.textContent = `🚨 ${nearest.subject} ${nearest.days <= 0 ? 'exam is TODAY' : 'exam in ' + nearest.days + ' day' + (nearest.days > 1 ? 's' : '')} — switch to retrieval practice`;
+  }
 }
 
 // ===== SETTINGS =====
