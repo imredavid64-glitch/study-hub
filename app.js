@@ -180,6 +180,7 @@ const DEFAULT_STATE = {
   goals: [], tasks: [], sessions: [], flashcards: [], notes: [], assignments: [],
   reflections: [], quizAttempts: [], mockTestHistory: [], recallHistory: [],
   confusionLog: [],
+  reviewQueue: [],
   resources: [],
   aiChatHistory: [], lessonChatHistory: [], voiceTranscript: [],
   musicTrackIndex: 0, musicVolume: 70, musicPlaying: false,
@@ -684,7 +685,62 @@ function logConfusion(topic, concept, source) {
     if (!state.confusionLog) state.confusionLog = [];
     state.confusionLog.push({ id: uid(), date: todayStr(), topic: String(topic || 'General').trim().slice(0, 60), concept: String(concept || topic || 'Unknown').trim().slice(0, 120), source: source || 'quiz' });
     if (state.confusionLog.length > 500) state.confusionLog = state.confusionLog.slice(-500);
+    // Confusion-triggered review queue: every miss schedules a review.
+    try {
+      if (!state.reviewQueue) state.reviewQueue = [];
+      const t = String(topic || 'General').trim().slice(0, 60);
+      const c = String(concept || topic || 'Unknown').trim().slice(0, 120);
+      const today = todayStr();
+      const existing = state.reviewQueue.find(i => i.topic === t && i.concept === c);
+      if (existing) {
+        existing.count = (existing.count || 1) + 1;
+        existing.due = today; // re-confusion means it needs review now
+        existing.lastConfused = today;
+        existing.source = source || existing.source;
+      } else {
+        state.reviewQueue.push({ id: uid(), topic: t, concept: c, source: source || 'quiz', count: 1, added: today, due: today, lastConfused: today, reviews: 0, lastReviewed: null });
+      }
+      if (state.reviewQueue.length > 200) state.reviewQueue = state.reviewQueue.slice(-200);
+    } catch (e2) { /* queue must never break the flow */ }
   } catch (e) { /* confusion logging must never break the flow */ }
+}
+function seedReviewQueueFromLog() {
+  // For existing saves / demo data: build the queue from the confusion log if empty.
+  try {
+    if (!state.reviewQueue) state.reviewQueue = [];
+    if (state.reviewQueue.length > 0 || !state.confusionLog) return;
+    const byKey = {};
+    state.confusionLog.forEach(e => {
+      const key = e.topic + '|' + (e.concept || '');
+      if (!byKey[key]) byKey[key] = { topic: e.topic || 'General', concept: e.concept || e.topic || 'Unknown', source: e.source || 'quiz', count: 0, lastConfused: e.date, added: e.date, due: e.date, reviews: 0, lastReviewed: null };
+      byKey[key].count++;
+      if (e.date > byKey[key].lastConfused) byKey[key].lastConfused = e.date;
+      if (e.date < byKey[key].added) byKey[key].added = e.date;
+      if (e.date > byKey[key].due) byKey[key].due = e.date;
+    });
+    state.reviewQueue = Object.values(byKey).map(i => ({ id: uid(), ...i }));
+  } catch (e) { /* never break */ }
+}
+function markReviewReviewed(id) {
+  try {
+    const item = (state.reviewQueue || []).find(i => i.id === id);
+    if (!item) return;
+    item.reviews = (item.reviews || 0) + 1;
+    item.lastReviewed = todayStr();
+    // Spaced-repetition style: first review 2 days out, then a week.
+    const d = new Date(); d.setDate(d.getDate() + (item.reviews >= 2 ? 7 : 2));
+    item.due = d.toISOString().split('T')[0];
+    saveState(); renderReviewQueue(); showToast('Marked reviewed — back in the queue later');
+  } catch (e) { /* never break */ }
+}
+function clearReviewQueueForTopic(topic) {
+  // A strong performance on a topic means its confusion is resolved.
+  try {
+    if (!state.reviewQueue || !topic) return;
+    const before = state.reviewQueue.length;
+    state.reviewQueue = state.reviewQueue.filter(i => !String(i.topic).toLowerCase().includes(String(topic).toLowerCase()));
+    if (state.reviewQueue.length !== before) { saveState(); renderReviewQueue(); }
+  } catch (e) { /* never break */ }
 }
 function escapeHtml(t) {
   const d = document.createElement('div');
@@ -745,7 +801,7 @@ function showTab(tabId) {
   if (tab) tab.classList.add('active');
   const btn = qs(`.nav-btn[data-tab="${tabId}"]`);
   if (btn) btn.classList.add('active');
-  if (tabId === 'analytics' && typeof renderCharts === 'function') { renderCharts(); if (typeof renderConfusionHeatmap === 'function') renderConfusionHeatmap(); }
+  if (tabId === 'analytics' && typeof renderCharts === 'function') { renderCharts(); if (typeof renderConfusionHeatmap === 'function') renderConfusionHeatmap(); if (typeof renderReviewQueue === 'function') renderReviewQueue(); }
   // The study map is initialized lazily because its container is 0×0 while hidden.
   if (tabId === 'studymap' && window.__studyMapRefresh) setTimeout(window.__studyMapRefresh, 0);
   updateWelcomeTitle();
@@ -950,6 +1006,7 @@ function renderDashboard() {
   achHtml += '</div>';
   ach.innerHTML = achHtml;
   if (typeof renderExamRadar === 'function') renderExamRadar();
+  if (typeof renderReviewQueue === 'function') renderReviewQueue();
   } catch(e) { if (typeof console !== 'undefined') console.warn('renderDashboard:', e); }
 }
 
@@ -958,7 +1015,7 @@ function setupPlanner() {
   $('goalForm').addEventListener('submit', e => {
     e.preventDefault();
     state.goals.push({ id: uid(), title: $('goalTitle').value, subject: $('goalSubject').value, deadline: $('goalDeadline').value, priority: $('goalPriority').value, hours: +$('goalHours').value, createdAt: todayStr() });
-    saveState(); renderGoals(); renderDashboard(); $('goalForm').reset(); showToast('Goal created');
+    saveState(); renderGoals(); renderDashboard(); if (typeof renderCountdownPlanner === 'function') renderCountdownPlanner(); $('goalForm').reset(); showToast('Goal created');
   });
   $('taskForm').addEventListener('submit', e => {
     e.preventDefault();
@@ -967,6 +1024,7 @@ function setupPlanner() {
   });
   $('generatePlanBtn').addEventListener('click', generateAutoStudyPlan);
   renderGoals(); renderKanban();
+  if (typeof renderCountdownPlanner === 'function') renderCountdownPlanner();
 }
 function renderGoals() {
   const el = $('goalList');
@@ -995,18 +1053,29 @@ function renderGoals() {
 }
 function renderKanban() {
   const hasTasks = state.tasks.length > 0;
+  const nearestExam = upcomingDeadlines().filter(x => x.days >= 0)[0] || null;
   
   ['todo', 'doing', 'done'].forEach(st => {
     const el = $(`taskBoard${st.charAt(0).toUpperCase() + st.slice(1)}`);
     el.innerHTML = '';
-    const filteredTasks = state.tasks.filter(t => t.status === st);
+    let filteredTasks = state.tasks.filter(t => t.status === st);
+    // Smart reshuffle: tasks for the nearest exam's subject float to the top, then by due date.
+    filteredTasks.sort((a, b) => {
+      const aHot = nearestExam && String(a.subject).toLowerCase() === String(nearestExam.subject).toLowerCase() ? 0 : 1;
+      const bHot = nearestExam && String(b.subject).toLowerCase() === String(nearestExam.subject).toLowerCase() ? 0 : 1;
+      if (aHot !== bHot) return aHot - bHot;
+      return String(a.due).localeCompare(String(b.due));
+    });
     
     if (!hasTasks && st === 'todo') {
       el.innerHTML = '<div class="empty-state"><p>No tasks yet. Add your first task!</p><button class="empty-state-button" onclick="loadDemoData()">⚡ Load Sample Tasks</button></div>';
     } else {
       filteredTasks.forEach(t => {
         const d = document.createElement('div'); d.className = 'task-card';
-        d.innerHTML = `<strong>${escapeHtml(t.title)}</strong><span class="small">${escapeHtml(t.subject)} — due ${formatDate(t.due)}</span>
+        const hot = nearestExam && String(t.subject).toLowerCase() === String(nearestExam.subject).toLowerCase();
+        if (hot) d.classList.add('task-hot');
+        const hotBadge = hot ? `<span class="badge task-hot-badge">📌 ${nearestExam.days <= 0 ? 'TODAY' : 'D−' + nearestExam.days} exam</span>` : '';
+        d.innerHTML = `<strong>${escapeHtml(t.title)}</strong> ${hotBadge}<span class="small">${escapeHtml(t.subject)} — due ${formatDate(t.due)}</span>
         <div class="inline wrap"><button class="ghost" data-move-task='${t.id}' data-to='${st === 'todo' ? 'doing' : st === 'doing' ? 'done' : 'doing'}'>${st === 'done' ? 'Reactivate' : 'Move →'}</button>
         <button class="ghost" data-del-task='${t.id}' style="color:var(--danger)">X</button></div>`;
         el.appendChild(d);
@@ -1031,13 +1100,17 @@ function generateAutoStudyPlan() {
   const plan = days.map(d => {
     const dayGoals = goals.filter(g => d <= g.deadline);
     const hrs = Math.min(hpd, dayGoals.reduce((s, g) => s + g.hours / Math.max(daysUntil(g.deadline), 1), 0));
-    return { date: d, hours: Math.round(hrs * 10) / 10, tasks: dayGoals.slice(0, 3).map(g => g.title) };
+    // Exam-aware: inside the 3-day retrieval window, tasks become retrieval practice.
+    const dayDaysLeft = g => Math.ceil((new Date(g.deadline) - new Date(d + 'T00:00:00')) / 86400000);
+    const labels = dayGoals.slice(0, 3).map(g => dayDaysLeft(g) <= 3 ? '🔁 Retrieval: ' + g.title : g.title);
+    const inWindow = dayGoals.some(g => dayDaysLeft(g) <= 3);
+    return { date: d, hours: Math.round(hrs * 10) / 10, tasks: labels, inWindow };
   });
   const el = $('generatedPlan');
-  el.innerHTML = '<h4>Study Plan</h4>';
+  el.innerHTML = '<h4>Study Plan <span class="small" style="opacity:0.6">— 🔁 days switch to retrieval practice inside the 3-day exam window</span></h4>';
   plan.slice(0, 14).forEach(p => {
-    const d = document.createElement('div'); d.className = 'item';
-    d.innerHTML = `<strong>${formatDate(p.date)}</strong> — ${p.hours}h — ${p.tasks.map(escapeHtml).join(', ')}`;
+    const d = document.createElement('div'); d.className = 'item' + (p.inWindow ? ' plan-retrieval' : '');
+    d.innerHTML = `<strong>${formatDate(p.date)}</strong> — ${p.hours}h${p.inWindow ? ' <span class="badge" style="background:var(--warning)">RETRIEVAL WINDOW</span>' : ''} — ${p.tasks.map(escapeHtml).join(', ')}`;
     el.appendChild(d);
   });
 }
@@ -1390,7 +1463,7 @@ function submitQuiz() {
   const pct = Math.round(correct / quizState.questions.length * 100);
   $('quizResult').textContent = `Score: ${correct}/${quizState.questions.length} (${pct}%)`;
   state.quizAttempts.push({ id: uid(), date: todayStr(), topic, score: correct, total: quizState.questions.length, pct });
-  saveState(); renderQuizHistory(); renderConfusionHeatmap(); showToast('Quiz submitted');
+  saveState(); renderQuizHistory(); renderConfusionHeatmap(); if (pct >= 80) clearReviewQueueForTopic(topic); else renderReviewQueue(); showToast('Quiz submitted');
 }
 function renderQuizHistory() {
   const el = $('quizAttemptList');
@@ -1478,7 +1551,7 @@ function submitMockTest() {
   const pct = Math.round(correct / mockState.questions.length * 100);
   $('mockTestResult').innerHTML = `<strong>Mock Test Score: ${correct}/${mockState.questions.length} (${pct}%)</strong>`;
   state.mockTestHistory.push({ id: uid(), date: todayStr(), subject, score: correct, total: mockState.questions.length, pct });
-  saveState(); renderMockTestHistory(); renderConfusionHeatmap(); showToast('Mock test submitted');
+  saveState(); renderMockTestHistory(); renderConfusionHeatmap(); if (pct >= 80) clearReviewQueueForTopic(subject); else renderReviewQueue(); showToast('Mock test submitted');
 }
 function renderMockTestHistory() {
   const el = $('mockTestHistory');
@@ -2509,6 +2582,7 @@ function renderExplainGrade(topic, text, score, strengths, gaps, followup, statu
   statusEl.querySelector('[data-explain-quiz]').addEventListener('click', () => { const q = $('quizTopic'); if (q) q.value = topic; showTab('quizzes'); });
   statusEl.querySelector('[data-explain-again]').addEventListener('click', () => { statusEl.remove(); startExplainItBack(topic); });
   if (s < 60) logConfusion(topic, topic, 'explain');
+  if (s >= 80) clearReviewQueueForTopic(topic); else renderReviewQueue();
   state.recallHistory.push({ id: uid(), date: todayStr(), topic, score: s, feedback: 'Explain-it-back: ' + (gaps || []).slice(0, 2).join(', ') || followup });
   saveState();
   if (typeof renderRecallHistory === 'function') renderRecallHistory();
@@ -2958,6 +3032,44 @@ function renderConfusionHeatmap() {
   el.querySelectorAll('[data-fix-explain]').forEach(b => b.addEventListener('click', () => { const t = b.dataset.fixExplain; showTab('ai-tutor'); setTimeout(() => startExplainItBack(t), 150); }));
 }
 
+// ===== CONFUSION-TRIGGERED REVIEW QUEUE =====
+function renderReviewQueue() {
+  seedReviewQueueFromLog();
+  const targets = ['reviewQueue', 'reviewQueueAnalytics'];
+  targets.forEach(id => {
+    const el = $(id);
+    if (!el) return;
+    const queue = (state.reviewQueue || []).filter(i => i.due <= todayStr()).sort((a, b) => (b.count || 1) - (a.count || 1) || String(b.lastConfused).localeCompare(String(a.lastConfused)));
+    const countEl = $('reviewQueueCount');
+    if (countEl) countEl.textContent = queue.length > 0 ? `${queue.length} due` : '';
+    if (queue.length === 0) {
+      el.innerHTML = '<p class="subtle">Nothing due. Misses from quizzes, flashcards, blurts, and mock tests land here as scheduled reviews.</p>';
+      return;
+    }
+    let html = '<div class="review-queue-list">';
+    queue.slice(0, 8).forEach(i => {
+      const hot = i.count >= 3;
+      html += `<div class="review-queue-item${hot ? ' rq-hot' : ''}">
+        <div class="review-queue-body">
+          <strong>${escapeHtml(i.topic)}</strong>${i.concept && i.concept !== i.topic ? ` <span class="subtle">— ${escapeHtml(i.concept)}</span>` : ''}
+          <div class="small" style="opacity:0.75">${CONFUSION_SOURCE_ICONS[i.source] || '•'} ${CONFUSION_SOURCE_LABELS[i.source] || i.source} · ×${i.count}${i.count > 1 ? ' missed' : ' miss'}${hot ? ' · 🔥 needs attention' : ''}</div>
+        </div>
+        <div class="inline wrap" style="gap:6px">
+          <button class="btn btn-sm" data-rq-quiz="${escapeHtml(i.topic)}">📝 Practice</button>
+          <button class="btn btn-sm btn-ghost" data-rq-explain="${escapeHtml(i.topic)}">🎤 Explain it back</button>
+          <button class="btn btn-sm btn-ghost" data-rq-done="${i.id}" title="Review done — reschedule">✔</button>
+        </div>
+      </div>`;
+    });
+    if (queue.length > 8) html += `<p class="small" style="opacity:0.6">+${queue.length - 8} more due</p>`;
+    html += '</div>';
+    el.innerHTML = html;
+    el.querySelectorAll('[data-rq-quiz]').forEach(b => b.addEventListener('click', () => { const t = b.dataset.rqQuiz; const q = $('quizTopic'); if (q) q.value = t; showTab('quizzes'); }));
+    el.querySelectorAll('[data-rq-explain]').forEach(b => b.addEventListener('click', () => { const t = b.dataset.rqExplain; showTab('ai-tutor'); setTimeout(() => startExplainItBack(t), 150); }));
+    el.querySelectorAll('[data-rq-done]').forEach(b => b.addEventListener('click', () => markReviewReviewed(b.dataset.rqDone)));
+  });
+}
+
 // ===== EXAM RADAR =====
 function upcomingDeadlines() {
   const out = [];
@@ -3015,6 +3127,84 @@ function renderExamRadar() {
     const mt = $('missionText');
     if (mt) mt.textContent = `🚨 ${nearest.subject} ${nearest.days <= 0 ? 'exam is TODAY' : 'exam in ' + nearest.days + ' day' + (nearest.days > 1 ? 's' : '')} — switch to retrieval practice`;
   }
+}
+
+// ===== SMART COUNTDOWN PLANNER =====
+function renderCountdownPlanner() {
+  const el = $('countdownPlanner');
+  if (!el) return;
+  const deadlines = upcomingDeadlines().filter(x => x.days >= 0);
+  if (deadlines.length === 0) {
+    el.innerHTML = '<p class="subtle">No upcoming exams or deadlines. Create a goal with a deadline and this planner will show a daily countdown plan, per-day time targets, and a study focus order.</p>';
+    return;
+  }
+  const recentMins = (subject) => state.sessions.filter(s => s.subject === subject && new Date(s.date) >= new Date(Date.now() - 7 * 86400000)).reduce((s, x) => s + (x.minutes || 0), 0);
+  // Focus order: subjects ranked by nearest deadline, then confusion pressure.
+  const subjectRank = {};
+  deadlines.forEach(x => {
+    const r = subjectRank[x.subject] || (subjectRank[x.subject] = { minDays: 99, hours: 0, lastConfused: '' });
+    r.minDays = Math.min(r.minDays, x.days);
+    if (x.kind === 'goal' && x.hours) r.hours += x.hours;
+  });
+  (state.confusionLog || []).forEach(e => {
+    const r = subjectRank[e.topic];
+    if (r && e.date > r.lastConfused) r.lastConfused = e.date;
+  });
+  const focusOrder = Object.entries(subjectRank).sort((a, b) => a[1].minDays - b[1].minDays || String(b[1].lastConfused).localeCompare(String(a[1].lastConfused)));
+  const imminent = deadlines.filter(x => x.days <= 7);
+  let html = '<div class="countdown-plan-list">';
+  deadlines.slice(0, 6).forEach(x => {
+    const ph = examPhase(x.days);
+    const mins = recentMins(x.subject);
+    const daysLeft = Math.max(1, x.days);
+    const remainingHours = x.kind === 'goal' && x.hours ? Math.max(0, x.hours - mins / 60) : 0;
+    const perDay = x.kind === 'goal' && x.hours ? Math.round(remainingHours * 60 / daysLeft) : Math.max(0, Math.round(30 - mins / Math.max(x.days, 1)));
+    const onTrack = perDay <= 0 || mins >= (x.kind === 'goal' && x.hours ? x.hours * 60 / Math.max(daysLeft, 1) : 30);
+    html += `<div class="countdown-plan-item ${ph.cls}">
+      <div class="countdown-plan-head">
+        <span class="exam-radar-countdown sm">${x.days <= 0 ? 'TODAY' : 'D−' + x.days}</span>
+        <div class="countdown-plan-title"><strong>${escapeHtml(x.title)}</strong><span class="small" style="opacity:0.75">${escapeHtml(x.subject)} · ${ph.label} · due ${formatDate(x.date)}</span></div>
+      </div>
+      <div class="countdown-plan-meta">
+        <span class="chip${onTrack ? ' chip-ok' : ' chip-warn'}">${onTrack ? '✓ on track' : '⚠ behind target'}</span>
+        <span class="small" style="opacity:0.8">${mins} min studied (7d)${perDay > 0 ? ' · target ' + perDay + ' min/day' : ' · target met'}</span>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  if (focusOrder.length > 0) {
+    html += '<div class="countdown-focus"><strong class="small">🎯 Study focus order</strong><div class="inline wrap" style="gap:6px;margin-top:4px">' +
+      focusOrder.slice(0, 5).map(([s, r], idx) => `<span class="chip">${idx + 1}. ${escapeHtml(s)}${r.lastConfused ? ' 🔥' : ''}</span>`).join(' ') +
+      '</div></div>';
+  }
+  if (imminent.length > 0) {
+    const dupes = (state.tasks || []).filter(t => t.status !== 'done').map(t => String(t.title).toLowerCase());
+    html += `<div class="countdown-actions"><button id="addCountdownTasksBtn" class="btn btn-sm">➕ Add countdown retrieval tasks (${imminent.length} exam${imminent.length > 1 ? 's' : ''} ≤ 7 days)</button></div>`;
+    setTimeout(() => {
+      const btn = $('addCountdownTasksBtn');
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        let added = 0;
+        const today = todayStr();
+        imminent.forEach(x => {
+          const labels = [
+            `🔁 Retrieval practice: ${x.subject} (exam prep)`,
+            `🃏 Flashcard sprint: ${x.subject}`,
+            `📝 Timed practice test: ${x.subject}`
+          ];
+          labels.forEach((title, i) => {
+            if (dupes.includes(title.toLowerCase())) return;
+            const d = new Date(); d.setDate(d.getDate() + i);
+            state.tasks.push({ id: uid(), title, subject: x.subject, due: d.toISOString().split('T')[0], effort: 2, status: 'todo', createdAt: today, source: 'countdown' });
+            dupes.push(title.toLowerCase()); added++;
+          });
+        });
+        if (added === 0) { showToast('Countdown tasks already added'); return; }
+        saveState(); renderKanban(); renderDashboard(); showToast(`Added ${added} countdown task${added > 1 ? 's' : ''} to your board`);
+      });
+    }, 0);
+  }
+  el.innerHTML = html;
 }
 
 // ===== SETTINGS =====

@@ -5224,3 +5224,44 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .lp-research-grid { grid-template-columns: 1fr; }
   .lp-sdg-pledge { flex-direction: column; text-align: center; }
 }
+
+/* ===== Confusion Review Queue ===== */
+.review-queue-list { display: flex; flex-direction: column; gap: 8px; }
+.review-queue-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  border: 1px solid var(--border, rgba(0,0,0,0.08));
+  border-left: 4px solid var(--warning, #e6a700);
+  border-radius: 10px; padding: 10px 12px;
+  background: color-mix(in srgb, var(--warning, #e6a700) 5%, transparent);
+}
+.review-queue-item.rq-hot { border-left-color: var(--danger, #b3261e); background: color-mix(in srgb, var(--danger, #b3261e) 6%, transparent); }
+.review-queue-body { flex: 1; min-width: 0; }
+.review-queue-body strong { color: var(--text, #1b2f2a); }
+
+/* ===== Smart Countdown Planner ===== */
+.countdown-planner { display: flex; flex-direction: column; gap: 10px; }
+.countdown-plan-list { display: flex; flex-direction: column; gap: 8px; }
+.countdown-plan-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  border: 1px solid var(--border, rgba(0,0,0,0.08));
+  border-left: 4px solid var(--success, #237a57);
+  border-radius: 10px; padding: 10px 12px;
+}
+.countdown-plan-item.exam-urgent { border-left-color: var(--danger, #b3261e); background: color-mix(in srgb, var(--danger, #b3261e) 6%, transparent); }
+.countdown-plan-item.exam-soon { border-left-color: var(--warning, #e6a700); background: color-mix(in srgb, var(--warning, #e6a700) 5%, transparent); }
+.countdown-plan-head { display: flex; align-items: center; gap: 10px; }
+.countdown-plan-title { display: flex; flex-direction: column; }
+.countdown-plan-meta { display: flex; align-items: center; gap: 8px; }
+.countdown-focus { margin-top: 4px; }
+.countdown-actions { margin-top: 8px; }
+.chip-ok { background: color-mix(in srgb, var(--success, #237a57) 14%, transparent); color: var(--success, #237a57); border-color: color-mix(in srgb, var(--success, #237a57) 40%, transparent); }
+.chip-warn { background: color-mix(in srgb, var(--warning, #e6a700) 14%, transparent); color: #8a6400; border-color: color-mix(in srgb, var(--warning, #e6a700) 40%, transparent); }
+
+/* ===== Exam-aware task board ===== */
+.task-card.task-hot {
+  border-color: color-mix(in srgb, var(--warning, #e6a700) 55%, var(--border, rgba(0,0,0,0.08)));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--warning, #e6a700) 25%, transparent);
+  background: color-mix(in srgb, var(--warning, #e6a700) 5%, var(--panel, #ffffff));
+}
+.task-hot-badge { background: var(--warning, #e6a700); color: #2a1f00; font-size: 0.72rem; }
+.plan-retrieval { border-left: 3px solid var(--warning, #e6a700); padding-left: 10px; }
