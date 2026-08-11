@@ -749,6 +749,29 @@ body {
   .print-sheet.print-active { position: static; padding: 0; overflow: visible; }
   .print-sheet { display: block !important; }
 }
+
+/* ===== CONFETTI ===== */
+.confetti-layer { position: fixed; inset: 0; pointer-events: none; z-index: 10001; overflow: hidden; }
+.confetti-piece { position: absolute; top: -12px; border-radius: 2px; opacity: .95; animation-name: confetti-fall; animation-timing-function: ease-in; animation-fill-mode: forwards; }
+@keyframes confetti-fall {
+  0% { transform: translate3d(0, -10px, 0) rotate(0deg); opacity: 1; }
+  100% { transform: translate3d(var(--drift), 105vh, 0) rotate(var(--spin)); opacity: .6; }
+}
+
+/* ===== WALKTHROUGH ANALYTICS ===== */
+.wt-an-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.wt-an-stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; text-align: center; }
+.wt-an-stat strong { display: block; font-size: 1.25rem; color: var(--accent); }
+.wt-an-stat span { font-size: .72rem; opacity: .75; line-height: 1.3; }
+.wt-an-steps { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.wt-an-step { display: flex; align-items: center; gap: 10px; }
+.wt-an-label { width: 150px; font-size: .78rem; flex-shrink: 0; }
+.wt-an-bar { flex: 1; height: 10px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.wt-an-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 60%, var(--success))); transition: width .4s ease; }
+.wt-an-num { width: 26px; text-align: right; font-size: .78rem; font-weight: 700; }
+.wt-an-goals { display: flex; flex-direction: column; gap: 8px; }
+.wt-an-goal { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; }
+.wt-an-goal-body { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .wt-modal { max-width: 720px; }
 .wt-phase-note { padding: 8px 12px; border-radius: var(--radius); font-size: .82rem; margin: 10px 0; background: var(--surface); border: 1px solid var(--border); }
 .wt-phase-note.exam-urgent { background: color-mix(in srgb, var(--danger) 12%, var(--surface)); border-color: var(--danger); }

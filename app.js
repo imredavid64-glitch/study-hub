@@ -802,7 +802,7 @@ function showTab(tabId) {
   if (tab) tab.classList.add('active');
   const btn = qs(`.nav-btn[data-tab="${tabId}"]`);
   if (btn) btn.classList.add('active');
-  if (tabId === 'analytics' && typeof renderCharts === 'function') { renderCharts(); if (typeof renderConfusionHeatmap === 'function') renderConfusionHeatmap(); if (typeof renderReviewQueue === 'function') renderReviewQueue(); }
+  if (tabId === 'analytics' && typeof renderCharts === 'function') { renderCharts(); if (typeof renderConfusionHeatmap === 'function') renderConfusionHeatmap(); if (typeof renderReviewQueue === 'function') renderReviewQueue(); if (typeof renderWalkthroughAnalytics === 'function') renderWalkthroughAnalytics(); }
   // The study map is initialized lazily because its container is 0×0 while hidden.
   if (tabId === 'studymap' && window.__studyMapRefresh) setTimeout(window.__studyMapRefresh, 0);
   updateWelcomeTitle();
@@ -1224,14 +1224,42 @@ function markWtStep(goalId, key, mins) {
   // 🏆 Walkthrough completed — celebrate once and auto-schedule the final review run.
   if (wtDoneCount(goalId) >= WT_STEP_KEYS.length && !p.celebrated) {
     p.celebrated = true;
+    p.completedAt = new Date().toISOString();
     state.settings._ach = state.settings._ach || { goalsCompleted: 0, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 };
     state.settings._ach.walkthroughsCompleted = (state.settings._ach.walkthroughsCompleted || 0) + 1;
     saveState(); renderDashboard();
     try {
       if (typeof showToast === 'function') showToast('🏆 Walkthrough complete — final review scheduled!');
+      if (typeof fireConfetti === 'function') fireConfetti();
       scheduleFinalReview(goal);
     } catch (e) { /* non-fatal */ }
   }
+}
+
+function fireConfetti() {
+  try {
+    if (!document.body) return;
+    const colors = ['#0f766e', '#e6a700', '#237a57', '#0b5cab', '#f97316', '#8b5cf6', '#ec4899'];
+    const count = 120;
+    const layer = document.createElement('div');
+    layer.className = 'confetti-layer';
+    document.body.appendChild(layer);
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement('span');
+      p.className = 'confetti-piece';
+      const size = 6 + Math.random() * 8;
+      p.style.width = size + 'px';
+      p.style.height = (size * (0.5 + Math.random() * 0.7)) + 'px';
+      p.style.left = (Math.random() * 100) + 'vw';
+      p.style.background = colors[Math.floor(Math.random() * colors.length)];
+      p.style.animationDelay = (Math.random() * 0.4) + 's';
+      p.style.animationDuration = (2.2 + Math.random() * 1.6) + 's';
+      p.style.setProperty('--drift', (Math.random() * 160 - 80) + 'px');
+      p.style.setProperty('--spin', (Math.random() * 720 - 360) + 'deg');
+      layer.appendChild(p);
+    }
+    setTimeout(() => layer.remove(), 4200);
+  } catch (e) { /* non-fatal */ }
 }
 
 function scheduleFinalReview(goal) {
@@ -1251,6 +1279,27 @@ function scheduleFinalReview(goal) {
   mk(`⏱️ Timed practice: ${subj}`, Math.max(1, dd - 3));
   mk(`🎤 Teach it back: ${subj}`, Math.max(1, dd - 2));
   saveState(); if (typeof renderKanban === 'function') renderKanban(); renderDashboard();
+}
+
+function scheduleNextReviewCycle(subject) {
+  // Keep the spaced-repetition loop going after a walkthrough: schedule the next review cycle.
+  if (!subject) return;
+  const subj = String(subject);
+  const existing = new Set(state.tasks.map(t => String(t.title).toLowerCase()));
+  const mk = (title, offset) => {
+    const dueD = new Date(); dueD.setDate(dueD.getDate() + offset);
+    const titleL = String(title).toLowerCase();
+    if (existing.has(titleL)) return;
+    state.tasks.push({ id: uid(), title, subject: subj, due: dueD.toISOString().split('T')[0], effort: 1, status: 'todo', createdAt: todayStr() });
+    existing.add(titleL);
+  };
+  const already = [...existing].some(t => t.includes('review cycle') || t.includes('next review'));
+  if (already) return; // don't pile up overlapping cycles
+  mk(`🔁 Review cycle 2: ${subj}`, 7);
+  mk(`⏱️ Timed practice 2: ${subj}`, 10);
+  mk(`🎤 Teach it back 2: ${subj}`, 12);
+  saveState(); if (typeof renderKanban === 'function') renderKanban(); renderDashboard();
+  if (typeof showToast === 'function') showToast('🔁 Next review cycle scheduled (+7d)');
 }
 
 function autoCompleteWtStep(activityType, matchText) {
@@ -1421,7 +1470,15 @@ function renderKanban() {
   });
   qsa('[data-move-task]').forEach(b => b.addEventListener('click', () => {
     const task = state.tasks.find(t => t.id === b.dataset.moveTask);
-    if (task) { task.status = b.dataset.to; saveState(); renderKanban(); renderDashboard(); }
+    if (task) {
+      const wasDone = task.status === 'done';
+      task.status = b.dataset.to;
+      saveState(); renderKanban(); renderDashboard();
+      // 🔁 Post-deadline review loop: completing a walkthrough final-review task schedules the next spaced cycle.
+      if (!wasDone && task.status === 'done' && /final review|teach it back|timed practice/i.test(task.title || '') && typeof scheduleNextReviewCycle === 'function') {
+        scheduleNextReviewCycle(task.subject || 'General');
+      }
+    }
   }));
   qsa('[data-del-task]').forEach(b => b.addEventListener('click', () => {
     state.tasks = state.tasks.filter(t => t.id !== b.dataset.delTask);
@@ -3370,6 +3427,70 @@ function renderConfusionHeatmap() {
   el.querySelectorAll('[data-fix-quiz]').forEach(b => b.addEventListener('click', () => { const t = b.dataset.fixQuiz; const q = $('quizTopic'); if (q) q.value = t; showTab('quizzes'); }));
   el.querySelectorAll('[data-fix-flash]').forEach(b => b.addEventListener('click', () => { const t = b.dataset.fixFlash; const inp = $('flashcardAiInput'); if (inp) inp.value = t; showTab('flashcards'); }));
   el.querySelectorAll('[data-fix-explain]').forEach(b => b.addEventListener('click', () => { const t = b.dataset.fixExplain; showTab('ai-tutor'); setTimeout(() => startExplainItBack(t), 150); }));
+}
+
+// ===== WALKTHROUGH ANALYTICS =====
+function renderWalkthroughAnalytics() {
+  const el = $('wtAnalytics');
+  if (!el) return;
+  const goals = state.goals || [];
+  const countEl = $('wtAnalyticsCount');
+  const completed = Object.values(state.walkthroughProgress || {}).filter(p => p && p.celebrated).length;
+  if (countEl) countEl.textContent = completed > 0 ? completed + ' done' : '';
+  if (goals.length === 0 && completed === 0) {
+    el.innerHTML = '<p class="subtle">Create a goal and finish a walkthrough to see stats here.</p>';
+    return;
+  }
+  // Per-step completion frequency across all goals.
+  const stepCounts = {};
+  WT_STEP_KEYS.forEach(k => stepCounts[k] = 0);
+  Object.values(state.walkthroughProgress || {}).forEach(p => {
+    if (!p || !p.steps) return;
+    WT_STEP_KEYS.forEach(k => { if (p.steps[k]) stepCounts[k]++; });
+  });
+  const stepMax = Math.max(1, ...Object.values(stepCounts));
+  const stepBars = WT_STEP_KEYS.map(k => {
+    const n = stepCounts[k] || 0;
+    const w = Math.round(n / stepMax * 100);
+    return `<div class="wt-an-step"><span class="wt-an-label">${WT_STEP_LABELS[k]}</span><div class="wt-an-bar"><div class="wt-an-fill" style="width:${w}%"></div></div><span class="wt-an-num">${n}</span></div>`;
+  }).join('');
+  // Average completion time: from first walkthrough session to completedAt.
+  let avgDays = null;
+  const spans = [];
+  Object.entries(state.walkthroughProgress || {}).forEach(([gid, p]) => {
+    if (!p || !p.celebrated || !p.completedAt) return;
+    const goal = goals.find(g => g.id === gid);
+    const sessions = state.sessions.filter(s => s.subject === (goal ? goal.subject : null) && String(s.objective || '').startsWith('Walkthrough:'));
+    if (sessions.length) {
+      const first = new Date(sessions[0].date);
+      const last = new Date(p.completedAt);
+      spans.push(Math.max(0, Math.round((last - first) / 86400000)));
+    }
+  });
+  if (spans.length) avgDays = Math.round(spans.reduce((a, b) => a + b, 0) / spans.length);
+  const totalStepsDone = Object.values(state.walkthroughProgress || {}).reduce((acc, p) => acc + (p && p.steps ? Object.values(p.steps).filter(Boolean).length : 0), 0);
+  const mostDone = WT_STEP_KEYS.reduce((a, b) => (stepCounts[b] || 0) > (stepCounts[a] || 0) ? b : a, WT_STEP_KEYS[0]);
+  let html = `<div class="wt-an-stats">
+    <div class="wt-an-stat"><strong>${completed}</strong><span>walkthroughs<br>completed</span></div>
+    <div class="wt-an-stat"><strong>${totalStepsDone}/${WT_STEP_KEYS.length * Math.max(1, goals.length)}</strong><span>steps<br>done</span></div>
+    <div class="wt-an-stat"><strong>${avgDays !== null ? avgDays + 'd' : '—'}</strong><span>avg time<br>to complete</span></div>
+    <div class="wt-an-stat"><strong>${WT_STEP_LABELS[mostDone]}</strong><span>most<br>completed step</span></div>
+  </div>`;
+  html += `<h4>Step completion</h4><div class="wt-an-steps">${stepBars}</div>`;
+  // Per-goal progress list.
+  const goalRows = goals.slice().reverse().map(g => {
+    const p = wtProgress(g.id);
+    const done = wtDoneCount(g.id);
+    const pct = Math.round(done / WT_STEP_KEYS.length * 100);
+    return `<div class="wt-an-goal">
+      <span class="wt-ring wt-ring-sm" style="--wt-pct:${pct}"><span class="wt-ring-inner">${done}/${WT_STEP_KEYS.length}</span></span>
+      <span class="wt-an-goal-body"><strong>${escapeHtml(g.title)}</strong><span class="small">${escapeHtml(g.subject || 'General')} · ${p.celebrated ? '🏆 completed' : pct > 0 ? pct + '% in progress' : 'not started'}</span></span>
+      <button class="ghost small" data-wt-an-open="${g.id}">Open</button>
+    </div>`;
+  }).join('');
+  html += `<h4>Goals</h4><div class="wt-an-goals">${goalRows}</div>`;
+  el.innerHTML = html;
+  el.querySelectorAll('[data-wt-an-open]').forEach(b => b.addEventListener('click', () => generateGoalWalkthrough(b.dataset.wtAnOpen)));
 }
 
 // ===== CONFUSION-TRIGGERED REVIEW QUEUE =====
