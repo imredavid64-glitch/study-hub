@@ -1009,7 +1009,128 @@ function renderDashboard() {
   if (typeof renderReviewQueue === 'function') renderReviewQueue();
   if (typeof renderBehindNudge === 'function') renderBehindNudge();
   if (typeof renderExamLockBanner === 'function') renderExamLockBanner();
+  if (typeof renderGoalWalkthroughs === 'function') renderGoalWalkthroughs();
   } catch(e) { if (typeof console !== 'undefined') console.warn('renderDashboard:', e); }
+}
+
+// ===== GOAL WALKTHROUGHS =====
+function renderGoalWalkthroughs() {
+  const el = $('goalWalkthroughs');
+  if (!el) return;
+  if (!state.goals.length) {
+    el.innerHTML = '<p class="subtle">Create a goal in the Planner and it will appear here with a one-click study walkthrough.</p>';
+    return;
+  }
+  el.innerHTML = state.goals.slice().reverse().map(g => {
+    const dd = daysUntil(g.deadline);
+    return `<button class="goal-walk-card" data-walkthrough="${g.id}">
+      <strong>${escapeHtml(g.title)}</strong>
+      <span class="small">${escapeHtml(g.subject || 'General')} · ${dd >= 0 ? dd + 'd left' : 'Overdue'}</span>
+      <span class="goal-walk-cta">🚀 Generate walkthrough →</span>
+    </button>`;
+  }).join('');
+  el.querySelectorAll('[data-walkthrough]').forEach(b => b.addEventListener('click', () => generateGoalWalkthrough(b.dataset.walkthrough)));
+}
+
+function walkthroughTopics(goal) {
+  const subject = String(goal.subject || '').toLowerCase();
+  const titleWords = String(goal.title || '').toLowerCase().split(/\W+/).filter(w => w.length > 3);
+  const hits = (...fields) => fields.some(f => f && (String(f).toLowerCase() === subject || String(f).toLowerCase().includes(subject) || (subject && subject.includes(String(f).toLowerCase())) || titleWords.some(w => String(f).toLowerCase().includes(w))));
+  const notes = state.notes.filter(n => hits(n.subject, n.title, n.tags));
+  const cards = state.flashcards.filter(c => hits(c.deck, c.question));
+  const quizzes = state.quizAttempts.filter(q => hits(q.topic));
+  const confusion = state.confusionLog.filter(c => hits(c.topic, c.concept));
+  const sessions = state.sessions.filter(s => hits(s.subject, s.objective));
+  const topics = new Set();
+  topics.add(goal.title);
+  notes.slice(0, 4).forEach(n => topics.add(n.title));
+  quizzes.slice(0, 4).forEach(q => topics.add(q.topic));
+  confusion.slice(0, 4).forEach(c => topics.add(c.concept || c.topic));
+  cards.slice(0, 4).forEach(c => topics.add(c.deck));
+  return { notes, cards, quizzes, confusion, sessions, topics: [...topics].filter(Boolean).slice(0, 6) };
+}
+
+function generateGoalWalkthrough(goalId) {
+  const g = state.goals.find(x => x.id === goalId);
+  if (!g) return;
+  const d = walkthroughTopics(g);
+  const ddLeft = daysUntil(g.deadline);
+  const dd = Math.max(ddLeft, 0);
+  const totalMins = Math.round((g.hours || 8) * 60);
+  const perDay = Math.max(15, Math.round(totalMins / Math.max(dd, 1)));
+  const phase = examPhase(ddLeft);
+  const subj = g.subject || 'General';
+  const topic = d.topics[0] || g.title;
+
+  const step = (icon, title, desc, mins, action) => `<div class="wt-step">
+    <div class="wt-step-icon">${icon}</div>
+    <div class="wt-step-body"><strong>${title}</strong><p>${desc}</p></div>
+    <div class="wt-step-meta"><span class="small">~${mins} min</span>${action}</div>
+  </div>`;
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-backdrop';
+  modal.innerHTML = `<div class="modal-card wt-modal">
+    <div class="row-between">
+      <h3>🎯 ${escapeHtml(g.title)}</h3>
+      <button class="ghost modal-close">&times;</button>
+    </div>
+    <p class="subtle">${escapeHtml(subj)} · ${ddLeft >= 0 ? 'D−' + ddLeft : 'Overdue'} · ${phase.label} · ~${perDay} min/day target</p>
+    <div class="wt-phase-note ${phase.cls}">${phase.tip}</div>
+    <h4>📚 What to study</h4>
+    <ul class="wt-topics">${d.topics.map(t => `<li>${escapeHtml(t)}</li>`).join('') || '<li class="subtle">No saved material yet — start with the goal itself, then save notes and cards as you go.</li>'}</ul>
+    <h4>🧭 Your plan</h4>
+    <div class="wt-steps">
+      ${step('📖', '1. Learn the material', 'Read through the topics above — open your notes or ask the AI tutor to walk you through each one.', perDay, `<button class="wt-action" data-wt="notes" data-subject="${escapeHtml(subj)}">Open notes</button>`)}
+      ${step('🃏', '2. Active recall — flashcards', 'Turn each topic into flashcards and study the deck until you can answer from memory.', Math.round(perDay * 0.8), `<button class="wt-action" data-wt="cards" data-deck="${escapeHtml(subj)}">Make cards</button>`)}
+      ${step('📝', '3. Test yourself — quiz', 'Generate a quiz on the topic and score at least 80%.', Math.round(perDay * 0.9), `<button class="wt-action" data-wt="quiz" data-topic="${escapeHtml(topic)}">Start quiz</button>`)}
+      ${step('⏱️', '4. Timed practice — mock test', 'Simulate exam conditions with a timed mock test on this subject.', Math.round(perDay * 1.1), `<button class="wt-action" data-wt="mock" data-subject="${escapeHtml(subj)}">Start mock</button>`)}
+      ${step('🎤', '5. Teach it back', 'Explain the topic aloud like you\'re teaching a friend — the tutor grades your answer.', Math.round(perDay * 0.6), `<button class="wt-action" data-wt="explain" data-topic="${escapeHtml(topic)}">Explain it back</button>`)}
+      ${step('🔁', '6. Spaced review', 'Lock it in with review sessions spread out before the deadline.', Math.round(perDay * 0.5), `<button class="wt-action" data-wt="review">Schedule reviews</button>`)}
+    </div>
+    <div class="wt-footer">
+      <button class="btn" data-wt="addtasks">➕ Add all as planner tasks</button>
+      <button class="btn btn-ghost wt-close">Close</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  const close = () => modal.remove();
+  modal.querySelector('.modal-close').addEventListener('click', close);
+  modal.querySelector('.wt-close').addEventListener('click', close);
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  modal.querySelectorAll('[data-wt]').forEach(b => {
+    b.addEventListener('click', () => {
+      const kind = b.dataset.wt;
+      if (kind === 'notes') { const n = $('noteSubject'); if (n) n.value = b.dataset.subject; showTab('notes'); close(); }
+      else if (kind === 'cards') { const c = $('cardDeck'); if (c) c.value = b.dataset.deck; showTab('flashcards'); close(); }
+      else if (kind === 'quiz') { const q = $('quizTopic'); if (q) q.value = b.dataset.topic; showTab('quizzes'); close(); }
+      else if (kind === 'mock') { const m = $('mockTestSubject'); if (m) { const s = b.dataset.subject.toLowerCase(); [...m.options].forEach(o => { if (o.value && (s.includes(o.value) || o.value.includes(s))) m.value = o.value; }); } showTab('quizzes'); close(); }
+      else if (kind === 'explain') { if (typeof startExplainItBack === 'function') startExplainItBack(b.dataset.topic); showTab('ai-tutor'); close(); }
+      else if (kind === 'review') { addWalkthroughTasks(g, d, perDay, true); showToast('Review sessions scheduled'); }
+      else if (kind === 'addtasks') { addWalkthroughTasks(g, d, perDay, false); showToast('Plan added to your board'); }
+    });
+  });
+}
+
+function addWalkthroughTasks(goal, data, perDay, reviewOnly) {
+  const due = (offset) => { const dd = new Date(); dd.setDate(dd.getDate() + offset); return dd.toISOString().split('T')[0]; };
+  const existing = new Set(state.tasks.map(t => String(t.title).toLowerCase()));
+  const mk = (title, offset) => {
+    if (existing.has(String(title).toLowerCase())) return;
+    state.tasks.push({ id: uid(), title, subject: goal.subject || 'General', due: due(offset), effort: 1, status: 'todo', createdAt: todayStr() });
+    existing.add(String(title).toLowerCase());
+  };
+  const subj = goal.subject || 'General';
+  const topic = data.topics[0] || goal.title;
+  if (!reviewOnly) {
+    mk(`Learn: ${topic}`, 1);
+    mk(`Flashcards: ${subj}`, 2);
+    mk(`Quiz: ${topic}`, 3);
+    mk(`Mock test: ${subj}`, 4);
+    mk(`Explain it back: ${topic}`, 5);
+  }
+  mk(`Review: ${subj}`, Math.min(6, Math.max(daysUntil(goal.deadline) - 2, 1)));
+  saveState(); renderKanban(); renderDashboard();
 }
 
 // ===== PLANNER =====
