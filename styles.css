@@ -702,10 +702,28 @@ body {
 [data-dark="true"] .modal-card { background: var(--card-bg); border: 1px solid var(--border); }
 
 /* ===== GOAL WALKTHROUGHS ===== */
-.goal-walk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-top: 10px; }
-.goal-walk-card { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 12px 14px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); cursor: pointer; transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; }
+.goal-walk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin-top: 10px; }
+.goal-walk-card { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 12px 14px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); cursor: pointer; transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; }
 .goal-walk-card:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: var(--shadow); }
-.goal-walk-cta { margin-top: 6px; font-size: .78rem; font-weight: 700; color: var(--accent); }
+.goal-walk-top { display: flex; align-items: center; gap: 10px; }
+.goal-walk-head { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wt-ring { --wt-pct: 0; width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0; background: conic-gradient(var(--accent) calc(var(--wt-pct) * 1%), var(--border) 0); display: flex; align-items: center; justify-content: center; }
+.wt-ring-inner { width: 32px; height: 32px; border-radius: 50%; background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: .68rem; font-weight: 700; }
+.wt-dots { display: flex; gap: 4px; }
+.wt-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--border); }
+.wt-dot.done { background: var(--success); }
+.goal-walk-cta { margin-top: 4px; font-size: .78rem; font-weight: 700; color: var(--accent); }
+.wt-step { position: relative; }
+.wt-step-check { position: absolute; top: 10px; right: 10px; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: .8rem; font-weight: 700; cursor: pointer; color: var(--muted); background: var(--surface); transition: all .15s ease; z-index: 1; }
+.wt-step-check:hover { border-color: var(--accent); color: var(--accent); }
+.wt-step-done { opacity: .75; border-color: color-mix(in srgb, var(--success) 45%, var(--border)); }
+.wt-step-done .wt-step-check { border-color: var(--success); color: var(--success); background: color-mix(in srgb, var(--success) 14%, var(--surface)); }
+.wt-step-done .wt-step-icon { filter: grayscale(.3); }
+.wt-guide { margin: 6px 0 14px; }
+.wt-guide-content { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.wt-guide-body { font-size: .86rem; line-height: 1.55; max-height: 260px; overflow-y: auto; }
+.wt-guide-body h2, .wt-guide-body h3 { margin: 10px 0 4px; font-size: 1rem; }
+.wt-guide-body ul, .wt-guide-body ol { margin: 4px 0; padding-left: 20px; }
 .wt-modal { max-width: 720px; }
 .wt-phase-note { padding: 8px 12px; border-radius: var(--radius); font-size: .82rem; margin: 10px 0; background: var(--surface); border: 1px solid var(--border); }
 .wt-phase-note.exam-urgent { background: color-mix(in srgb, var(--danger) 12%, var(--surface)); border-color: var(--danger); }

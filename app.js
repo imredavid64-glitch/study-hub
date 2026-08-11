@@ -181,6 +181,7 @@ const DEFAULT_STATE = {
   reflections: [], quizAttempts: [], mockTestHistory: [], recallHistory: [],
   confusionLog: [],
   reviewQueue: [],
+  walkthroughProgress: {},
   resources: [],
   aiChatHistory: [], lessonChatHistory: [], voiceTranscript: [],
   musicTrackIndex: 0, musicVolume: 70, musicPlaying: false,
@@ -1014,6 +1015,14 @@ function renderDashboard() {
 }
 
 // ===== GOAL WALKTHROUGHS =====
+const WT_STEP_KEYS = ['learn', 'cards', 'quiz', 'mock', 'explain', 'review'];
+const WT_STEP_LABELS = { learn: 'Learn the material', cards: 'Flashcards', quiz: 'Quiz', mock: 'Mock test', explain: 'Explain it back', review: 'Spaced review' };
+function wtProgress(goalId) {
+  if (!state.walkthroughProgress) state.walkthroughProgress = {};
+  if (!state.walkthroughProgress[goalId]) state.walkthroughProgress[goalId] = { steps: {}, guide: null };
+  return state.walkthroughProgress[goalId];
+}
+function wtDoneCount(goalId) { return WT_STEP_KEYS.filter(k => wtProgress(goalId).steps[k]).length; }
 function renderGoalWalkthroughs() {
   const el = $('goalWalkthroughs');
   if (!el) return;
@@ -1023,10 +1032,19 @@ function renderGoalWalkthroughs() {
   }
   el.innerHTML = state.goals.slice().reverse().map(g => {
     const dd = daysUntil(g.deadline);
+    const done = wtDoneCount(g.id);
+    const pct = Math.round(done / WT_STEP_KEYS.length * 100);
+    const dots = WT_STEP_KEYS.map(k => `<span class="wt-dot${wtProgress(g.id).steps[k] ? ' done' : ''}" title="${WT_STEP_LABELS[k]}"></span>`).join('');
     return `<button class="goal-walk-card" data-walkthrough="${g.id}">
-      <strong>${escapeHtml(g.title)}</strong>
-      <span class="small">${escapeHtml(g.subject || 'General')} · ${dd >= 0 ? dd + 'd left' : 'Overdue'}</span>
-      <span class="goal-walk-cta">🚀 Generate walkthrough →</span>
+      <div class="goal-walk-top">
+        <span class="wt-ring" style="--wt-pct:${pct}"><span class="wt-ring-inner">${done}/${WT_STEP_KEYS.length}</span></span>
+        <span class="goal-walk-head">
+          <strong>${escapeHtml(g.title)}</strong>
+          <span class="small">${escapeHtml(g.subject || 'General')} · ${dd >= 0 ? dd + 'd left' : 'Overdue'}</span>
+        </span>
+      </div>
+      <span class="wt-dots">${dots}</span>
+      <span class="goal-walk-cta">${done === 0 ? '🚀 Generate walkthrough →' : '▶ Continue walkthrough →'}</span>
     </button>`;
   }).join('');
   el.querySelectorAll('[data-walkthrough]').forEach(b => b.addEventListener('click', () => generateGoalWalkthrough(b.dataset.walkthrough)));
@@ -1061,11 +1079,21 @@ function generateGoalWalkthrough(goalId) {
   const phase = examPhase(ddLeft);
   const subj = g.subject || 'General';
   const topic = d.topics[0] || g.title;
+  const prog = wtProgress(g.id);
 
-  const step = (icon, title, desc, mins, action) => `<div class="wt-step">
-    <div class="wt-step-icon">${icon}</div>
-    <div class="wt-step-body"><strong>${title}</strong><p>${desc}</p></div>
-    <div class="wt-step-meta"><span class="small">~${mins} min</span>${action}</div>
+  const stepDefs = [
+    { key: 'learn', icon: '📖', title: '1. Learn the material', desc: 'Read through the topics above — open your notes or ask the AI tutor to walk you through each one.', mins: perDay, action: `<button class="wt-action" data-wt="notes" data-subject="${escapeHtml(subj)}">Open notes</button>` },
+    { key: 'cards', icon: '🃏', title: '2. Active recall — flashcards', desc: 'Turn each topic into flashcards and study the deck until you can answer from memory.', mins: Math.round(perDay * 0.8), action: `<button class="wt-action" data-wt="cards" data-deck="${escapeHtml(subj)}">Make cards</button>` },
+    { key: 'quiz', icon: '📝', title: '3. Test yourself — quiz', desc: 'Generate a quiz on the topic and score at least 80%.', mins: Math.round(perDay * 0.9), action: `<button class="wt-action" data-wt="quiz" data-topic="${escapeHtml(topic)}">Start quiz</button>` },
+    { key: 'mock', icon: '⏱️', title: '4. Timed practice — mock test', desc: 'Simulate exam conditions with a timed mock test on this subject.', mins: Math.round(perDay * 1.1), action: `<button class="wt-action" data-wt="mock" data-subject="${escapeHtml(subj)}">Start mock</button>` },
+    { key: 'explain', icon: '🎤', title: '5. Teach it back', desc: 'Explain the topic aloud like you\'re teaching a friend — the tutor grades your answer.', mins: Math.round(perDay * 0.6), action: `<button class="wt-action" data-wt="explain" data-topic="${escapeHtml(topic)}">Explain it back</button>` },
+    { key: 'review', icon: '🔁', title: '6. Spaced review', desc: 'Lock it in with review sessions spread out before the deadline.', mins: Math.round(perDay * 0.5), action: `<button class="wt-action" data-wt="review">Schedule reviews</button>` }
+  ];
+  const step = (s) => `<div class="wt-step${prog.steps[s.key] ? ' wt-step-done' : ''}" data-wt-step="${s.key}">
+    <span class="wt-step-check" data-wt-check="${s.key}" title="${prog.steps[s.key] ? 'Completed — click to unmark' : 'Mark as done'}">${prog.steps[s.key] ? '✓' : '○'}</span>
+    <div class="wt-step-icon">${s.icon}</div>
+    <div class="wt-step-body"><strong>${s.title}</strong><p>${s.desc}</p></div>
+    <div class="wt-step-meta"><span class="small">~${s.mins} min</span>${s.action}</div>
   </div>`;
 
   const modal = document.createElement('div');
@@ -1075,18 +1103,15 @@ function generateGoalWalkthrough(goalId) {
       <h3>🎯 ${escapeHtml(g.title)}</h3>
       <button class="ghost modal-close">&times;</button>
     </div>
-    <p class="subtle">${escapeHtml(subj)} · ${ddLeft >= 0 ? 'D−' + ddLeft : 'Overdue'} · ${phase.label} · ~${perDay} min/day target</p>
+    <p class="subtle">${escapeHtml(subj)} · ${ddLeft >= 0 ? 'D−' + ddLeft : 'Overdue'} · ${phase.label} · ~${perDay} min/day target · <strong>${wtDoneCount(g.id)}/${WT_STEP_KEYS.length} steps done</strong></p>
     <div class="wt-phase-note ${phase.cls}">${phase.tip}</div>
     <h4>📚 What to study</h4>
     <ul class="wt-topics">${d.topics.map(t => `<li>${escapeHtml(t)}</li>`).join('') || '<li class="subtle">No saved material yet — start with the goal itself, then save notes and cards as you go.</li>'}</ul>
-    <h4>🧭 Your plan</h4>
+    <h4>📖 AI Study Guide</h4>
+    <div class="wt-guide" id="wtGuideBox">${prog.guide ? renderWalkthroughGuide(g, prog.guide) : '<p class="subtle">Generate a condensed AI study guide for this goal — key concepts, practice questions, and a review rhythm.</p><button class="btn btn-sm" id="wtGenGuideBtn">✨ Generate study guide</button>'}</div>
+    <h4>🧭 Your plan <span class="small" style="opacity:0.6">— tap ○/✓ to track steps; completing activities auto-checks them</span></h4>
     <div class="wt-steps">
-      ${step('📖', '1. Learn the material', 'Read through the topics above — open your notes or ask the AI tutor to walk you through each one.', perDay, `<button class="wt-action" data-wt="notes" data-subject="${escapeHtml(subj)}">Open notes</button>`)}
-      ${step('🃏', '2. Active recall — flashcards', 'Turn each topic into flashcards and study the deck until you can answer from memory.', Math.round(perDay * 0.8), `<button class="wt-action" data-wt="cards" data-deck="${escapeHtml(subj)}">Make cards</button>`)}
-      ${step('📝', '3. Test yourself — quiz', 'Generate a quiz on the topic and score at least 80%.', Math.round(perDay * 0.9), `<button class="wt-action" data-wt="quiz" data-topic="${escapeHtml(topic)}">Start quiz</button>`)}
-      ${step('⏱️', '4. Timed practice — mock test', 'Simulate exam conditions with a timed mock test on this subject.', Math.round(perDay * 1.1), `<button class="wt-action" data-wt="mock" data-subject="${escapeHtml(subj)}">Start mock</button>`)}
-      ${step('🎤', '5. Teach it back', 'Explain the topic aloud like you\'re teaching a friend — the tutor grades your answer.', Math.round(perDay * 0.6), `<button class="wt-action" data-wt="explain" data-topic="${escapeHtml(topic)}">Explain it back</button>`)}
-      ${step('🔁', '6. Spaced review', 'Lock it in with review sessions spread out before the deadline.', Math.round(perDay * 0.5), `<button class="wt-action" data-wt="review">Schedule reviews</button>`)}
+      ${stepDefs.map(step).join('')}
     </div>
     <div class="wt-footer">
       <button class="btn" data-wt="addtasks">➕ Add all as planner tasks</button>
@@ -1098,6 +1123,22 @@ function generateGoalWalkthrough(goalId) {
   modal.querySelector('.modal-close').addEventListener('click', close);
   modal.querySelector('.wt-close').addEventListener('click', close);
   modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  const guideBtn = modal.querySelector('#wtGenGuideBtn');
+  if (guideBtn) guideBtn.addEventListener('click', () => generateWalkthroughGuide(g, modal));
+  modal.querySelectorAll('[data-wt-check]').forEach(c => {
+    c.addEventListener('click', () => {
+      const key = c.dataset.wtCheck;
+      const p = wtProgress(g.id);
+      p.steps[key] = !p.steps[key];
+      saveState(); renderGoalWalkthroughs();
+      const stepEl = modal.querySelector(`[data-wt-step="${key}"]`);
+      if (stepEl) stepEl.classList.toggle('wt-step-done', !!p.steps[key]);
+      c.textContent = p.steps[key] ? '✓' : '○';
+      c.title = p.steps[key] ? 'Completed — click to unmark' : 'Mark as done';
+      const subEl = modal.querySelector('.wt-modal .subtle');
+      if (subEl) subEl.innerHTML = subEl.innerHTML.replace(/<strong>\d+\/\d+ steps done<\/strong>/, `<strong>${wtDoneCount(g.id)}/${WT_STEP_KEYS.length} steps done</strong>`);
+    });
+  });
   modal.querySelectorAll('[data-wt]').forEach(b => {
     b.addEventListener('click', () => {
       const kind = b.dataset.wt;
@@ -1106,9 +1147,92 @@ function generateGoalWalkthrough(goalId) {
       else if (kind === 'quiz') { const q = $('quizTopic'); if (q) q.value = b.dataset.topic; showTab('quizzes'); close(); }
       else if (kind === 'mock') { const m = $('mockTestSubject'); if (m) { const s = b.dataset.subject.toLowerCase(); [...m.options].forEach(o => { if (o.value && (s.includes(o.value) || o.value.includes(s))) m.value = o.value; }); } showTab('quizzes'); close(); }
       else if (kind === 'explain') { if (typeof startExplainItBack === 'function') startExplainItBack(b.dataset.topic); showTab('ai-tutor'); close(); }
-      else if (kind === 'review') { addWalkthroughTasks(g, d, perDay, true); showToast('Review sessions scheduled'); }
+      else if (kind === 'review') { addWalkthroughTasks(g, d, perDay, true); markWtStep(g.id, 'review', Math.round(perDay * 0.5)); showToast('Review sessions scheduled'); }
       else if (kind === 'addtasks') { addWalkthroughTasks(g, d, perDay, false); showToast('Plan added to your board'); }
     });
+  });
+}
+
+function renderWalkthroughGuide(goal, guide) {
+  const source = guide.offline ? '<span class="badge" style="background:var(--warning)">Offline guide</span>' : '<span class="badge" style="background:var(--success)">AI generated</span>';
+  return `<div class="wt-guide-content">${source}<div class="wt-guide-body">${renderMarkdown(guide.content)}</div><button class="btn btn-sm ghost" id="wtRegenGuideBtn">🔄 Regenerate</button></div>`;
+}
+
+async function generateWalkthroughGuide(goal, modal) {
+  const box = modal.querySelector('#wtGuideBox');
+  if (!box) return;
+  const d = walkthroughTopics(goal);
+  const topics = d.topics.slice(0, 6).join(', ');
+  box.innerHTML = '<p class="subtle">Generating study guide…</p>';
+  const prompt = `Create a condensed study guide for this goal. Goal: "${goal.title}" (subject: ${goal.subject || 'General'}, deadline: ${goal.deadline}, ${goal.hours}h planned). Topics to cover: ${topics || goal.title}. Include: (1) 5-8 key concepts with one-line explanations, (2) 3 practice questions with answers, (3) a spaced-repetition review rhythm leading up to the deadline, (4) 2-3 common mistakes to avoid. Use markdown with ## headers and bullet lists. Keep it tight and scannable.`;
+  try {
+    const txt = await groqChat([{ role: 'system', content: 'You are an expert study-guide writer. Return clean markdown only.' }, { role: 'user', content: prompt }], { maxTokens: 2048, temperature: 0.5 });
+    if (!txt || txt.length < 40) throw new Error('empty');
+    wtProgress(goal.id).guide = { content: txt, at: todayStr(), offline: false };
+  } catch (e) {
+    wtProgress(goal.id).guide = { content: offlineWalkthroughGuide(goal, d), at: todayStr(), offline: true };
+  }
+  saveState(); renderGoalWalkthroughs();
+  box.innerHTML = renderWalkthroughGuide(goal, wtProgress(goal.id).guide);
+  const regen = box.querySelector('#wtRegenGuideBtn');
+  if (regen) regen.addEventListener('click', () => generateWalkthroughGuide(goal, modal));
+}
+
+function offlineWalkthroughGuide(goal, d) {
+  const lines = [];
+  lines.push(`## ${goal.title} — Study Guide`);
+  lines.push(`Subject: ${goal.subject || 'General'} · Deadline: ${goal.deadline} · ${goal.hours || 8}h planned`);
+  lines.push('');
+  lines.push('### 1. Key concepts');
+  (d.topics.slice(0, 6) || [goal.title]).forEach((t, i) => lines.push(`${i + 1}. **${t}** — explain it in your own words, then check against your notes.`));
+  lines.push('');
+  if (d.cards.length) {
+    lines.push('### 2. Terms to master (from your flashcards)');
+    d.cards.slice(0, 5).forEach(c => lines.push(`- **${c.question}** → ${c.answer}`));
+  }
+  lines.push('');
+  if (d.confusion.length) {
+    lines.push('### 3. Areas flagged for review (confusion log)');
+    d.confusion.slice(0, 5).forEach(c => lines.push(`- ${c.concept || c.topic} (${c.source})`));
+  }
+  lines.push('');
+  lines.push('### 4. Review rhythm');
+  const dd = Math.max(daysUntil(goal.deadline), 1);
+  lines.push(`- **Today–Day ${Math.max(1, Math.round(dd * 0.4))}**: learn + make flashcards for each concept`);
+  lines.push(`- **Day ${Math.max(2, Math.round(dd * 0.4))}–${Math.max(3, Math.round(dd * 0.7))}**: quiz yourself, target 80%+`);
+  lines.push(`- **Day ${Math.max(4, Math.round(dd * 0.7))}–${dd}**: timed mock tests + explain-it-back`);
+  lines.push('');
+  lines.push('### 5. Common mistakes to avoid');
+  lines.push('- Skipping active recall — reading alone doesn\'t stick');
+  lines.push('- Cramming new material in the last 3 days (retrieval only)');
+  lines.push('- Not explaining concepts aloud — teaching is the best test');
+  return lines.join('\n');
+}
+
+function markWtStep(goalId, key, mins) {
+  const p = wtProgress(goalId);
+  if (p.steps[key]) return;
+  p.steps[key] = true;
+  const goal = state.goals.find(g => g.id === goalId);
+  if (goal && mins) {
+    state.sessions.push({ id: uid(), date: new Date().toISOString(), subject: goal.subject || 'General', objective: 'Walkthrough: ' + (WT_STEP_LABELS[key] || key), minutes: mins, quality: 5, method: 'walkthrough', deep: false, notes: '' });
+  }
+  saveState(); renderGoalWalkthroughs(); renderDashboard();
+}
+
+function autoCompleteWtStep(activityType, matchText) {
+  // Auto-check walkthrough steps when the matching activity is completed well (score >= 80).
+  const t = String(matchText || '').toLowerCase();
+  if (!t) return;
+  state.goals.forEach(g => {
+    const subj = String(g.subject || '').toLowerCase();
+    const title = String(g.title || '').toLowerCase();
+    const hit = (subj && (t.includes(subj) || subj.includes(t))) || (title && (t.includes(title) || title.includes(t)));
+    if (!hit) return;
+    const p = wtProgress(g.id);
+    if (!p.steps[activityType]) {
+      markWtStep(g.id, activityType, 20);
+    }
   });
 }
 
@@ -1267,6 +1391,7 @@ function setupTimer() {
     const qual = +$('sessionQuality').value;
     state.sessions.push({ id: uid(), date: new Date().toISOString(), subject: subj, objective: $('sessionObjective').value, minutes: +$('sessionMinutes').value, quality: qual, method: $('sessionMethod').value, deep: $('sessionDeep').checked, notes: $('sessionNotes').value });
     if (qual < 5) logConfusion(subj, $('sessionObjective').value || subj, 'session');
+    if (typeof autoCompleteWtStep === 'function') autoCompleteWtStep('learn', subj);
     saveState(); renderSessionHistory(); renderDashboard(); $('sessionForm').reset(); showToast('Session logged');
   });
   resetTimerDisplay();
@@ -1442,6 +1567,7 @@ function rateCurrentFlashcard(rating) {
   card.dueDate = d.toISOString().split('T')[0];
   saveState();
   // Advance to the next card Quizlet-style instead of resetting the deck
+  const deckFinished = fcState.index >= fcState.cards.length - 1;
   if (fcState.index < fcState.cards.length - 1) {
     fcState.index++;
     fcState.flipped = false;
@@ -1451,6 +1577,7 @@ function rateCurrentFlashcard(rating) {
   } else {
     renderFlashcardStudy(); renderAllFlashcards();
   }
+  if (deckFinished && fcState.cards.length > 0 && typeof autoCompleteWtStep === 'function') autoCompleteWtStep('cards', fcState.deck === 'all' ? card.deck : fcState.deck);
   showToast('Rated!');
 }
 function generateAiFlashcards(deckName) {
@@ -1586,7 +1713,7 @@ function submitQuiz() {
   const pct = Math.round(correct / quizState.questions.length * 100);
   $('quizResult').textContent = `Score: ${correct}/${quizState.questions.length} (${pct}%)`;
   state.quizAttempts.push({ id: uid(), date: todayStr(), topic, score: correct, total: quizState.questions.length, pct });
-  saveState(); renderQuizHistory(); renderConfusionHeatmap(); if (pct >= 80) clearReviewQueueForTopic(topic); else renderReviewQueue(); showToast('Quiz submitted');
+  saveState(); renderQuizHistory(); renderConfusionHeatmap(); if (pct >= 80) { clearReviewQueueForTopic(topic); if (typeof autoCompleteWtStep === 'function') autoCompleteWtStep('quiz', topic); } else renderReviewQueue(); showToast('Quiz submitted');
 }
 function renderQuizHistory() {
   const el = $('quizAttemptList');
@@ -1674,7 +1801,7 @@ function submitMockTest() {
   const pct = Math.round(correct / mockState.questions.length * 100);
   $('mockTestResult').innerHTML = `<strong>Mock Test Score: ${correct}/${mockState.questions.length} (${pct}%)</strong>`;
   state.mockTestHistory.push({ id: uid(), date: todayStr(), subject, score: correct, total: mockState.questions.length, pct });
-  saveState(); renderMockTestHistory(); renderConfusionHeatmap(); if (pct >= 80) clearReviewQueueForTopic(subject); else renderReviewQueue(); showToast('Mock test submitted');
+  saveState(); renderMockTestHistory(); renderConfusionHeatmap(); if (pct >= 80) { clearReviewQueueForTopic(subject); if (typeof autoCompleteWtStep === 'function') autoCompleteWtStep('mock', subject); } else renderReviewQueue(); showToast('Mock test submitted');
 }
 function renderMockTestHistory() {
   const el = $('mockTestHistory');
@@ -2705,7 +2832,7 @@ function renderExplainGrade(topic, text, score, strengths, gaps, followup, statu
   statusEl.querySelector('[data-explain-quiz]').addEventListener('click', () => { const q = $('quizTopic'); if (q) q.value = topic; showTab('quizzes'); });
   statusEl.querySelector('[data-explain-again]').addEventListener('click', () => { statusEl.remove(); startExplainItBack(topic); });
   if (s < 60) logConfusion(topic, topic, 'explain');
-  if (s >= 80) clearReviewQueueForTopic(topic); else renderReviewQueue();
+  if (s >= 80) { clearReviewQueueForTopic(topic); if (typeof autoCompleteWtStep === 'function') autoCompleteWtStep('explain', topic); } else renderReviewQueue();
   state.recallHistory.push({ id: uid(), date: todayStr(), topic, score: s, feedback: 'Explain-it-back: ' + (gaps || []).slice(0, 2).join(', ') || followup });
   saveState();
   if (typeof renderRecallHistory === 'function') renderRecallHistory();
