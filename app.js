@@ -1239,6 +1239,7 @@ function markWtStep(goalId, key, mins) {
 function fireConfetti() {
   try {
     if (!document.body) return;
+    if (state.settings.confetti === false) return;
     const colors = ['#0f766e', '#e6a700', '#237a57', '#0b5cab', '#f97316', '#8b5cf6', '#ec4899'];
     const count = 120;
     const layer = document.createElement('div');
@@ -3966,6 +3967,15 @@ function setupSettings() {
       saveState();
       applyMusicVisibility();
       showToast(this.checked ? 'Music player hidden' : 'Music player shown');
+    });
+  }
+  var confettiToggle = $('confettiToggle');
+  if (confettiToggle) {
+    confettiToggle.checked = state.settings.confetti !== false;
+    confettiToggle.addEventListener('change', function() {
+      state.settings.confetti = this.checked;
+      saveState();
+      showToast(this.checked ? 'Confetti enabled 🎉' : 'Confetti disabled');
     });
   }
   function applyMusicVisibility() {
