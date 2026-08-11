@@ -1310,8 +1310,8 @@ async function generateQuiz() {
     $('quizResult').textContent = '';
     renderQuizQuestion();
   } catch (e) {
-    // AI unavailable — a written self-check quiz still gives real practice.
-    quizState.questions = offlineQuiz(topic, subject, level, count);
+    // AI unavailable — an offline quiz in the same format still gives real practice.
+    quizState.questions = offlineQuiz(topic, subject, level, count, type);
     quizState.index = 0;
     quizState.answers = new Array(quizState.questions.length).fill('');
     quizState.submitted = false;
@@ -7237,6 +7237,19 @@ function setupGenerators() {
       var raw = (p.imageinfo && p.imageinfo[0] && p.imageinfo[0].url || '').split('?')[0];
       var ext = raw.split('.').pop().toLowerCase();
       return ['jpg', 'jpeg', 'png', 'webp', 'svg', 'gif'].indexOf(ext) > -1;
+    }).map(function(p) {
+      // Wikimedia returns page objects ({title, imageinfo:[{url, thumburl, ...}]});
+      // the renderer expects {thumburl, url, title, desc, descriptionurl}.
+      var info = (p.imageinfo && p.imageinfo[0]) || {};
+      return {
+        thumburl: info.thumburl || info.url,
+        url: info.url || info.thumburl,
+        title: String(p.title || '').replace(/^File:/, ''),
+        desc: (info.extmetadata && info.extmetadata.ImageDescription && info.extmetadata.ImageDescription.value)
+          ? String(info.extmetadata.ImageDescription.value).replace(/<[^>]+>/g, '').slice(0, 200)
+          : String(p.title || '').replace(/^File:/, ''),
+        descriptionurl: info.descriptionurl || ''
+      };
     }).slice(0, limit);
   }
   async function genAiImages(topic, limit) {
@@ -7414,20 +7427,66 @@ function offlineMindMapText(topic) {
   return topic + '\n- What is it — define ' + topic + ' in one sentence\n  - Key parts\n  - How it fits together\n- How it works — trace the steps\n  - Step 1: start simple\n  - Step 2: follow the cause-and-effect chain\n- Examples — real cases\n  - One from class\n  - One from daily life\n- Why it matters\n  - Connect to other topics you are learning\n- Study tips\n  - Teach it to someone\n  - Quiz yourself tonight';
 }
 
-function offlineQuiz(topic, subject, level, count) {
+function offlineQuiz(topic, subject, level, count, type) {
   const n = Math.max(2, Math.min(6, +count || 4));
-  const templates = [
-    { q: t => 'Define ' + t + ' in one clear sentence.', a: 'Compare your answer with your notes and fill any gaps.' },
-    { q: t => 'List the three most important parts of ' + t + '.', a: 'Each part should have a name and a one-line job description.' },
-    { q: t => 'Give a real-world example of ' + t + ' you have seen or heard about.', a: 'Concrete examples are easier to remember than abstract definitions.' },
-    { q: t => 'Explain how ' + t + ' connects to something you learned in another subject.', a: 'Cross-subject connections make ideas stick.' },
-    { q: t => 'What is one common misconception about ' + t + '?', a: 'Naming the misconception is half of mastering the idea.' },
-    { q: t => 'Summarize ' + t + ' in exactly three sentences.', a: 'Forcing brevity reveals what you truly understand.' }
+  const want = type || 'written';
+  const T = topic || 'the topic';
+  // Multiple choice bank — auto-grades correctly because the answer is exact.
+  const mcBank = [
+    { q: 'Which study technique is most effective for long-term memory?', o: ['Re-reading notes', 'Retrieval practice', 'Highlighting', 'Rewriting notes'], a: 'Retrieval practice' },
+    { q: 'When should you first review something you just learned?', o: ['Within 24 hours', 'Only before the exam', 'Never', 'A month later'], a: 'Within 24 hours' },
+    { q: 'What does spaced repetition do?', o: ['Crams everything at once', 'Times reviews to beat forgetting', 'Skips review entirely', 'Makes notes longer'], a: 'Times reviews to beat forgetting' },
+    { q: 'The best way to check you really understand ' + T + ' is to...', o: ['Explain it without notes', 'Count pages read', 'Highlight more', 'Watch one video'], a: 'Explain it without notes' },
+    { q: 'A good study session should start with...', o: ['A clear goal for the session', 'Opening social media', 'Choosing a random topic', 'Skipping the plan'], a: 'A clear goal for the session' },
+    { q: 'Which is true about sleep and studying?', o: ['Sleep hurts memory', 'Memory consolidates during sleep', 'Sleep does nothing', 'Only math needs sleep'], a: 'Memory consolidates during sleep' },
+    { q: 'When you hit a hard problem during practice, you should...', o: ['Give up immediately', 'Break it into smaller steps', 'Copy a friend', 'Skip it forever'], a: 'Break it into smaller steps' },
+    { q: 'What is the forgetting curve?', o: ['Memory fades fast unless reviewed', 'Memory never fades', 'A type of graph', 'A study app'], a: 'Memory fades fast unless reviewed' }
+  ];
+  const tfBank = [
+    { q: 'Retrieval practice means recalling from memory, not just re-reading.', a: 'True' },
+    { q: 'Cramming the night before is more effective than spaced review.', a: 'False' },
+    { q: 'Explaining a concept in your own words helps you remember it.', a: 'True' },
+    { q: 'Highlighting is proven to be one of the weakest study techniques.', a: 'True' },
+    { q: 'Studying the same topic repeatedly without mixing is called interleaving.', a: 'False' },
+    { q: 'Sleep plays no role in memory consolidation.', a: 'False' }
+  ];
+  const blankBank = [
+    { q: '_______ practice means testing yourself from memory instead of re-reading.', a: 'retrieval' },
+    { q: 'Reviewing material at increasing intervals is called _______ repetition.', a: 'spaced' },
+    { q: 'Mixing topics during practice is known as _______.', a: 'interleaving' },
+    { q: 'Memory fades over time unless we review — this is the _______ curve.', a: 'forgetting' },
+    { q: 'Explaining an idea in your own words is called _______.', a: 'self-explanation' }
+  ];
+  const written = [
+    { q: 'Define ' + T + ' in one clear sentence.', a: 'Compare your answer with your notes and fill any gaps.' },
+    { q: 'List the three most important parts of ' + T + '.', a: 'Each part should have a name and a one-line job description.' },
+    { q: 'Give a real-world example of ' + T + ' you have seen or heard about.', a: 'Concrete examples are easier to remember than abstract definitions.' },
+    { q: 'Explain how ' + T + ' connects to something you learned in another subject.', a: 'Cross-subject connections make ideas stick.' },
+    { q: 'What is one common misconception about ' + T + '?', a: 'Naming the misconception is half of mastering the idea.' },
+    { q: 'Summarize ' + T + ' in exactly three sentences.', a: 'Forcing brevity reveals what you truly understand.' }
   ];
   const out = [];
   for (let i = 0; i < n; i++) {
-    const tpl = templates[i % templates.length];
-    out.push({ question: tpl.q(topic), answer: tpl.a, type: 'written' });
+    if (want === 'multiple') {
+      const b = mcBank[i % mcBank.length];
+      out.push({ question: b.q, options: b.o.slice(), answer: b.a, type: 'multiple' });
+    } else if (want === 'truefalse') {
+      const b = tfBank[i % tfBank.length];
+      out.push({ question: b.q, options: ['True', 'False'], answer: b.a, type: 'truefalse' });
+    } else if (want === 'fillblank') {
+      const b = blankBank[i % blankBank.length];
+      out.push({ question: b.q, answer: b.a, type: 'fillblank' });
+    } else if (want === 'mixed') {
+      const bank = [mcBank, tfBank, blankBank, written][i % 4];
+      const b = bank[i % bank.length];
+      out.push(b.options
+        ? { question: b.q, options: b.o.slice(), answer: b.a, type: 'multiple' }
+        : (bank === tfBank ? { question: b.q, options: ['True', 'False'], answer: b.a, type: 'truefalse' }
+          : { question: b.q, answer: b.a, type: bank === blankBank ? 'fillblank' : 'written' }));
+    } else {
+      const tpl = written[i % written.length];
+      out.push({ question: tpl.q, answer: tpl.a, type: 'written' });
+    }
   }
   return out;
 }
