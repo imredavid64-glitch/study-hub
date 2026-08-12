@@ -131,6 +131,11 @@ if (!/estimateCalibration/.test(js)) fails.push('app.js is missing the self-cali
 if (!/openCommandPalette/.test(js) || !/cmdPalette/.test(js) || !/paletteBtn/.test(js)) fails.push('app.js is missing the command palette (open/palette/dialog)');
 if (!/cmd-palette-group/.test(js) || !/cmd-palette-foot/.test(js)) fails.push('app.js command palette is missing group headers / footer hints');
 if (!/fuzzyScore/.test(js) || !/fuzzyMatch/.test(js)) fails.push('app.js command palette is missing fuzzy matching');
+
+// 16. Fresh-start launch + AI Subject Tutor.
+if (!/id="subjectAiCard"/.test(html) || !/id="subjectAiInput"/.test(html) || !/id="subjectAiAskBtn"/.test(html) || !/id="subjectAiBadge"/.test(html)) fails.push('Subjects tab is missing the AI Subject Tutor card');
+if (!/askSubjectTutor/.test(js) || !/subjectAreaKey/.test(js)) fails.push('app.js is missing the AI Subject Tutor wiring');
+if (/judgeBanner.*classList\.remove\('hidden'\)/.test(js) && !/isJudgeMode/.test(js)) fails.push('fresh-start guard: judge banner logic regressed');
 if (!/paletteRecent/.test(js) || !/rememberRecent/.test(js)) fails.push('app.js command palette is missing recent-items memory');
 if (!/toastWithUndo/.test(js) || !/__undoPending/.test(js) || !/attachUndoButton/.test(js)) fails.push('app.js is missing the undo-able toast helpers');
 if (!/TOPIC_KB/.test(js) || !/kbMindMap/.test(js)) fails.push('app.js is missing the offline topic knowledge base');

@@ -111,6 +111,9 @@ The app is organized into **28 tabs**. Feature groups:
 - **Subject labs** — interactive labs per subject: physics, chemistry, and
   biology simulations, math, history timelines, English vocab, language
   listening/reading, tech coding environments.
+- **AI Subject Tutor** (Subjects tab) — a per-subject AI tutor that follows
+  the active subject tab, grounds answers in the user's own notes and
+  flashcards for that subject, and degrades to offline topic explanations.
 
 ### AI & coaching
 - **AI Tutor** — chat grounded in the user's notes, flashcards, assignments,
@@ -314,11 +317,13 @@ required; you can side-load or distribute via your own channels.
 
 1. On first launch you get a short **onboarding** flow (learning style,
    profile, study goals) and the **landing overlay**.
-2. **Load Demo Data** (topbar button or dashboard) populates sample
-   flashcards, tasks, goals, and confusion history so every feature has
-   something to show.
-3. **Judge mode** is a sandboxed demo environment; use **Exit Judge Mode**
-   in Settings to remove demo data and start fresh.
+2. **Fresh start by default**: new installs boot with empty data — no demo
+   content, no fabricated community feed or leaderboard. The dashboard shows
+   honest empty states that guide you to create your first goal, task,
+   flashcard, or note.
+3. **Load Demo Data** (topbar button) is the *only* way to load the sample
+   environment; while it's active a banner offers **Exit Demo** to return to
+   a clean slate (also in Settings).
 4. Optional: enable cloud sync in **Settings → Cloud Sync & Privacy**
    (requires the backend; see §13).
 

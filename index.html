@@ -32,7 +32,7 @@
   <a class="skip-link" href="#appMain">Skip to main content</a>
   <div class="ambient"></div>
     <div id="judgeBanner" class="judge-banner">
-    <span class="judge-banner-text"><strong>🏆 Hackathon Judge Mode Active:</strong> Click 'Load Demo Data' to instantly populate decks, quizzes, and streak analytics without signing up.</span>
+    <span class="judge-banner-text"><strong>🏆 Demo data active:</strong> You're exploring a sample environment. When you're ready, exit to start fresh with your own study data.</span>
     <button id="exitJudgeBtn" class="ghost judge-banner-exit hidden">Exit Judge Mode</button>
     <button id="dismissBannerBtn" class="ghost judge-banner-dismiss">Dismiss</button>
   </div>
@@ -1494,6 +1494,22 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
               <button class="sub-nav-btn" data-subject="english">English</button>
               <button class="sub-nav-btn" data-subject="health">Health</button>
             </div>
+          </article>
+
+          <!-- AI Subject Tutor: follows whichever subject panel is active -->
+          <article class="card" id="subjectAiCard">
+            <h3><span class="icon icon-sm icon-ai"></span> AI Subject Tutor <span class="badge" id="subjectAiBadge">Math</span></h3>
+            <p class="subtle">Ask about anything in the active subject — concepts, worked examples, practice problems. Your notes and flashcards for this subject give the AI context.</p>
+            <div class="inline wrap top-gap">
+              <input id="subjectAiInput" placeholder="e.g. Explain how to solve this step by step…" style="flex:1;min-width:200px" />
+              <button id="subjectAiAskBtn">Ask the Tutor</button>
+            </div>
+            <div class="inline wrap top-gap" id="subjectAiQuick">
+              <button class="ghost subject-ai-chip" data-q="Explain the key concept">Explain the key concept</button>
+              <button class="ghost subject-ai-chip" data-q="Give me a practice problem with worked solution">Practice problem</button>
+              <button class="ghost subject-ai-chip" data-q="What are the most common mistakes here?">Common mistakes</button>
+            </div>
+            <div id="subjectAiResult" class="stack top-gap"></div>
           </article>
 
           <!-- MATH -->

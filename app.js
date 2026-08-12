@@ -379,11 +379,13 @@ function initJudgeBanner() {
   
   if (!banner) return;
   
-  // Check if demo data is already loaded
+  // Fresh users start clean: the banner only appears once demo data is
+  // actually loaded (it becomes an "exit demo" affordance then). New
+  // installs are never pitched demo data on first boot.
   if (isJudgeMode()) {
-    banner.classList.add('hidden');
-  } else {
     banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
   }
   
   // In judge mode the banner swaps to an 'exit demo' state
@@ -426,21 +428,30 @@ const PEER_ACTIVITIES = [
   { name: 'Olivia S.', action: 'started new study streak', time: '3h ago' }
 ];
 
+// Real cloud activity rows (if the backend provides any) — never fabricated
+// students on a fresh install. Demo data shows the sample feed; otherwise a
+// gentle empty state invites the user to start.
+let livePeerRows = null;
 function renderPeerActivityFeed() {
   const el = document.getElementById('peerActivityFeed');
   if (!el) return;
   
   el.innerHTML = '';
-  PEER_ACTIVITIES.forEach(activity => {
+  const rows = livePeerRows && livePeerRows.length ? livePeerRows : (isJudgeMode() ? PEER_ACTIVITIES : null);
+  if (!rows) {
+    el.innerHTML = '<p class="subtle">No community activity yet. Start a session or take a quiz — once you connect with study mates, their updates appear here.</p>';
+    return;
+  }
+  rows.slice(0, 8).forEach(activity => {
     const item = document.createElement('div');
     item.className = 'peer-activity-item';
     const initial = activity.name.split(' ')[0].charAt(0);
     item.innerHTML = `
       <div class="peer-activity-avatar">${initial}</div>
       <div class="peer-activity-content">
-        <span class="peer-activity-name">${activity.name}</span>
-        <span class="peer-activity-action"> ${activity.action}</span>
-        <div class="peer-activity-time">${activity.time}</div>
+        <span class="peer-activity-name">${escapeHtml(activity.name)}</span>
+        <span class="peer-activity-action"> ${escapeHtml(activity.action || '')}</span>
+        <div class="peer-activity-time">${escapeHtml(activity.time || '')}</div>
       </div>
     `;
     el.appendChild(item);
@@ -465,9 +476,16 @@ function renderWeeklyLeaderboard() {
   const el = document.getElementById('weeklyLeaderboard');
   if (!el) return;
   
-  const rows = liveLeaderboardRows && liveLeaderboardRows.length
+  // Fresh installs show no fabricated competitors — only real cloud rows
+  // (or the demo roster in judge mode). Otherwise an inviting empty state.
+  const base = liveLeaderboardRows && liveLeaderboardRows.length
     ? liveLeaderboardRows.map((r, i) => ({ rank: i + 1, name: r.name || 'Scholar', streak: r.streak || 0, xp: r.xp || 0 }))
-    : LEADERBOARD_DATA.slice();
+    : (isJudgeMode() ? LEADERBOARD_DATA.slice() : null);
+  if (!base) {
+    el.innerHTML = '<p class="subtle">The weekly leaderboard fills as study mates join. Your own streak and XP appear here automatically.</p>';
+    return;
+  }
+  const rows = base;
   
   const me = state ? { rank: rows.length + 1, name: 'You', streak: state.profile.currentStreak || 0, xp: state.profile.xp || 0 } : null;
   const data = me ? rows.concat([me]) : rows;
@@ -1540,7 +1558,7 @@ function renderGoals() {
   const el = $('goalList');
   el.innerHTML = '';
   if (state.goals.length === 0) { 
-    el.innerHTML = '<div class="empty-state"><p>No study goals yet. Set your first goal!</p><button class="empty-state-button" onclick="loadDemoData()">⚡ Load Sample Goals</button></div>';
+    el.innerHTML = '<div class="empty-state"><p>No study goals yet. Set your first goal!</p><button class="empty-state-button" onclick="showTab(\'planner\'); var f = document.getElementById(\'goalTitle\'); if (f) f.focus();">➕ Create your first goal</button></div>';
     return; 
   }
   state.goals.slice().reverse().forEach(g => {
@@ -1594,7 +1612,7 @@ function renderKanban() {
     });
     
     if (!hasTasks && st === 'todo') {
-      el.innerHTML = '<div class="empty-state"><p>No tasks yet. Add your first task!</p><button class="empty-state-button" onclick="loadDemoData()">⚡ Load Sample Tasks</button></div>';
+      el.innerHTML = '<div class="empty-state"><p>No tasks yet. Add your first task!</p><button class="empty-state-button" onclick="showTab(\'planner\'); var f = document.getElementById(\'taskTitle\'); if (f) f.focus();">➕ Add your first task</button></div>';
     } else {
       filteredTasks.forEach(t => {
         const d = document.createElement('div'); d.className = 'task-card';
@@ -1721,7 +1739,7 @@ function renderSessionHistory() {
   const el = $('sessionHistory');
   el.innerHTML = '';
   if (state.sessions.length === 0) { 
-    el.innerHTML = '<div class="empty-state"><p>No study sessions logged yet.</p><button class="empty-state-button" onclick="loadDemoData()">⚡ Load Sample Data</button></div>';
+    el.innerHTML = '<div class="empty-state"><p>No study sessions logged yet.</p><button class="empty-state-button" onclick="showTab(\'sessions\'); var f = document.getElementById(\'startPauseTimerBtn\'); if (f) f.click();">⏱️ Start your first session</button></div>';
     return; 
   }
   state.sessions.slice().reverse().slice(0, 20).forEach(s => {
@@ -1799,7 +1817,7 @@ function renderAllFlashcards() {
   const el = $('cardList');
   el.innerHTML = '';
   if (state.flashcards.length === 0) { 
-    el.innerHTML = '<div class="empty-state"><p>No flashcards yet. Create your first deck!</p><button class="empty-state-button" onclick="loadDemoData()">⚡ Load Sample Decks</button></div>';
+    el.innerHTML = '<div class="empty-state"><p>No flashcards yet. Create your first deck!</p><button class="empty-state-button" onclick="showTab(\'flashcards\'); var f = document.getElementById(\'cardQuestion\'); if (f) f.focus();">🗂️ Create your first card</button></div>';
     return; 
   }
   state.flashcards.slice().reverse().forEach(c => {
@@ -2079,7 +2097,7 @@ function renderQuizHistory() {
   const el = $('quizAttemptList');
   el.innerHTML = '';
   if (state.quizAttempts.length === 0) { 
-    el.innerHTML = '<div class="empty-state"><p>No quiz attempts yet. Take your first quiz!</p><button class="empty-state-button" onclick="loadDemoData()">⚡ Load Sample Quiz</button></div>';
+    el.innerHTML = '<div class="empty-state"><p>No quiz attempts yet. Take your first quiz!</p><button class="empty-state-button" onclick="showTab(\'quizzes\'); var f = document.getElementById(\'quizTopic\'); if (f) f.focus();">❓ Take your first quiz</button></div>';
     return; 
   }
   state.quizAttempts.slice().reverse().slice(0, 15).forEach(q => {
@@ -2945,7 +2963,7 @@ function renderNoteList() {
   el.innerHTML = '';
   const notes = state.notes.filter(n => !q || n.title.toLowerCase().includes(q) || n.subject.toLowerCase().includes(q) || (n.tags || '').toLowerCase().includes(q));
   if (notes.length === 0) { 
-    el.innerHTML = '<div class="empty-state"><p>No notes found. Create your first note!</p><button class="empty-state-button" onclick="loadDemoData()">⚡ Load Sample Notes</button></div>';
+    el.innerHTML = '<div class="empty-state"><p>No notes found. Create your first note!</p><button class="empty-state-button" onclick="showTab(\'notes\'); var f = document.getElementById(\'noteTitle\'); if (f) f.focus();">📝 Create your first note</button></div>';
     return; 
   }
   notes.slice().reverse().forEach(n => {
@@ -3007,7 +3025,7 @@ function renderAssignments() {
   const el = $('assignmentList');
   el.innerHTML = '';
   if (state.assignments.length === 0) { 
-    el.innerHTML = '<div class="empty-state"><p>No assignments yet. Add your first assignment!</p><button class="empty-state-button" onclick="loadDemoData()">⚡ Load Sample Assignments</button></div>';
+    el.innerHTML = '<div class="empty-state"><p>No assignments yet. Add your first assignment!</p><button class="empty-state-button" onclick="showTab(\'assignments\'); var f = document.getElementById(\'assignmentTitle\'); if (f) f.focus();">📚 Add your first assignment</button></div>';
     return; 
   }
   state.assignments.slice().reverse().forEach(a => {
@@ -6205,14 +6223,68 @@ function safeEvalMath(expr, x) {
 
 // ===== SUBJECTS TAB =====
 let calcExpr = "";
+// Map the Subjects-tab sub-nav keys to offlineExplain's area hints.
+function subjectAreaKey(subject) {
+  return {
+    math: 'math', science: 'physics', tech: 'coding', languages: 'study',
+    'social-studies': 'history', english: 'english', health: 'health'
+  }[subject] || 'study';
+}
 function setupSubjects() {
+  // ---- AI Subject Tutor ----
+  const subjNames = { math: 'Math', science: 'Science', tech: 'Tech', languages: 'Languages', 'social-studies': 'Social Studies', english: 'English', health: 'Health' };
+  let activeSubject = 'math';
   qsa(".sub-nav-btn").forEach(b => b.addEventListener("click", () => {
     qsa(".sub-nav-btn").forEach(x => x.classList.remove("active"));
     b.classList.add("active");
     qsa(".subject-panel").forEach(p => p.classList.add("hidden"));
     const panel = document.getElementById("subject-" + b.dataset.subject);
     if (panel) panel.classList.remove("hidden");
+    activeSubject = b.dataset.subject;
+    const badge = document.getElementById('subjectAiBadge');
+    if (badge) badge.textContent = subjNames[activeSubject] || 'Subject';
   }));
+  const aiInput = document.getElementById('subjectAiInput');
+  const aiBtn = document.getElementById('subjectAiAskBtn');
+  const aiOut = document.getElementById('subjectAiResult');
+  const subjectContext = function() {
+    // Pull the user's own notes + flashcards for the active subject so the
+    // tutor is grounded in what they actually study.
+    const name = subjNames[activeSubject] || 'Subject';
+    const notes = (state.notes || []).filter(n => (n.subject || '').toLowerCase().indexOf(name.toLowerCase()) >= 0).slice(0, 5)
+      .map(n => n.title + ': ' + String(n.content || '').slice(0, 300)).join('\n');
+    const cards = (state.flashcards || []).filter(c => (c.deck || '').toLowerCase().indexOf(name.toLowerCase()) >= 0).slice(0, 8)
+      .map(c => 'Q: ' + c.question + ' A: ' + c.answer).join('\n');
+    return { name: name, notes: notes, cards: cards };
+  };
+  const askSubjectTutor = function(question) {
+    if (!aiInput || !aiOut) return;
+    const q = (question || aiInput.value).trim();
+    if (!q) { showToast('Ask a question about ' + (subjNames[activeSubject] || 'the subject') + ' first.'); if (aiInput) aiInput.focus(); return; }
+    const ctx = subjectContext();
+    aiOut.innerHTML = '<p class="subtle">' + ctx.name + ' tutor is thinking…</p>';
+    const prompt = 'You are a patient ' + ctx.name + ' tutor for a student. ' +
+      (ctx.notes ? 'The student\'s own notes include: ' + ctx.notes + '\n' : '') +
+      (ctx.cards ? 'Their flashcards include: ' + ctx.cards + '\n' : '') +
+      'Answer the question simply, concretely, and in under 200 words. If it is a practice problem, show the full worked solution step by step. Question: ' + q;
+    groqChat([{ role: 'system', content: 'You are a friendly, precise subject tutor. Return clean markdown.' }, { role: 'user', content: prompt }], { maxTokens: 700, temperature: 0.5 })
+      .then(function(txt) {
+        aiOut.innerHTML = '<div class="explain-box">' + formatInline(txt || '') + '</div>';
+      })
+      .catch(function() {
+        aiOut.innerHTML = '<div class="explain-box">' + formatInline(offlineExplain(q, subjectAreaKey(activeSubject))) + '</div>' + offlineNote();
+        showToast('Offline tutor response — AI unavailable');
+      });
+  };
+  if (aiBtn && aiInput) {
+    aiBtn.addEventListener('click', function() { askSubjectTutor(''); });
+    aiInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') askSubjectTutor(''); });
+  }
+  if (aiOut) {
+    qsa('.subject-ai-chip').forEach(function(chip) {
+      chip.addEventListener('click', function() { askSubjectTutor(chip.dataset.q); });
+    });
+  }
 
   // ---- Math Calculator (scoped to subject-math only) ----
   var mathPanel = document.getElementById('subject-math');

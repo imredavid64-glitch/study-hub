@@ -4909,6 +4909,10 @@ body.is-mobile .music-player { z-index: 999; }
 /* Shared explain box */
 .explain-box { border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--panel)); border-radius: 10px; padding: 12px 14px; font-size: 0.9rem; line-height: 1.6; }
 .explain-box ul { margin: 6px 0 6px 18px; padding: 0; }
+
+/* AI Subject Tutor */
+#subjectAiCard .badge { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+.subject-ai-chip { font-size: 0.78rem; padding: 5px 10px; }
 .explain-box li { margin: 4px 0; }
 .health-guide { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--panel); line-height: 1.6; }
 .health-guide h4 { margin: 0 0 8px; color: var(--accent); }
