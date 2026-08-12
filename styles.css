@@ -511,12 +511,11 @@ body {
   border-radius: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: filter 0.2s;
 }
 
 .empty-state-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
+  filter: brightness(0.95);
 }
 
 /* ===== PEER ACTIVITY FEED ===== */
@@ -805,7 +804,7 @@ body {
 .wt-step-body p { margin: 2px 0 0; font-size: .82rem; opacity: .8; }
 .wt-step-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
 .wt-action { padding: 5px 10px; font-size: .75rem; font-weight: 700; border-radius: 999px; background: var(--accent); color: var(--on-accent); border: none; cursor: pointer; }
-.wt-action:hover { filter: brightness(1.1); }
+.wt-action:hover { filter: brightness(0.95); }
 .wt-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
 
 .loading-skeleton {
@@ -1272,7 +1271,6 @@ body {
 }
 
 .nav-btn:hover {
-  transform: translateX(3px);
   background: rgba(255, 255, 255, 0.14);
   border-color: rgba(255, 255, 255, 0.25);
 }
@@ -1282,7 +1280,6 @@ body {
   color: var(--sidebar-active-text);
   border-color: var(--sidebar-active-bg);
   font-weight: 700;
-  transform: translateX(3px);
 }
 
 .main {
@@ -1317,14 +1314,13 @@ body {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 20px;
-  animation: rise 320ms ease both;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .tab > article.card:not(.top-gap) + article.card:not(.top-gap),
 .subject-panel > article.card:not(.top-gap) + article.card:not(.top-gap) { margin-top: 18px; }
 .card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 20px 40px rgba(18, 36, 34, 0.15);
+  border-color: color-mix(in srgb, var(--accent) 22%, rgba(24, 60, 60, 0.09));
+  box-shadow: var(--shadow);
 }
 
 .card h3 {
@@ -1448,7 +1444,7 @@ button {
   border-radius: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 150ms ease, filter 150ms ease, box-shadow 150ms ease;
+  transition: filter 150ms ease, transform 150ms ease;
   letter-spacing: 0.01em;
   min-width: 44px;
   min-height: 44px;
@@ -1457,9 +1453,7 @@ button:active {
   transform: scale(0.97);
 }
 button:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.08);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
+  filter: brightness(0.95);
 }
 button.ghost,
 .file-label {
@@ -1469,14 +1463,13 @@ button.ghost,
 }
 button.ghost:hover {
   border-color: var(--accent);
-  box-shadow: 0 2px 8px rgba(18, 36, 34, 0.1);
 }
 button.danger {
   background: var(--danger);
   color: #fff3f1;
 }
 button.danger:hover {
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--danger) 30%, transparent);
+  filter: brightness(0.95);
 }
 
 .file-label input {
@@ -1782,8 +1775,7 @@ button.danger:hover {
 }
 
 .fc-rate-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  filter: brightness(0.95);
 }
 
 .fc-empty {
@@ -3473,7 +3465,7 @@ canvas {
   padding: 10px 20px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
   transition: all 0.2s;
 }
-.lp-cta-sm:hover { transform: translateY(-1px); box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 35%, transparent); }
+.lp-cta-sm:hover { filter: brightness(0.95); }
 
 .lp-hero-inner {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -3502,7 +3494,7 @@ canvas {
   padding: 18px 48px; border-radius: 16px; font-size: 1.1rem; font-weight: 700;
   cursor: pointer; transition: all 0.25s ease;
 }
-.lp-cta:hover { transform: translateY(-3px); box-shadow: 0 12px 40px color-mix(in srgb, var(--accent) 40%, transparent); }
+.lp-cta:hover { filter: brightness(0.95); }
 .lp-cta-secondary {
   display: inline-block; background: rgba(255,255,255,0.08); backdrop-filter: blur(10px);
   color: rgba(255,255,255,0.85); border: 1px solid rgba(255,255,255,0.12);
@@ -3615,7 +3607,7 @@ canvas {
 .landing-download-btns button { background: var(--accent); color: #fff; border-color: transparent; }
 .landing-open-app {
   margin-top: 18px; padding: 12px 26px; border-radius: 14px;
-  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #fff));
+  background: var(--accent);
   color: #fff; font-weight: 700; border: none; cursor: pointer; font-size: 1rem;
 }
 @media (max-width: 520px) {
@@ -4715,36 +4707,27 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
 .card {
   position: relative;
   border-color: rgba(24, 60, 60, 0.08);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.65),
-    0 1px 2px rgba(18, 36, 34, 0.05),
-    0 10px 28px rgba(18, 36, 34, 0.08);
-  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+  box-shadow: var(--shadow);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .card:hover {
-  transform: translateY(-3px);
   border-color: color-mix(in srgb, var(--accent) 22%, rgba(24, 60, 60, 0.08));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 2px 6px rgba(18, 36, 34, 0.06),
-    0 18px 44px color-mix(in srgb, var(--accent) 14%, rgba(18, 36, 34, 0.14));
+  box-shadow: var(--shadow);
 }
 
-/* --- Sidebar: inner light, active pill glow + indicator --- */
+/* --- Sidebar: clean flat panel --- */
 .sidebar {
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.09),
-    var(--shadow);
+  box-shadow: var(--shadow);
 }
 .nav-btn {
   position: relative;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: none;
 }
 .nav-btn:hover {
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: none;
 }
 .nav-btn.active {
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 30%, rgba(0, 0, 0, 0.25)), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: none;
 }
 .nav-btn.active::before {
   content: "";
@@ -4771,36 +4754,24 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
 }
 
-/* --- Primary buttons: gradient, depth, lift --- */
+/* --- Primary buttons: flat, matte --- */
 button:where(:not(.ghost):not(.nav-btn):not(.theme-swatch):not(.palette-swatch):not(.calc-btn):not(.mobile-nav-item):not(.chip):not(.empty-state-button):not(.shortcut-key):not(.toast-close)) {
-  background-image: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--accent) 82%, white 18%) 0%,
-    var(--accent) 55%,
-    color-mix(in srgb, var(--accent) 90%, black 10%) 100%
-  );
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    0 1px 2px rgba(0, 0, 0, 0.18),
-    0 3px 10px color-mix(in srgb, var(--accent) 26%, transparent);
-  transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease;
+  background: var(--accent);
+  box-shadow: none;
+  transition: filter 160ms ease, transform 160ms ease;
 }
 button:where(:not(.ghost):not(.nav-btn):not(.theme-swatch):not(.palette-swatch):not(.calc-btn):not(.mobile-nav-item):not(.chip):not(.empty-state-button):not(.shortcut-key):not(.toast-close)):hover {
-  transform: translateY(-2px);
-  filter: brightness(1.06);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.26),
-    0 2px 4px rgba(0, 0, 0, 0.16),
-    0 8px 20px color-mix(in srgb, var(--accent) 38%, transparent);
+  transform: none;
+  filter: brightness(0.95);
+  box-shadow: none;
 }
 
 /* --- Ghost buttons: crisp border + accent tint --- */
 button.ghost, .btn-ghost {
   border: 1px solid color-mix(in srgb, var(--muted) 22%, transparent);
-  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  transition: background 160ms ease, border-color 160ms ease;
 }
 button.ghost:hover, .btn-ghost:hover {
-  transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
@@ -4818,12 +4789,9 @@ input:focus, textarea:focus, select:focus {
     inset 0 1px 2px rgba(18, 36, 34, 0.04);
 }
 
-/* --- Metric numbers: accent gradient --- */
+/* --- Metric numbers: solid accent --- */
 .metric h3 {
-  background: linear-gradient(135deg, var(--accent) 10%, color-mix(in srgb, var(--accent) 62%, white 38%) 90%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--accent);
 }
 
 /* --- List items: gentle hover --- */
@@ -4999,16 +4967,6 @@ input:focus, textarea:focus, select:focus {
 .lp-hero-btns { animation: lpBadgeIn 0.9s ease 0.62s both; }
 .lp-stats { animation: lpBadgeIn 0.9s ease 0.78s both; }
 
-/* --- CTA shine sweep on hover --- */
-.lp-cta, .lp-cta-sm { position: relative; overflow: hidden; }
-.lp-cta::after, .lp-cta-sm::after {
-  content: ''; position: absolute; top: 0; left: -80%; width: 55%; height: 100%;
-  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.45), transparent);
-  transform: skewX(-20deg);
-  pointer-events: none;
-  transition: left 0.55s ease;
-}
-.lp-cta:hover::after, .lp-cta-sm:hover::after { left: 130%; }
 
 /* --- 3D tilt cards with animated conic border ring --- */
 @property --lp-angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
@@ -5083,7 +5041,7 @@ input:focus, textarea:focus, select:focus {
    (complements the landing page effects; respects reduced motion)
    ============================================================ */
 
-/* --- 1. Animated ambient aurora behind the whole app --- */
+/* --- 1. Ambient accent tint behind the app (static, subtle) --- */
 body::before {
   content: "";
   position: fixed;
@@ -5094,76 +5052,12 @@ body::before {
     radial-gradient(38% 42% at 22% 28%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%),
     radial-gradient(30% 34% at 82% 14%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 70%),
     radial-gradient(44% 40% at 68% 86%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 70%);
-  animation: uiAurora 38s ease-in-out infinite alternate;
-  will-change: transform;
-}
-@keyframes uiAurora {
-  0%   { transform: translate3d(-2%, -1%, 0) scale(1); }
-  50%  { transform: translate3d(2%, 2%, 0) scale(1.06); }
-  100% { transform: translate3d(-1%, 1.5%, 0) scale(1.02); }
 }
 [data-dark="true"] body::before {
   background:
     radial-gradient(38% 42% at 22% 28%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 70%),
     radial-gradient(30% 34% at 82% 14%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%),
     radial-gradient(44% 40% at 68% 86%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 70%);
-}
-
-/* --- 2. Tab entry: cards rise in with a light stagger --- */
-.tab.active > .card,
-.tab.active > .split-grid > .card,
-.tab.active > .social-grid > .card {
-  animation: uiCardIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-.tab.active > .card:nth-child(2),
-.tab.active > .split-grid > .card:nth-child(2),
-.tab.active > .social-grid > .card:nth-child(2) { animation-delay: 0.06s; }
-.tab.active > .card:nth-child(3),
-.tab.active > .split-grid > .card:nth-child(3),
-.tab.active > .social-grid > .card:nth-child(3) { animation-delay: 0.12s; }
-.tab.active > .card:nth-child(4),
-.tab.active > .split-grid > .card:nth-child(4),
-.tab.active > .social-grid > .card:nth-child(4) { animation-delay: 0.18s; }
-.tab.active > .card:nth-child(5),
-.tab.active > .split-grid > .card:nth-child(5) { animation-delay: 0.24s; }
-.tab.active > .card:nth-child(6),
-.tab.active > .split-grid > .card:nth-child(6) { animation-delay: 0.3s; }
-.tab.active > .card:nth-child(7) { animation-delay: 0.36s; }
-.tab.active > .card:nth-child(8) { animation-delay: 0.42s; }
-.tab.active > .card:nth-child(n + 9) { animation-delay: 0.48s; }
-@keyframes uiCardIn {
-  from { opacity: 0; transform: translateY(14px) scale(0.985); filter: blur(2px); }
-  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
-}
-
-/* --- 3. Card sheen sweep on hover (clipped to the card shape) --- */
-.card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.45) 50%, transparent 58%);
-  transform: translateX(-135%);
-  transition: transform 0.75s ease;
-  pointer-events: none;
-  clip-path: inset(0 round 14px);
-}
-.card:hover::after { transform: translateX(135%); }
-[data-dark="true"] .card::after {
-  background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.07) 50%, transparent 58%);
-}
-
-/* --- 4. Active nav pill: breathing glow --- */
-.nav-btn.active {
-  animation: navBreath 3.4s ease-in-out infinite;
-}
-@keyframes navBreath {
-  0%, 100% {
-    box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 30%, rgba(0, 0, 0, 0.25)), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-  }
-  50% {
-    box-shadow: 0 4px 22px color-mix(in srgb, var(--accent) 52%, rgba(0, 0, 0, 0.3)), inset 0 1px 0 rgba(255, 255, 255, 0.45);
-  }
 }
 
 /* --- 5. Buttons: tactile press + glow bloom --- */
@@ -5180,50 +5074,18 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   outline-offset: 2px;
 }
 
-/* --- 6. Streak / XP values: shimmering accent --- */
+/* --- 6. Streak / XP values: solid accent --- */
 .streak-value, .xp-value, #streakValue, #xpValue {
-  background: linear-gradient(120deg, var(--accent) 20%, color-mix(in srgb, var(--accent) 45%, white 55%) 45%, var(--accent) 70%);
-  background-size: 220% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: uiShimmer 5s linear infinite;
+  color: var(--accent);
 }
 [data-dark="true"] .streak-value, [data-dark="true"] .xp-value,
 [data-dark="true"] #streakValue, [data-dark="true"] #xpValue {
-  background: linear-gradient(120deg, var(--accent-soft) 20%, color-mix(in srgb, var(--accent-soft) 50%, white 50%) 45%, var(--accent-soft) 70%);
-  background-size: 220% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-@keyframes uiShimmer {
-  to { background-position: 220% center; }
+  color: var(--accent-soft);
 }
 
-/* --- 7. Topbar: subtle shine edge that tracks the mouse via hover ---
-   (topbar stays sticky; sticky is a positioned ancestor for the ::after) */
-.topbar::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(105deg, transparent 45%, rgba(255, 255, 255, 0.35) 50%, transparent 55%);
-  background-size: 250% 100%;
-  background-position: 120% 0;
-  transition: background-position 0.9s ease;
-  pointer-events: none;
-}
-.topbar:hover::after { background-position: -20% 0; }
-[data-dark="true"] .topbar::after {
-  background: linear-gradient(105deg, transparent 45%, rgba(255, 255, 255, 0.06) 50%, transparent 55%);
-  background-size: 250% 100%;
-}
-
-/* --- 8. Mobile nav: active item glow --- */
+/* --- 8. Mobile nav: active item --- */
 .mobile-nav-item.active {
   color: var(--accent);
-  text-shadow: 0 0 14px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
 /* --- 9. List items: left accent tick on hover --- */
@@ -5250,13 +5112,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 /* --- Reduced motion: keep it calm --- */
 @media (prefers-reduced-motion: reduce) {
+  .tab.active { animation: none; }
   body::before { animation: none; }
-  .tab.active > .card,
-  .tab.active > .split-grid > .card,
-  .tab.active > .social-grid > .card { animation: none; }
-  .card::after, .topbar::after { transition: none; }
-  .nav-btn.active, .streak-value, .xp-value { animation: none; }
-  .card:hover::after, .topbar:hover::after { background-position: 120% 0; }
 }
 
 /* ===== LANDING: SDG 4 QUALITY EDUCATION SECTION ===== */
