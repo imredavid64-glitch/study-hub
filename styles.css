@@ -2243,6 +2243,17 @@ body.dark .confusion-src { background: rgba(255,255,255,0.08); }
 .exam-radar-item-body { flex: 1; min-width: 0; }
 
 /* ===== Exam Grade Estimator ===== */
+.exam-grade-chip {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  margin-left: 6px;
+  vertical-align: middle;
+}
 .exam-estimate-preview, .exam-estimator { display: grid; gap: 12px; }
 .est-summary {
   display: flex;

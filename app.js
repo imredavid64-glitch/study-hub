@@ -4151,6 +4151,18 @@ function renderExamRadar() {
   const phase = examPhase(nearest.days);
   const recentMins = (subject) => state.sessions.filter(s => s.subject === subject && new Date(s.date) >= new Date(Date.now() - 7 * 86400000)).reduce((s, x) => s + (x.minutes || 0), 0);
   const noRecentWork = recentMins(nearest.subject) === 0;
+  // Subject-specific predicted grade from the exam estimator.
+  const estFor = (subject) => {
+    try {
+      const est = computeExamEstimate(state);
+      if (!est) return null;
+      return est.perSubject.find(p => p.name === subject) || null;
+    } catch (e) { return null; }
+  };
+  const estColor = (letter) => letter === 'A' ? '#237a57' : letter === 'B' ? '#0f766e' : letter === 'C' ? '#ca8a04' : '#b42318';
+  const gradeChip = (p) => p ? `<span class="exam-grade-chip" style="color:${estColor(p.letter.letter)}">🎯 ${p.letter.letter} · ${p.est}%</span>` : '';
+  const nearestEst = estFor(nearest.subject);
+  const nearestAtRisk = nearestEst && nearestEst.est < 70 && nearest.days <= 7;
   let html = `<div class="exam-radar-banner ${phase.cls}">
     <div class="exam-radar-head">
       <span class="exam-radar-countdown">${nearest.days <= 0 ? 'D-DAY 🚨' : 'D−' + nearest.days}</span>
@@ -4160,6 +4172,8 @@ function renderExamRadar() {
       </div>
     </div>
     <p class="small" style="margin:6px 0 0">${phase.tip}</p>
+    ${nearestEst ? `<p class="small" style="margin:6px 0 0;font-weight:700">📈 Predicted grade for ${escapeHtml(nearest.subject)}: ${gradeChip(nearestEst)} (band ${Math.max(0, nearestEst.est - nearestEst.band)}–${Math.min(100, nearestEst.est + nearestEst.band)}%)</p>` : ''}
+    ${nearestAtRisk ? `<p class="small" style="margin:6px 0 0;font-weight:700">🚨 You are tracking below a C in ${escapeHtml(nearest.subject)} with ${nearest.days} day${nearest.days > 1 ? 's' : ''} to go — prioritize daily retrieval practice.</p>` : ''}
     ${noRecentWork ? `<p class="small" style="margin:6px 0 0;font-weight:700">⚠️ No study sessions logged for ${escapeHtml(nearest.subject)} in the last 7 days — start today.</p>` : ''}
   </div>`;
   html += '<div class="exam-radar-list">';
@@ -4168,13 +4182,14 @@ function renderExamRadar() {
     const mins = recentMins(x.subject);
     const weeksToGo = Math.max(1, Math.ceil(x.days / 7));
     const targetMins = Math.min(100, Math.round(mins / (x.kind === 'goal' && x.hours ? x.hours * 60 / weeksToGo : 120)) * 100);
+    const pEst = estFor(x.subject);
     html += `<div class="exam-radar-item ${ph.cls}">
       <span class="exam-radar-countdown sm">${x.days <= 0 ? 'NOW' : 'D−' + x.days}</span>
       <div class="exam-radar-item-body">
         <div class="row-between"><strong>${escapeHtml(x.title)}</strong><span class="small" style="opacity:0.7">${formatDate(x.date)}</span></div>
-        <div class="small" style="opacity:0.85">${escapeHtml(x.subject)} · ${ph.label}</div>
+        <div class="small" style="opacity:0.85">${escapeHtml(x.subject)} · ${ph.label} ${gradeChip(pEst)}</div>
         <div class="progress" style="margin-top:4px;height:6px"><span style="width:${Math.min(100, targetMins)}%;background:${x.days <= 3 ? 'var(--danger)' : x.days <= 7 ? 'var(--warning)' : 'var(--success)'}"></span></div>
-        <span class="small" style="opacity:0.6">${mins} min studied (7d)</span>
+        <span class="small" style="opacity:0.6">${mins} min studied (7d)${pEst && pEst.confusionRecent ? ` · 🧠 ${pEst.confusionRecent} recent confused topic${pEst.confusionRecent > 1 ? 's' : ''}` : ''}</span>
       </div>
     </div>`;
   });
