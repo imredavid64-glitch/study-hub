@@ -122,6 +122,8 @@ if (!/swapInstall/.test(applyJs)) fails.push('scripts/apply-update.js is missing
 if (!/id="runHealthCheckBtn"/.test(html) || !/id="healthCheckResults"/.test(html)) fails.push('Settings is missing the system health check card');
 if (!/id="examEstimator"/.test(html) || !/id="examEstimatePreview"/.test(html)) fails.push('Exam grade estimator cards missing from Analytics/Dashboard');
 if (!/computeExamEstimate/.test(js) || !/renderExamEstimator/.test(js) || !/renderExamEstimatePreview/.test(js)) fails.push('app.js is missing the exam grade estimator model/renderers');
+if (!/id="predictionAccuracy"/.test(html) || !/id="predictionAccuracyCount"/.test(html)) fails.push('Estimator vs Reality card missing from Analytics');
+if (!/recordEstimatorPrediction/.test(js) || !/renderPredictionAccuracy/.test(js) || !/computePredictionStats/.test(js)) fails.push('app.js is missing the prediction tracker wiring');
 
 // 9. Window-position memory must be wired into the main process and be
 //    unit-tested (electron-window-state.js is loaded by npm test).

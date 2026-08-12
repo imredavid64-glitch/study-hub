@@ -180,6 +180,7 @@ const DEFAULT_STATE = {
   goals: [], tasks: [], sessions: [], flashcards: [], notes: [], assignments: [],
   reflections: [], quizAttempts: [], mockTestHistory: [], recallHistory: [],
   confusionLog: [],
+  estimatorTrack: [],
   reviewQueue: [],
   walkthroughProgress: {},
   resources: [],
@@ -266,6 +267,14 @@ const DEMO_DATA = {
   ],
   quizAttempts: [
     { id: 'demo_quiz_1', topic: 'AP Physics Practice', subject: 'AP Physics', questions: 5, correct: 5, score: 5, total: 5, percentage: 100, pct: 100, date: '2026-08-07T14:00:00Z', xpEarned: 40 }
+  ],
+  estimatorTrack: [
+    { id: 'demo_et_1', date: '2026-08-05', subject: 'AP Physics', predicted: 78, band: 11, actual: 84, source: 'quiz' },
+    { id: 'demo_et_2', date: '2026-08-07', subject: 'AP Physics', predicted: 82, band: 8, actual: 88, source: 'mock' },
+    { id: 'demo_et_3', date: '2026-08-09', subject: 'AP Physics', predicted: 87, band: 6, actual: 90, source: 'grade' },
+    { id: 'demo_et_4', date: '2026-08-08', subject: 'Organic Chemistry', predicted: 62, band: 12, actual: 55, source: 'quiz' },
+    { id: 'demo_et_5', date: '2026-08-10', subject: 'Organic Chemistry', predicted: 58, band: 10, actual: 52, source: 'mock' },
+    { id: 'demo_et_6', date: '2026-08-09', subject: 'SAT Prep', predicted: 70, band: 10, actual: 66, source: 'quiz' }
   ],
   confusionLog: [
     { id: 'demo_cf_1', date: '2026-08-06', topic: 'AP Physics', concept: 'Kinematic equation for displacement', source: 'quiz' },
@@ -802,7 +811,7 @@ function showTab(tabId) {
   if (tab) tab.classList.add('active');
   const btn = qs(`.nav-btn[data-tab="${tabId}"]`);
   if (btn) btn.classList.add('active');
-  if (tabId === 'analytics' && typeof renderCharts === 'function') { renderCharts(); if (typeof renderConfusionHeatmap === 'function') renderConfusionHeatmap(); if (typeof renderReviewQueue === 'function') renderReviewQueue(); if (typeof renderWalkthroughAnalytics === 'function') renderWalkthroughAnalytics(); if (typeof renderExamEstimator === 'function') renderExamEstimator(); }
+  if (tabId === 'analytics' && typeof renderCharts === 'function') { renderCharts(); if (typeof renderConfusionHeatmap === 'function') renderConfusionHeatmap(); if (typeof renderReviewQueue === 'function') renderReviewQueue(); if (typeof renderWalkthroughAnalytics === 'function') renderWalkthroughAnalytics(); if (typeof renderExamEstimator === 'function') renderExamEstimator(); if (typeof renderPredictionAccuracy === 'function') renderPredictionAccuracy(); }
   // The study map is initialized lazily because its container is 0×0 while hidden.
   if (tabId === 'studymap' && window.__studyMapRefresh) setTimeout(window.__studyMapRefresh, 0);
   updateWelcomeTitle();
@@ -1976,7 +1985,9 @@ function submitQuiz() {
   });
   const pct = Math.round(correct / quizState.questions.length * 100);
   $('quizResult').textContent = `Score: ${correct}/${quizState.questions.length} (${pct}%)`;
-  state.quizAttempts.push({ id: uid(), date: todayStr(), topic, score: correct, total: quizState.questions.length, pct });
+  const quizId = uid();
+  state.quizAttempts.push({ id: quizId, date: todayStr(), topic, score: correct, total: quizState.questions.length, pct });
+  if (typeof recordEstimatorPrediction === 'function') recordEstimatorPrediction(topic, pct, 'quiz', quizId);
   saveState(); renderQuizHistory(); renderConfusionHeatmap(); if (pct >= 80) { clearReviewQueueForTopic(topic); if (typeof autoCompleteWtStep === 'function') autoCompleteWtStep('quiz', topic); } else renderReviewQueue(); showToast('Quiz submitted');
 }
 function renderQuizHistory() {
@@ -2064,7 +2075,9 @@ function submitMockTest() {
   });
   const pct = Math.round(correct / mockState.questions.length * 100);
   $('mockTestResult').innerHTML = `<strong>Mock Test Score: ${correct}/${mockState.questions.length} (${pct}%)</strong>`;
-  state.mockTestHistory.push({ id: uid(), date: todayStr(), subject, score: correct, total: mockState.questions.length, pct });
+  const mockId = uid();
+  state.mockTestHistory.push({ id: mockId, date: todayStr(), subject, score: correct, total: mockState.questions.length, pct });
+  if (typeof recordEstimatorPrediction === 'function') recordEstimatorPrediction(subject, pct, 'mock', mockId);
   saveState(); renderMockTestHistory(); renderConfusionHeatmap(); if (pct >= 80) { clearReviewQueueForTopic(subject); if (typeof autoCompleteWtStep === 'function') autoCompleteWtStep('mock', subject); } else renderReviewQueue(); showToast('Mock test submitted');
 }
 function renderMockTestHistory() {
@@ -2439,6 +2452,82 @@ function computeExamEstimate(s) {
   confused.forEach(p => { if (!gaps.some(g => g.startsWith(p.name + ':'))) gaps.push(`${p.name}: ${p.confusionRecent} recent confused ${p.confusionRecent === 1 ? 'topic' : 'topics'}`); });
   return { overall, band: overallBand, letter: estLetter(overall), perSubject, gaps: gaps.slice(0, 4), totalEvidence };
 }
+// Records what the model predicted BEFORE a new result arrived, then stores
+// the actual outcome alongside it — so prediction accuracy can be measured.
+function recordEstimatorPrediction(subject, actualPct, source, excludeId) {
+  try {
+    if (!subject || actualPct === undefined || actualPct === null) return;
+    // Rebuild state WITHOUT the just-added entry so the estimate reflects what
+    // the model would have predicted before seeing this result.
+    const s = {
+      quizAttempts: (state.quizAttempts || []).filter(q => q.id !== excludeId),
+      mockTestHistory: (state.mockTestHistory || []).filter(m => m.id !== excludeId),
+      assignments: (state.assignments || []).filter(a => a.id !== excludeId),
+      confusionLog: state.confusionLog || []
+    };
+    const est = computeExamEstimate(s);
+    if (!est) return;
+    const sub = est.perSubject.find(p => p.name === subject);
+    if (!sub) return;
+    state.estimatorTrack = state.estimatorTrack || [];
+    state.estimatorTrack.push({ id: uid(), date: todayStr(), subject, predicted: sub.est, band: sub.band, actual: Math.round(actualPct), source });
+    if (state.estimatorTrack.length > 60) state.estimatorTrack = state.estimatorTrack.slice(-60);
+  } catch (e) { /* never break the flow */ }
+}
+// Pure stats over the prediction track: mean absolute error, bias, and how
+// often reality landed inside the predicted band. Kept pure for unit tests.
+function computePredictionStats(track) {
+  const err = r => Math.abs(r.predicted - r.actual);
+  const total = track.length;
+  if (total === 0) return { total: 0, mae: 0, bias: 0, withinBand: 0, bySubject: {} };
+  const mae = track.reduce((s, r) => s + err(r), 0) / total;
+  const bias = track.reduce((s, r) => s + (r.predicted - r.actual), 0) / total;
+  const withinBand = track.filter(r => r.actual >= r.predicted - r.band && r.actual <= r.predicted + r.band).length;
+  const bySubject = {};
+  track.forEach(r => {
+    if (!bySubject[r.subject]) bySubject[r.subject] = { n: 0, errSum: 0, predSum: 0, actSum: 0 };
+    bySubject[r.subject].n++;
+    bySubject[r.subject].errSum += err(r);
+    bySubject[r.subject].predSum += r.predicted;
+    bySubject[r.subject].actSum += r.actual;
+  });
+  return { total, mae, bias, withinBand, bySubject };
+}
+// Renders predicted-vs-actual accuracy per subject and overall.
+function renderPredictionAccuracy() {
+  const el = $('predictionAccuracy');
+  if (!el) return;
+  const track = state.estimatorTrack || [];
+  const countEl = $('predictionAccuracyCount');
+  if (countEl) countEl.textContent = track.length > 0 ? `${track.length} predictions` : '';
+  if (track.length === 0) {
+    el.innerHTML = '<p class="subtle">As you take quizzes, mocks, and grade assignments, the app records what the estimator predicted before each result — then compares it to what actually happened, so you can trust (or calibrate) the prediction.</p>';
+    return;
+  }
+  const { total, mae, bias, withinBand, bySubject } = computePredictionStats(track);
+  let html = `<div class="est-summary">
+    <div class="est-grade" style="font-size:1.5rem">±${mae.toFixed(1)}<small> avg error</small></div>
+    <div class="est-numbers"><div class="est-num">${withinBand}/${total} <span class="est-band">within band</span></div>
+    <div class="est-meta">${bias > 0.5 ? 'Model tends to over-predict by ' + bias.toFixed(1) + ' pts' : bias < -0.5 ? 'Model tends to under-predict by ' + Math.abs(bias).toFixed(1) + ' pts' : 'Model is well calibrated'}</div></div>
+    <div class="est-bar-wrap"><div class="est-bar"><span class="est-fill" style="width:${Math.max(4, 100 - mae * 1.5)}%;background:${mae <= 7 ? 'linear-gradient(90deg,#0f766e,#2a9d8f)' : mae <= 12 ? 'linear-gradient(90deg,#b45309,#e6a700)' : 'linear-gradient(90deg,#b3261e,#e26857)'}"></span></div><div class="est-meta">Accuracy (${total} predictions tracked)</div></div>
+  </div>`;
+  html += '<div class="est-subjects">';
+  Object.entries(bySubject).sort((a, b) => (b[1].errSum / b[1].n) - (a[1].errSum / a[1].n)).forEach(([name, d]) => {
+    const subErr = d.errSum / d.n;
+    const c = subErr <= 7 ? '#237a57' : subErr <= 12 ? '#ca8a04' : '#b42318';
+    html += `<div class="est-subject-row"><span class="est-subject-name">${escapeHtml(name)}</span><span class="est-subject-grade" style="color:${c}">±${subErr.toFixed(1)}</span><div class="est-subject-bar"><span style="width:${Math.max(4, 100 - subErr * 1.5)}%;background:${c}"></span></div><span class="est-subject-evidence">${d.n} prediction${d.n > 1 ? 's' : ''} · pred ${(d.predSum / d.n).toFixed(0)}% vs actual ${(d.actSum / d.n).toFixed(0)}%</span></div>`;
+  });
+  html += '</div>';
+  html += '<div class="pred-list">';
+  track.slice().reverse().slice(0, 8).forEach(r => {
+    const ok = r.actual >= r.predicted - r.band && r.actual <= r.predicted + r.band;
+    const c = ok ? '#237a57' : '#b42318';
+    html += `<div class="pred-row"><span class="pred-row-meta">${escapeHtml(r.subject)} <span class="pred-src">${r.source}</span></span><div class="pred-bars"><div class="pred-bar pred-pred" style="left:0;width:${r.predicted}%">P ${r.predicted}</div><div class="pred-bar pred-act" style="left:${Math.min(r.predicted, r.actual)}%;width:${Math.abs(r.actual - r.predicted)}%;background:${c}">${r.actual}%</div></div><span class="pred-date">${formatDate(r.date)}</span></div>`;
+  });
+  html += '</div>';
+  html += '<p class="subtle" style="margin:0">Each row: the estimator’s prediction before a result, vs the result that actually happened. Errors shrink as practice volume grows.</p>';
+  el.innerHTML = html;
+}
 function renderExamEstimatePreview() {
   const el = $('examEstimatePreview');
   const badge = $('examEstimatePreviewBadge');
@@ -2794,7 +2883,10 @@ function renderChartTableFromData() {
 function setupAssignments() {
   $('assignmentForm').addEventListener('submit', e => {
     e.preventDefault();
-    state.assignments.push({ id: uid(), title: $('assignTitle').value, subject: $('assignSubject').value, due: $('assignDue').value, weight: +$('assignWeight').value, earned: $('assignEarned').value ? +$('assignEarned').value : null, max: +$('assignMax').value, createdAt: todayStr() });
+    const aId = uid();
+    const earnedVal = $('assignEarned').value ? +$('assignEarned').value : null;
+    state.assignments.push({ id: aId, title: $('assignTitle').value, subject: $('assignSubject').value, due: $('assignDue').value, weight: +$('assignWeight').value, earned: earnedVal, max: +$('assignMax').value, createdAt: todayStr() });
+    if (earnedVal !== null && typeof recordEstimatorPrediction === 'function') recordEstimatorPrediction($('assignSubject').value, Math.round(earnedVal / +$('assignMax').value * 100), 'grade', aId);
     saveState(); renderAssignments(); renderGradeForecast(); $('assignmentForm').reset(); showToast('Assignment tracked');
   });
   $('gcalImportBtn').addEventListener('click', importGcal);
@@ -3551,6 +3643,7 @@ function setupAnalytics() {
   renderHeatmap();
   renderGradeAnalysis();
   renderExamEstimator();
+  renderPredictionAccuracy();
 }
 function renderCharts() {
   if (typeof Chart === 'undefined') return;

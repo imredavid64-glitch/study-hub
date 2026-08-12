@@ -30,7 +30,7 @@ const constRe = /const EST_LETTERS = \[[\s\S]*?\n\];/;
 const constM = section.match(constRe);
 assert.ok(constM && constM[0], 'found EST_LETTERS const');
 vm.runInContext(constM[0], sandbox);
-const fns = ['estLetter', 'estRecencyWeight', 'computeExamEstimate'];
+const fns = ['estLetter', 'estRecencyWeight', 'computeExamEstimate', 'computePredictionStats'];
 for (const fn of fns) {
   const re = new RegExp('function ' + fn + '\\b[\\s\\S]*?\\n\\}', 'm');
   const m = section.match(re);
@@ -40,6 +40,7 @@ for (const fn of fns) {
 assert.ok(typeof sandbox.computeExamEstimate === 'function', 'computeExamEstimate loaded');
 assert.ok(typeof sandbox.estLetter === 'function', 'estLetter loaded');
 assert.ok(typeof sandbox.estRecencyWeight === 'function', 'estRecencyWeight loaded');
+assert.ok(typeof sandbox.computePredictionStats === 'function', 'computePredictionStats loaded');
 
 let passed = 0;
 function ok(cond, msg) {
@@ -144,5 +145,29 @@ ok(e7 && e7.overall > 60 && e7.overall < 85, 'mocks pull the blend toward them (
 
 // 10. Evidence type labeling
 ok(e7.perSubject[0].kinds.includes('mock') && e7.perSubject[0].kinds.includes('quiz'), 'kinds list both quiz and mock');
+
+// 11. Prediction accuracy stats
+ok(sandbox.computePredictionStats([]).total === 0 && sandbox.computePredictionStats([]).mae === 0, 'empty track → zeroed stats');
+const track1 = [
+  { subject: 'Bio', predicted: 80, band: 8, actual: 78, source: 'quiz' },
+  { subject: 'Bio', predicted: 80, band: 8, actual: 90, source: 'mock' },
+  { subject: 'Chem', predicted: 60, band: 12, actual: 55, source: 'quiz' }
+];
+const ps1 = sandbox.computePredictionStats(track1);
+ok(ps1.total === 3, 'stats count 3 predictions');
+ok(Math.abs(ps1.mae - (2 + 10 + 5) / 3) < 0.001, 'MAE = 5.667 (' + ps1.mae.toFixed(2) + ')');
+ok(ps1.withinBand === 2, 'two of three landed in band (78 within ±8, 55 within ±12)');
+ok(Math.abs(ps1.bias - ((80 - 78) + (80 - 90) + (60 - 55)) / 3) < 0.001, 'bias sums predicted − actual (' + ps1.bias.toFixed(2) + ')');
+ok(ps1.bySubject.Bio.n === 2 && ps1.bySubject.Chem.n === 1, 'per-subject counts');
+ok(Math.abs(ps1.bySubject.Bio.errSum - 12) < 0.001, 'per-subject error sums');
+
+// 12. Prediction recording excludes the new entry (record happens before it counts)
+//    The estimator must ignore the just-added result when forming its prediction.
+const rec = { quizAttempts: [], mockTestHistory: [], assignments: [], confusionLog: [] };
+for (let i = 0; i < 3; i++) rec.quizAttempts.push({ id: 'q' + i, topic: 'Math', subject: 'Math', score: 7, total: 10, pct: 70, date: new Date().toISOString() });
+const beforeNew = sandbox.computeExamEstimate(rec);
+rec.quizAttempts.push({ id: 'qnew', topic: 'Math', subject: 'Math', score: 9, total: 10, pct: 90, date: new Date().toISOString() });
+const afterNew = sandbox.computeExamEstimate(rec);
+ok(afterNew.overall > beforeNew.overall, 'adding a 90% quiz raises the overall estimate');
 
 console.log(`\nexam grade estimator: ${passed} assertions passed`);

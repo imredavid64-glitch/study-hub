@@ -2358,6 +2358,32 @@ body.dark .confusion-src { background: rgba(255,255,255,0.08); }
   background: rgba(0,0,0,0.02);
 }
 
+/* ===== Estimator vs Reality ===== */
+.pred-list { display: grid; gap: 6px; }
+.pred-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 0.78rem;
+  border: 1px solid var(--border, rgba(0,0,0,0.08));
+  border-radius: 10px;
+  padding: 6px 10px;
+}
+.pred-row-meta { flex: 1 1 130px; font-weight: 700; }
+.pred-src {
+  font-weight: 600;
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.07);
+  margin-left: 4px;
+}
+.pred-bars { position: relative; flex: 2 1 180px; height: 16px; border-radius: 6px; background: rgba(0,0,0,0.06); overflow: hidden; }
+.pred-bar { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; padding: 0 4px; font-size: 0.62rem; font-weight: 800; color: #fff; white-space: nowrap; overflow: hidden; border-radius: 6px; }
+.pred-pred { background: rgba(15,118,110,0.65); z-index: 1; }
+.pred-date { flex: none; opacity: 0.6; font-size: 0.7rem; }
+
 /* ===== Explain-It-Back ===== */
 .explain-prompt, .explain-grade {
   border: 1px dashed var(--border, rgba(0,0,0,0.15));
