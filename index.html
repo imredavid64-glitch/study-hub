@@ -1499,10 +1499,11 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
           <!-- AI Subject Tutor: follows whichever subject panel is active -->
           <article class="card" id="subjectAiCard">
             <h3><span class="icon icon-sm icon-ai"></span> AI Subject Tutor <span class="badge" id="subjectAiBadge">Math</span></h3>
-            <p class="subtle">Ask about anything in the active subject — concepts, worked examples, practice problems. Your notes and flashcards for this subject give the AI context.</p>
+            <p class="subtle">Ask about anything in the active subject — concepts, worked examples, practice problems. Your notes and flashcards for this subject give the AI context, and the conversation is remembered per subject.</p>
             <div class="inline wrap top-gap">
               <input id="subjectAiInput" placeholder="e.g. Explain how to solve this step by step…" style="flex:1;min-width:200px" />
               <button id="subjectAiAskBtn">Ask the Tutor</button>
+              <button id="subjectAiClearBtn" class="ghost" title="Clear this subject's conversation">Clear</button>
             </div>
             <div class="inline wrap top-gap" id="subjectAiQuick">
               <button class="ghost subject-ai-chip" data-q="Explain the key concept">Explain the key concept</button>

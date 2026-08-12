@@ -4913,6 +4913,19 @@ body.is-mobile .music-player { z-index: 999; }
 /* AI Subject Tutor */
 #subjectAiCard .badge { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
 .subject-ai-chip { font-size: 0.78rem; padding: 5px 10px; }
+.subject-ai-msg { border-radius: 12px; padding: 10px 14px; margin-bottom: 8px; font-size: 0.88rem; line-height: 1.55; max-width: 92%; }
+.subject-ai-msg.subject-ai-user {
+  align-self: flex-end;
+  margin-left: auto;
+  background: color-mix(in srgb, var(--accent) 16%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.subject-ai-msg.subject-ai-assistant {
+  align-self: flex-start;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+#subjectAiResult { display: flex; flex-direction: column; }
 .explain-box li { margin: 4px 0; }
 .health-guide { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--panel); line-height: 1.6; }
 .health-guide h4 { margin: 0 0 8px; color: var(--accent); }

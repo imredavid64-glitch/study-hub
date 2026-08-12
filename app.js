@@ -186,6 +186,7 @@ const DEFAULT_STATE = {
   walkthroughProgress: {},
   resources: [],
   aiChatHistory: [], lessonChatHistory: [], voiceTranscript: [],
+  subjectTutorChats: {}, // per-subject AI Subject Tutor conversation memory
   musicTrackIndex: 0, musicVolume: 70, musicPlaying: false,
   calendarEvents: [],
   playlists: [],
@@ -6243,10 +6244,33 @@ function setupSubjects() {
     activeSubject = b.dataset.subject;
     const badge = document.getElementById('subjectAiBadge');
     if (badge) badge.textContent = subjNames[activeSubject] || 'Subject';
+    // Show that subject's own remembered conversation (or its fresh prompt).
+    if (typeof renderTutorThread === 'function') renderTutorThread();
   }));
   const aiInput = document.getElementById('subjectAiInput');
   const aiBtn = document.getElementById('subjectAiAskBtn');
   const aiOut = document.getElementById('subjectAiResult');
+  const aiClearBtn = document.getElementById('subjectAiClearBtn');
+  // Per-subject conversation memory: { [subject]: [{role, content}, ...] }.
+  const tutorChats = function() {
+    if (!state.subjectTutorChats) state.subjectTutorChats = {};
+    if (!state.subjectTutorChats[activeSubject]) state.subjectTutorChats[activeSubject] = [];
+    return state.subjectTutorChats[activeSubject];
+  };
+  const renderTutorThread = function() {
+    if (!aiOut) return;
+    const msgs = tutorChats();
+    if (!msgs.length) {
+      aiOut.innerHTML = '<p class="subtle">Ask anything about ' + (subjNames[activeSubject] || 'this subject') + ' — I\'ll remember our conversation as we go.</p>';
+      return;
+    }
+    aiOut.innerHTML = msgs.map(function(m) {
+      const cls = m.role === 'user' ? 'subject-ai-user' : 'subject-ai-assistant';
+      const body = m.role === 'user' ? escapeHtml(m.content) : formatInline(m.content || '');
+      return '<div class="subject-ai-msg ' + cls + '">' + body + '</div>';
+    }).join('');
+    if (aiOut.scrollIntoView) aiOut.scrollIntoView({ block: 'nearest' });
+  };
   const subjectContext = function() {
     // Pull the user's own notes + flashcards for the active subject so the
     // tutor is grounded in what they actually study.
@@ -6262,17 +6286,32 @@ function setupSubjects() {
     const q = (question || aiInput.value).trim();
     if (!q) { showToast('Ask a question about ' + (subjNames[activeSubject] || 'the subject') + ' first.'); if (aiInput) aiInput.focus(); return; }
     const ctx = subjectContext();
-    aiOut.innerHTML = '<p class="subtle">' + ctx.name + ' tutor is thinking…</p>';
-    const prompt = 'You are a patient ' + ctx.name + ' tutor for a student. ' +
+    const thread = tutorChats();
+    // Build the messages array: system (with context) + full prior thread +
+    // the new question, so follow-ups are answered in context.
+    const system = 'You are a patient ' + ctx.name + ' tutor for a student. ' +
       (ctx.notes ? 'The student\'s own notes include: ' + ctx.notes + '\n' : '') +
       (ctx.cards ? 'Their flashcards include: ' + ctx.cards + '\n' : '') +
-      'Answer the question simply, concretely, and in under 200 words. If it is a practice problem, show the full worked solution step by step. Question: ' + q;
-    groqChat([{ role: 'system', content: 'You are a friendly, precise subject tutor. Return clean markdown.' }, { role: 'user', content: prompt }], { maxTokens: 700, temperature: 0.5 })
+      'Answer simply and concretely, in under 200 words. If it is a practice problem, show the full worked solution step by step. You are having a conversation: use what was said earlier to answer follow-ups. Return clean markdown.';
+    const messages = [{ role: 'system', content: system }];
+    thread.slice(-8).forEach(function(m) { messages.push({ role: m.role, content: m.content }); });
+    messages.push({ role: 'user', content: q });
+    thread.push({ role: 'user', content: q });
+    renderTutorThread();
+    const thinking = document.createElement('div');
+    thinking.className = 'subject-ai-msg subject-ai-assistant';
+    thinking.textContent = '…';
+    aiOut.appendChild(thinking);
+    groqChat(messages, { maxTokens: 700, temperature: 0.5 })
       .then(function(txt) {
-        aiOut.innerHTML = '<div class="explain-box">' + formatInline(txt || '') + '</div>';
+        thread.push({ role: 'assistant', content: txt || '' });
+        saveState();
+        renderTutorThread();
       })
       .catch(function() {
-        aiOut.innerHTML = '<div class="explain-box">' + formatInline(offlineExplain(q, subjectAreaKey(activeSubject))) + '</div>' + offlineNote();
+        thread.push({ role: 'assistant', content: offlineExplain(q, subjectAreaKey(activeSubject)) });
+        saveState();
+        renderTutorThread();
         showToast('Offline tutor response — AI unavailable');
       });
   };
@@ -6280,10 +6319,22 @@ function setupSubjects() {
     aiBtn.addEventListener('click', function() { askSubjectTutor(''); });
     aiInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') askSubjectTutor(''); });
   }
+  if (aiClearBtn) {
+    aiClearBtn.addEventListener('click', function() {
+      if (!state.subjectTutorChats) state.subjectTutorChats = {};
+      delete state.subjectTutorChats[activeSubject];
+      saveState();
+      renderTutorThread();
+      showToast('Conversation cleared for ' + (subjNames[activeSubject] || 'this subject'));
+    });
+  }
   if (aiOut) {
     qsa('.subject-ai-chip').forEach(function(chip) {
       chip.addEventListener('click', function() { askSubjectTutor(chip.dataset.q); });
     });
+    // Re-render the thread when switching subjects so each subject's own
+    // conversation is shown (and the placeholder updates with the badge).
+    renderTutorThread();
   }
 
   // ---- Math Calculator (scoped to subject-math only) ----

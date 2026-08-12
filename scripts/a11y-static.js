@@ -135,6 +135,7 @@ if (!/fuzzyScore/.test(js) || !/fuzzyMatch/.test(js)) fails.push('app.js command
 // 16. Fresh-start launch + AI Subject Tutor.
 if (!/id="subjectAiCard"/.test(html) || !/id="subjectAiInput"/.test(html) || !/id="subjectAiAskBtn"/.test(html) || !/id="subjectAiBadge"/.test(html)) fails.push('Subjects tab is missing the AI Subject Tutor card');
 if (!/askSubjectTutor/.test(js) || !/subjectAreaKey/.test(js)) fails.push('app.js is missing the AI Subject Tutor wiring');
+if (!/subjectTutorChats/.test(js) || !/renderTutorThread/.test(js) || !/id="subjectAiClearBtn"/.test(html)) fails.push('AI Subject Tutor is missing per-subject conversation memory or the clear button');
 if (/judgeBanner.*classList\.remove\('hidden'\)/.test(js) && !/isJudgeMode/.test(js)) fails.push('fresh-start guard: judge banner logic regressed');
 if (!/paletteRecent/.test(js) || !/rememberRecent/.test(js)) fails.push('app.js command palette is missing recent-items memory');
 if (!/toastWithUndo/.test(js) || !/__undoPending/.test(js) || !/attachUndoButton/.test(js)) fails.push('app.js is missing the undo-able toast helpers');
