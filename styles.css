@@ -46,6 +46,12 @@
   --btn-ghost-border: transparent;
   --btn-danger-bg: var(--danger);
   --btn-danger-color: #fff3f1;
+  /* Focus-ring tokens — keyboard users see the same accent everywhere */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --focus-ring-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  --focus-ring-strong: color-mix(in srgb, var(--accent) 70%, white 20%);
+  --focus-ring-soft: color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 /* Theme: Blue */
@@ -1146,6 +1152,7 @@ body {
 body {
   font-family: var(--font-ui, "Space Grotesk"), sans-serif;
   color: var(--ink);
+  line-height: 1.55;
   background:
     radial-gradient(circle at 15% 20%, rgba(15, 118, 110, 0.14), transparent 35%),
     radial-gradient(circle at 90% 0%, rgba(230, 167, 0, 0.15), transparent 28%),
@@ -1317,6 +1324,8 @@ body {
   font-size: 1.6rem;
   font-weight: 700;
   letter-spacing: -0.02em;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .topbar-actions {
@@ -1369,12 +1378,24 @@ body {
 
 .dash-top-grid {
   display: grid;
-  grid-template-columns: 1.6fr 1fr 1fr;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
+  align-items: stretch;
 }
-@media (max-width: 900px) {
+@media (max-width: 960px) {
   .dash-top-grid { grid-template-columns: 1fr; }
 }
+/* Grid children may always shrink: long URLs, code, and names stay in their track */
+.tab.active > *,
+.split-grid > *,
+.dash-top-grid > *,
+.metric-grid > *,
+.social-grid > *,
+.subject-panel > * {
+  min-width: 0;
+}
+#next15Go { flex-shrink: 0; }
+#missionText { overflow-wrap: anywhere; line-height: 1.5; }
 
 .social-grid {
   display: grid;
@@ -1454,7 +1475,7 @@ input:focus,
 textarea:focus,
 select:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+  box-shadow: 0 0 0 3px var(--focus-ring-soft);
 }
 
 textarea {
@@ -4720,12 +4741,12 @@ body.is-mobile .music-player { z-index: 999; }
 }
 
 :focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 70%, white 20%);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--focus-ring-strong);
+  outline-offset: var(--focus-ring-offset);
 }
 button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 /* --- Cards: layered shadows, lit top edge, accent glow on hover --- */
@@ -4811,7 +4832,7 @@ input::placeholder, textarea::placeholder {
 }
 input:focus, textarea:focus, select:focus {
   box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent),
+    0 0 0 3px var(--focus-ring-soft),
     inset 0 1px 2px rgba(18, 36, 34, 0.04);
 }
 
