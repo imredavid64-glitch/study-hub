@@ -120,6 +120,8 @@ if (!/applyAutomaticUpdate/.test(js) || !/setupVerifyInstall/.test(js) || !/setu
 if (!/id="verifyInstallBtn"/.test(html) || !/id="verifyInstallResult"/.test(html)) fails.push('Settings has no verify-install button/result');
 if (!/swapInstall/.test(applyJs)) fails.push('scripts/apply-update.js is missing the swapInstall helper');
 if (!/id="runHealthCheckBtn"/.test(html) || !/id="healthCheckResults"/.test(html)) fails.push('Settings is missing the system health check card');
+if (!/id="examEstimator"/.test(html) || !/id="examEstimatePreview"/.test(html)) fails.push('Exam grade estimator cards missing from Analytics/Dashboard');
+if (!/computeExamEstimate/.test(js) || !/renderExamEstimator/.test(js) || !/renderExamEstimatePreview/.test(js)) fails.push('app.js is missing the exam grade estimator model/renderers');
 
 // 9. Window-position memory must be wired into the main process and be
 //    unit-tested (electron-window-state.js is loaded by npm test).

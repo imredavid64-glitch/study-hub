@@ -2242,6 +2242,111 @@ body.dark .confusion-src { background: rgba(255,255,255,0.08); }
 .exam-radar-item.exam-ahead { border-left-color: var(--success, #237a57); }
 .exam-radar-item-body { flex: 1; min-width: 0; }
 
+/* ===== Exam Grade Estimator ===== */
+.exam-estimate-preview, .exam-estimator { display: grid; gap: 12px; }
+.est-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 22px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border, rgba(0,0,0,0.08));
+  background: linear-gradient(120deg, rgba(20,184,166,0.12), rgba(20,184,166,0.04));
+}
+.est-grade {
+  font-size: 2.2rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+.est-grade small { font-size: 0.85rem; font-weight: 700; opacity: 0.75; }
+.est-numbers { display: grid; gap: 2px; }
+.est-numbers .est-num {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+.est-numbers .est-num .est-band { font-weight: 600; opacity: 0.7; font-size: 0.9rem; }
+.est-meta { font-size: 0.78rem; opacity: 0.7; }
+.est-bar-wrap { flex: 1 1 220px; min-width: 180px; }
+.est-bar {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.08);
+  overflow: visible;
+  margin-top: 8px;
+}
+.est-bar .est-fill {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0f766e, #2a9d8f);
+  min-width: 6px;
+}
+.est-bar .est-band-range {
+  position: absolute;
+  top: -3px; bottom: -3px;
+  border-radius: 999px;
+  border: 2px dashed rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.25);
+}
+.est-bar .est-marker {
+  position: absolute;
+  top: -4px;
+  width: 3px;
+  bottom: -4px;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.35);
+  border-radius: 2px;
+}
+.est-subject-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  border: 1px solid var(--border, rgba(0,0,0,0.08));
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+.est-subject-name { flex: 1 1 140px; font-weight: 700; font-size: 0.9rem; }
+.est-subject-grade { font-weight: 900; font-size: 1rem; }
+.est-subject-bar { flex: 2 1 160px; height: 8px; border-radius: 999px; background: rgba(0,0,0,0.08); position: relative; }
+.est-subject-bar span { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; }
+.est-subject-evidence { font-size: 0.75rem; opacity: 0.65; }
+.est-gap {
+  border-left: 4px solid var(--warning, #e6a700);
+  background: color-mix(in srgb, var(--warning, #e6a700) 7%, transparent);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+}
+.est-gap strong { font-size: 0.95rem; }
+.est-target-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.est-target-row label { font-size: 0.85rem; font-weight: 700; }
+.est-target-row select, .est-target-row input {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(0,0,0,0.2));
+  background: var(--card, #fff);
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+}
+.est-target-hint {
+  flex: 1 1 100%;
+  font-size: 0.82rem;
+  border-radius: 10px;
+  border: 1px dashed var(--border, rgba(0,0,0,0.18));
+  padding: 8px 10px;
+  background: rgba(0,0,0,0.02);
+}
+
 /* ===== Explain-It-Back ===== */
 .explain-prompt, .explain-grade {
   border: 1px dashed var(--border, rgba(0,0,0,0.15));

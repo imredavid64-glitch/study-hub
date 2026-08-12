@@ -802,7 +802,7 @@ function showTab(tabId) {
   if (tab) tab.classList.add('active');
   const btn = qs(`.nav-btn[data-tab="${tabId}"]`);
   if (btn) btn.classList.add('active');
-  if (tabId === 'analytics' && typeof renderCharts === 'function') { renderCharts(); if (typeof renderConfusionHeatmap === 'function') renderConfusionHeatmap(); if (typeof renderReviewQueue === 'function') renderReviewQueue(); if (typeof renderWalkthroughAnalytics === 'function') renderWalkthroughAnalytics(); }
+  if (tabId === 'analytics' && typeof renderCharts === 'function') { renderCharts(); if (typeof renderConfusionHeatmap === 'function') renderConfusionHeatmap(); if (typeof renderReviewQueue === 'function') renderReviewQueue(); if (typeof renderWalkthroughAnalytics === 'function') renderWalkthroughAnalytics(); if (typeof renderExamEstimator === 'function') renderExamEstimator(); }
   // The study map is initialized lazily because its container is 0×0 while hidden.
   if (tabId === 'studymap' && window.__studyMapRefresh) setTimeout(window.__studyMapRefresh, 0);
   updateWelcomeTitle();
@@ -1016,6 +1016,7 @@ function renderDashboard() {
   achHtml += '</div>';
   ach.innerHTML = achHtml;
   if (typeof renderExamRadar === 'function') renderExamRadar();
+  if (typeof renderExamEstimatePreview === 'function') renderExamEstimatePreview();
   if (typeof renderReviewQueue === 'function') renderReviewQueue();
   if (typeof renderBehindNudge === 'function') renderBehindNudge();
   if (typeof renderExamLockBanner === 'function') renderExamLockBanner();
@@ -2342,6 +2343,170 @@ function renderGradeAnalysis() {
   el.innerHTML = html;
 }
 
+// ===== EXAM GRADE ESTIMATOR =====
+// Blends quiz attempts + mock tests + graded assignments, applies a recency
+// weight and a confusion penalty, and returns a predicted grade with a band.
+const EST_LETTERS = [
+  { min: 90, letter: 'A', label: 'Excellent' },
+  { min: 80, letter: 'B', label: 'Good' },
+  { min: 70, letter: 'C', label: 'Fair' },
+  { min: 60, letter: 'D', label: 'Struggling' },
+  { min: 0,  letter: 'F', label: 'At risk' }
+];
+function estLetter(pct) {
+  for (let i = 0; i < EST_LETTERS.length; i++) if (pct >= EST_LETTERS[i].min) return EST_LETTERS[i];
+  return EST_LETTERS[EST_LETTERS.length - 1];
+}
+function estRecencyWeight(dateStr, now) {
+  const t = new Date(dateStr).getTime();
+  if (!t) return 0.3;
+  const days = Math.max(0, (now - t) / 86400000);
+  // Full weight for ~7 days, halved by 21, floor 0.25
+  return Math.max(0.25, Math.min(1, 1 - days / 28));
+}
+// Pure model — returns null when there's no evidence at all.
+function computeExamEstimate(s) {
+  const now = Date.now();
+  const subjects = {};
+  const evidence = [];
+  const addEvidence = (subject, pct, weight, kind, date, meta) => {
+    const key = String(subject || 'General').trim() || 'General';
+    if (!subjects[key]) subjects[key] = { name: key, scores: [], tests: 0, graded: null, confusion: 0, confusionRecent: 0 };
+    const rec = estRecencyWeight(date, now);
+    subjects[key].scores.push({ pct, weight: weight * rec, kind, date, meta });
+    subjects[key].tests++;
+    evidence.push({ subject: key, pct, weight: weight * rec });
+  };
+  (s.quizAttempts || []).forEach(q => {
+    const pct = q.pct !== undefined ? q.pct : (q.total ? Math.round((q.score / q.total) * 100) : 0);
+    if (q.total) addEvidence(q.subject || q.topic, pct, 1, 'quiz', q.date, q.topic);
+  });
+  (s.mockTestHistory || []).forEach(m => {
+    const pct = m.pct !== undefined ? m.pct : (m.total ? Math.round((m.score / m.total) * 100) : 0);
+    if (m.total) addEvidence(m.subject, pct, 1.5, 'mock', m.date, null);
+  });
+  (s.assignments || []).forEach(a => {
+    if (a.earned === null || a.earned === undefined || !a.max) return;
+    const pct = (a.earned / a.max) * 100;
+    const key = String(a.subject || 'General').trim() || 'General';
+    if (!subjects[key]) subjects[key] = { name: key, scores: [], tests: 0, graded: null, confusion: 0, confusionRecent: 0 };
+    subjects[key].graded = { pct, weight: Math.max(0.5, (a.weight || 1) / 10) };
+  });
+  // Confusion: recent confusion drags the estimate down.
+  (s.confusionLog || []).forEach(c => {
+    const key = String(c.topic || 'General').trim() || 'General';
+    if (!subjects[key]) subjects[key] = { name: key, scores: [], tests: 0, graded: null, confusion: 0, confusionRecent: 0 };
+    subjects[key].confusion++;
+    const age = (now - new Date(c.date + 'T00:00:00').getTime()) / 86400000;
+    if (!isNaN(age) && age <= 14) subjects[key].confusionRecent++;
+  });
+  const names = Object.keys(subjects);
+  if (evidence.length === 0 && !names.some(k => subjects[k].graded)) return null;
+  const perSubject = names.map(key => {
+    const sub = subjects[key];
+    let est, band, letter, weightSum = 0, rawSum = 0, kinds = new Set();
+    sub.scores.forEach(sc => { rawSum += sc.pct * sc.weight; weightSum += sc.weight; kinds.add(sc.kind); });
+    if (weightSum > 0) est = rawSum / weightSum;
+    if (sub.graded) {
+      const g = sub.graded;
+      est = est === undefined ? g.pct : (est * 2 + g.pct * g.weight) / (2 + g.weight);
+      kinds.add('grade');
+    }
+    if (est === undefined) est = 50; // only confusion evidence — assume neutral
+    // Confusion penalty: up to -12 pts for recent confusion, -3 per recent hit beyond 1
+    if (sub.confusionRecent > 0) est -= Math.min(12, 3 + (sub.confusionRecent - 1) * 3);
+    est = Math.max(5, Math.min(99, Math.round(est)));
+    band = Math.max(4, 12 - sub.tests * 2);
+    if (!kinds.has('grade') && sub.tests === 0 && sub.confusion > 0) band = 18;
+    letter = estLetter(est);
+    return { name: key, est, band, letter, tests: sub.tests, graded: !!sub.graded, confusion: sub.confusion, confusionRecent: sub.confusionRecent, kinds: [...kinds] };
+  });
+  // Overall: evidence-weighted across subjects; subjects with graded assignments count extra.
+  let overallSum = 0, overallW = 0, totalEvidence = 0;
+  perSubject.forEach(p => {
+    const w = 1 + p.tests * 0.5 + (p.graded ? 1 : 0);
+    overallSum += p.est * w;
+    overallW += w;
+    totalEvidence += p.tests;
+  });
+  const overall = Math.max(5, Math.min(99, Math.round(overallSum / overallW)));
+  const overallBand = Math.max(3, 10 - Math.min(10, totalEvidence) * 0.7);
+  // Gap analysis: weakest subjects + subjects where recent confusion is heavy
+  const weakest = perSubject.slice().sort((a, b) => a.est - b.est).slice(0, 2);
+  const confused = perSubject.filter(p => p.confusionRecent > 0).sort((a, b) => b.confusionRecent - a.confusionRecent).slice(0, 2);
+  const gaps = [];
+  weakest.forEach(p => { if (p.est < 78) gaps.push(`${p.name}: ~${p.est}% (${p.tests} practice ${p.tests === 1 ? 'point' : 'points'})`); });
+  confused.forEach(p => { if (!gaps.some(g => g.startsWith(p.name + ':'))) gaps.push(`${p.name}: ${p.confusionRecent} recent confused ${p.confusionRecent === 1 ? 'topic' : 'topics'}`); });
+  return { overall, band: overallBand, letter: estLetter(overall), perSubject, gaps: gaps.slice(0, 4), totalEvidence };
+}
+function renderExamEstimatePreview() {
+  const el = $('examEstimatePreview');
+  const badge = $('examEstimatePreviewBadge');
+  if (!el) return;
+  const est = computeExamEstimate(state);
+  if (!est) {
+    el.innerHTML = '<p class="subtle">Take a quiz, mock test, or grade an assignment and your predicted exam grade appears here — updated live as you practice.</p>';
+    if (badge) badge.textContent = '';
+    return;
+  }
+  if (badge) badge.textContent = `${est.letter.letter} · ${est.overall}%`;
+  const lo = Math.max(0, est.overall - est.band);
+  const hi = Math.min(100, est.overall + est.band);
+  el.innerHTML =
+    `<div class="est-summary">` +
+      `<div class="est-grade" style="color:${est.letter.min >= 90 ? '#237a57' : est.letter.min >= 70 ? '#ca8a04' : '#b42318'}">${est.letter.letter}<small> ${est.letter.label}</small></div>` +
+      `<div class="est-numbers"><div class="est-num">${est.overall}% <span class="est-band">±${est.band}</span></div><div class="est-meta">${est.totalEvidence} practice ${est.totalEvidence === 1 ? 'point' : 'points'} · band ${lo}–${hi}%</div></div>` +
+      `<div class="est-bar-wrap"><div class="est-bar"><span class="est-band-range" style="left:${lo}%;width:${hi - lo}%"></span><span class="est-fill" style="width:${est.overall}%"></span></div><div class="est-meta">Grade band</div></div>` +
+    `</div>` +
+    (est.gaps.length ? `<div class="est-gap"><strong>🎯 To lift this grade:</strong> ${est.gaps.map(g => escapeHtml(g)).join(' · ')}</div>` : '');
+}
+function renderExamEstimator() {
+  const el = $('examEstimator');
+  if (!el) return;
+  const est = computeExamEstimate(state);
+  if (!est) {
+    el.innerHTML = '<p class="subtle">Take a quiz, mock test, or grade an assignment to unlock your predicted exam grade. The model blends practice scores with graded work, weights recent effort more heavily, and penalizes subjects with fresh confusion.</p>';
+    return;
+  }
+  const lo = Math.max(0, est.overall - est.band);
+  const hi = Math.min(100, est.overall + est.band);
+  const target = state.settings && state.settings.targetGrade;
+  let targetHtml = '';
+  if (target) {
+    const tMin = (EST_LETTERS.find(l => l.letter === target) || {}).min;
+    if (tMin !== undefined) {
+      const need = est.overall >= tMin ? 'You are already on track — keep practicing to lock it in.' : `You need roughly <strong>+${(tMin - est.overall)} points</strong> to reach a ${target}. Focus on: ${est.gaps.length ? est.gaps.map(g => escapeHtml(g)).join(' · ') : 'your weakest subject'} — each quiz and mock test you take now refines this estimate.`;
+      targetHtml = `<div class="est-target-hint">🎯 Target ${target}: ${need}</div>`;
+    }
+  }
+  let html =
+    `<div class="est-summary">` +
+      `<div class="est-grade" style="color:${est.letter.min >= 90 ? '#237a57' : est.letter.min >= 70 ? '#ca8a04' : '#b42318'}">${est.letter.letter}<small> ${est.letter.label}</small></div>` +
+      `<div class="est-numbers"><div class="est-num">${est.overall}% <span class="est-band">±${est.band}</span></div><div class="est-meta">${est.totalEvidence} practice points · ${lo}–${hi}% band</div></div>` +
+      `<div class="est-bar-wrap"><div class="est-bar"><span class="est-band-range" style="left:${lo}%;width:${hi - lo}%"></span><span class="est-fill" style="width:${est.overall}%"></span><div class="est-marker" style="left:${est.overall}%"></div></div><div class="est-meta">Predicted grade band</div></div>` +
+    `</div>`;
+  // Target selector
+  html += `<div class="est-target-row"><label for="estTargetSelect">🎯 Aim for:</label><select id="estTargetSelect">` +
+    ['', 'A', 'B', 'C', 'D'].map(l => `<option value="${l}"${target === l ? ' selected' : ''}>${l ? 'Grade ' + l : 'No target'}</option>`).join('') +
+    `</select></div>` + targetHtml;
+  html += `<div class="est-subjects">`;
+  est.perSubject.slice().sort((a, b) => a.est - b.est).forEach(p => {
+    const c = p.letter.min >= 90 ? '#237a57' : p.letter.min >= 70 ? '#ca8a04' : '#b42318';
+    const kinds = p.kinds.map(k => ({ quiz: 'quiz', mock: 'mock test', grade: 'graded work' }[k] || k)).join(', ');
+    html += `<div class="est-subject-row"><span class="est-subject-name">${escapeHtml(p.name)}</span><span class="est-subject-grade" style="color:${c}">${p.letter.letter} · ${p.est}%</span><div class="est-subject-bar"><span style="width:${p.est}%;background:${c}"></span></div><span class="est-subject-evidence">${p.tests} practice · ${kinds}${p.confusionRecent ? ` · ${p.confusionRecent} recent confused topic${p.confusionRecent > 1 ? 's' : ''}` : ''}</span></div>`;
+  });
+  html += '</div>';
+  html += `<p class="subtle" style="margin:0">Model: practice scores (recency-weighted) + graded work, minus a penalty for confusion logged in the last 14 days. More practice narrows the band.</p>`;
+  el.innerHTML = html;
+  const sel = $('estTargetSelect');
+  if (sel) sel.addEventListener('change', () => {
+    state.settings = state.settings || {};
+    state.settings.targetGrade = sel.value || '';
+    saveState();
+    renderExamEstimator();
+  });
+}
+
 // ===== PLAYLIST =====
 function setupPlaylists() {
   $('createPlaylistBtn').addEventListener('click', createPlaylist);
@@ -3385,6 +3550,7 @@ function setupAnalytics() {
   renderSubjectMastery();
   renderHeatmap();
   renderGradeAnalysis();
+  renderExamEstimator();
 }
 function renderCharts() {
   if (typeof Chart === 'undefined') return;
