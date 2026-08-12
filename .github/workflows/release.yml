@@ -88,12 +88,14 @@ jobs:
         run: |
           set -euo pipefail
           cd dist-assets
-          # mac universal zip ends with -mac-universal.zip; the Windows zip is plain <name>-<version>.zip
-          find . -maxdepth 1 -name '*.dmg'             -exec mv {} Study-Hub-mac.dmg \;          || true
-          find . -maxdepth 1 -name '*-mac-universal.zip' -exec mv {} Study-Hub-mac.zip \;        || true
-          find . -maxdepth 1 -name 'Study Hub-*.zip'   -exec mv {} Study-Hub-Windows.zip \;       || true
-          find . -maxdepth 1 -name '*.AppImage'        -exec mv {} Study-Hub-Linux.AppImage \;    || true
-          find . -maxdepth 1 -name '*.deb'             -exec mv {} Study-Hub-Linux.deb \;         || true
+          # Order matters: the mac universal zip is '<name>-<version>-universal-mac.zip' and
+          # the Windows zip is '<name>-<version>-win.zip' — patterns must not overlap or one
+          # would overwrite the other.
+          find . -maxdepth 1 -name '*universal-mac.zip' -exec mv {} Study-Hub-mac.zip \;   || true
+          find . -maxdepth 1 -name '*.dmg'              -exec mv {} Study-Hub-mac.dmg \;    || true
+          find . -maxdepth 1 -name '*-win.zip'          -exec mv {} Study-Hub-Windows.zip \; || true
+          find . -maxdepth 1 -name '*.AppImage'         -exec mv {} Study-Hub-Linux.AppImage \; || true
+          find . -maxdepth 1 -name '*.deb'              -exec mv {} Study-Hub-Linux.deb \;   || true
           ls -la
 
       - name: Create or refresh release
