@@ -14,8 +14,8 @@
 'use strict';
 
 const path = require('path');
-const { app, BrowserWindow, Menu } = require('electron');
-const { LAYOUT_SUBMENU, setWindowAccessor } = require('../electron-menu');
+const { app, BrowserWindow, Menu, ipcMain } = require('electron');
+const { LAYOUT_SUBMENU, setWindowAccessor, syncMenuState } = require('../electron-menu');
 
 const ROOT = path.join(__dirname, '..');
 const APP_HTML = path.join(ROOT, 'index.html');
@@ -74,12 +74,20 @@ app.whenReady().then(() => {
     show: false,
     width: 1280,
     height: 900,
-    webPreferences: { nodeIntegration: false, contextIsolation: true },
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(ROOT, 'electron-preload.js'),
+    },
   });
   // Install the real Layout menu so the menu-driven test exercises the
   // same code path desktop users get (electron-menu.js shared module).
   Menu.setApplicationMenu(Menu.buildFromTemplate([LAYOUT_SUBMENU]));
-  setWindowAccessor(() => win);
+  // Same focused-window routing as the real app, so menu actions land on
+  // whichever test window is active (multi-window test relies on this).
+  setWindowAccessor(() => BrowserWindow.getFocusedWindow() || win);
+  // Renderer → menu sync: same handler the real main process registers.
+  ipcMain.on('layout-changed', (_event, s) => syncMenuState(s));
 
   // Capture console messages (Electron API changed across versions)
   const webContents = win.webContents;
@@ -284,6 +292,87 @@ app.whenReady().then(() => {
     return failures;
   }
 
+  // Multi-window menu test: the app menu is application-global, so a menu
+  // click must land on the *focused* window, other windows must stay
+  // untouched, and renderer-side layout changes must sync the menu back.
+  async function runMultiWindowMenuTest() {
+    const failures = [];
+    let win2 = null;
+    try {
+      win2 = new BrowserWindow({
+        show: false,
+        width: 1200,
+        height: 800,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          preload: path.join(ROOT, 'electron-preload.js'),
+        },
+      });
+      const wc2 = win2.webContents;
+      if (typeof wc2.on === 'function') {
+        wc2.on('console-message', (event, level, message) => {
+          let lvl = level, msg = message;
+          if (event && typeof event === 'object' && 'message' in event) { lvl = event.level; msg = event.message; }
+          if (!isExpectedConsole(String(msg))) report.console.push({ level: lvl, message: '[win2] ' + String(msg).slice(0, 200) });
+        });
+      }
+      await win2.loadFile(APP_HTML);
+      await new Promise(r => setTimeout(r, 3000));
+
+      const menu = Menu.getApplicationMenu();
+      const roomy = menu.getMenuItemById('density-roomy');
+      const comfortable = menu.getMenuItemById('density-comfortable');
+      const compact = menu.getMenuItemById('density-compact');
+      const power = menu.getMenuItemById('power-mode');
+      if (!roomy || !comfortable || !compact || !power) {
+        failures.push('Multi-window test: menu items missing');
+        return failures;
+      }
+
+      // Ensure a known baseline: win1 compact / power off, menu matches.
+      await webContents.executeJavaScript(`state.settings.density='compact'; state.settings.powerMode=false; saveState(); applyAppearance(); 'reset'`);
+      await new Promise(r => setTimeout(r, 120));
+
+      // Focus win2 and click a menu radio — it must apply to win2 only.
+      win2.show();
+      win2.focus();
+      await new Promise(r => setTimeout(r, 250));
+      roomy.click();
+      await new Promise(r => setTimeout(r, 250));
+      const w2Followed = await wc2.executeJavaScript(`state.settings.density === 'roomy' && document.documentElement.getAttribute('data-density') === 'roomy'`);
+      const w1Untouched = await webContents.executeJavaScript(`state.settings.density === 'compact' && document.documentElement.getAttribute('data-density') === 'compact'`);
+      if (!w2Followed) failures.push('Multi-window test: menu click did not apply to the focused window');
+      if (!w1Untouched) failures.push('Multi-window test: menu click leaked into the background window');
+
+      // Renderer-side change in win2 must sync the native menu checkmarks.
+      await wc2.executeJavaScript(`state.settings.density='comfortable'; state.settings.powerMode=true; saveState(); applyAppearance(); 'changed'`);
+      await new Promise(r => setTimeout(r, 200));
+      const menuSynced = comfortable.checked === true && power.checked === true && roomy.checked === false;
+      if (!menuSynced) failures.push('Multi-window test: renderer layout change did not sync the menu (comfortable=' + comfortable.checked + ' power=' + power.checked + ' roomy=' + roomy.checked + ')');
+      const w2Synced = await wc2.executeJavaScript(`document.documentElement.getAttribute('data-power') === 'true' && document.documentElement.getAttribute('data-density') === 'comfortable'`);
+      if (!w2Synced) failures.push('Multi-window test: renderer-side change did not apply in win2');
+
+      // Clean up: reset win2, close it, hand focus back to win1, re-sync menu.
+      await wc2.executeJavaScript(`state.settings.density='compact'; state.settings.powerMode=false; saveState(); applyAppearance(); 'cleaned'`);
+      await new Promise(r => setTimeout(r, 150));
+      win2.close();
+      win2 = null;
+      win.show();
+      win.focus();
+      await new Promise(r => setTimeout(r, 200));
+      await webContents.executeJavaScript(`state.settings.density='compact'; state.settings.powerMode=false; saveState(); applyAppearance(); 'reset2'`);
+      await new Promise(r => setTimeout(r, 150));
+      const finalMenu = menu.getMenuItemById('density-compact').checked === true && menu.getMenuItemById('power-mode').checked === false;
+      if (!finalMenu) failures.push('Multi-window test: menu left out of sync after cleanup');
+    } catch (e) {
+      failures.push('Multi-window test threw: ' + e);
+    } finally {
+      if (win2 && !win2.isDestroyed()) { try { win2.close(); } catch (e) {} }
+    }
+    return failures;
+  }
+
   // Menu-driven layout test: drive the real Electron Layout menu (density
   // radios + power-mode checkbox) and verify the renderer state follows.
   async function runMenuLayoutTest() {
@@ -356,6 +445,10 @@ app.whenReady().then(() => {
           const menuFailures = await runMenuLayoutTest();
           report.menuTest = { failures: menuFailures };
           menuFailures.forEach(f => report.failures.push(f));
+          // Multi-window menu + sync check.
+          const multiFailures = await runMultiWindowMenuTest();
+          report.multiWindowTest = { failures: multiFailures };
+          multiFailures.forEach(f => report.failures.push(f));
           for (const c of report.console) {
             if (c.level === 'error' || c.level === 3) {
               if (!isExpectedConsole(c.message)) {

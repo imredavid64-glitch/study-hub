@@ -1022,6 +1022,15 @@ function renderDashboard() {
 // returns focus to the element that opened it when it closes.
 function trapModalFocus(modal, onClose) {
   const prevFocus = document.activeElement;
+  // Dialog semantics: every modal opened through this helper announces itself
+  // to assistive tech and points aria-labelledby at its first heading.
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  const heading = modal.querySelector('h1, h2, h3, h4');
+  if (heading) {
+    if (!heading.id) heading.id = 'modalTitle-' + Math.random().toString(36).slice(2, 8);
+    modal.setAttribute('aria-labelledby', heading.id);
+  }
   const focusable = () => Array.from(modal.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')).filter(el => {
     try { return el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden'; } catch (e) { return true; }
   });
@@ -4471,6 +4480,17 @@ function applyAppearance() {
   } else {
     root.style.removeProperty('--font-ui');
   }
+  syncNativeMenu();
+}
+// Keep the native Electron Layout menu's checkmarks in sync with the renderer
+// (Settings controls + topbar quickbar all funnel through applyAppearance).
+// No-op in the browser / preview where there is no preload bridge.
+function syncNativeMenu() {
+  try {
+    if (window.electronAPI && typeof window.electronAPI.notifyLayout === 'function') {
+      window.electronAPI.notifyLayout({ powerMode: !!state.settings.powerMode, density: state.settings.density || 'comfortable' });
+    }
+  } catch (e) { /* non-Electron or preload unavailable — nothing to sync */ }
 }
 function hexToSoft(hex) {
   hex = hex.replace('#', '');

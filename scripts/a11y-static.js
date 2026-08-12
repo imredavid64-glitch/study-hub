@@ -54,13 +54,25 @@ if (!/class="skip-link"[^>]*href="#appMain"/.test(html)) fails.push('skip-link i
 if (!afterBody.includes('skip-link')) fails.push('skip-link is not the first element inside <body>');
 if (!/id="appMain"/.test(html)) fails.push('main content has no id="appMain" anchor');
 
-// 6. The Electron menu must expose the layout switch (density + power mode).
+// 6. Modals must announce dialog semantics (role, aria-modal, labelledby).
+if (!/setAttribute\('role', 'dialog'\)/.test(js)) fails.push('app.js modal helper does not set role="dialog"');
+if (!/aria-modal/.test(js)) fails.push('app.js modal helper does not set aria-modal');
+if (!/aria-labelledby/.test(js)) fails.push('app.js modal helper does not wire aria-labelledby');
+
+// 7. The Electron menu must expose the layout switch (density + power mode),
+//    sync checkmarks from the renderer, and support multiple windows.
 const menuJs = fs.readFileSync(path.join(ROOT, 'electron-menu.js'), 'utf8');
 const mainJs = fs.readFileSync(path.join(ROOT, 'electron-main.js'), 'utf8');
+const preloadJs = fs.readFileSync(path.join(ROOT, 'electron-preload.js'), 'utf8');
 if (!/label: 'Layout'/.test(menuJs)) fails.push('electron-menu.js has no Layout menu');
 if (!/Compact power mode/.test(menuJs)) fails.push('electron-menu.js Layout menu has no power-mode item');
 if (!/function applyLayout/.test(menuJs)) fails.push('electron-menu.js has no applyLayout handler');
+if (!/function syncMenuState/.test(menuJs)) fails.push('electron-menu.js has no syncMenuState helper');
 if (!/LAYOUT_SUBMENU/.test(mainJs)) fails.push('electron-main.js does not mount LAYOUT_SUBMENU');
+if (!/layout-changed/.test(mainJs)) fails.push('electron-main.js has no layout-changed IPC handler');
+if (!/New Window/.test(mainJs)) fails.push('electron-main.js Window menu has no New Window item');
+if (!/notifyLayout/.test(preloadJs)) fails.push('electron-preload.js does not expose notifyLayout');
+if (!/syncNativeMenu/.test(js)) fails.push('app.js has no syncNativeMenu renderer hook');
 
 if (fails.length) {
   console.error('a11y static guard FAILED:\n - ' + fails.join('\n - '));

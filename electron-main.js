@@ -1,11 +1,12 @@
 const { app, BrowserWindow, Menu, shell, dialog, ipcMain, nativeTheme } = require('electron');
 const path = require('path');
-const { LAYOUT_SUBMENU, setWindowAccessor } = require('./electron-menu');
+const { LAYOUT_SUBMENU, setWindowAccessor, syncMenuState } = require('./electron-menu');
 
 let mainWindow;
+const windows = new Set();
 
 function createWindow() {
-  mainWindow = new BrowserWindow({
+  const win = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 900,
@@ -21,8 +22,14 @@ function createWindow() {
       preload: path.join(__dirname, 'electron-preload.js')
     }
   });
+  windows.add(win);
+  if (!mainWindow || mainWindow.isDestroyed()) mainWindow = win;
 
-  mainWindow.loadFile('index.html');
+  win.loadFile('index.html');
+  win.on('closed', () => {
+    windows.delete(win);
+    if (mainWindow === win) mainWindow = null;
+  });
 
   const isMac = process.platform === 'darwin';
   const template = [
@@ -55,6 +62,8 @@ function createWindow() {
       label: 'Window',
       submenu: [
         { role: 'minimize' }, { role: 'zoom' },
+        { label: 'New Window', accelerator: 'CmdOrCtrl+Shift+N', click: () => createWindow() },
+        { type: 'separator' },
         ...(isMac ? [{ type: 'separator' }, { role: 'front' }] : [{ role: 'close' }])
       ]
     },
@@ -67,8 +76,6 @@ function createWindow() {
     }
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
-
-  mainWindow.on('closed', () => { mainWindow = null; });
 }
 
 function showAbout() {
@@ -100,5 +107,10 @@ app.on('web-contents-created', (_event, contents) => {
 ipcMain.handle('get-app-version', () => app.getVersion());
 ipcMain.handle('get-app-path', () => app.getAppPath());
 
-// Route the shared Layout menu handlers to this window.
-setWindowAccessor(() => mainWindow);
+// Renderer → menu state sync: Settings/quickbar changes update the native menu
+// checkmarks so the Layout menu always reflects the active window's layout.
+ipcMain.on('layout-changed', (_event, s) => syncMenuState(s));
+
+// Route the shared Layout menu handlers to the focused window (or the primary
+// one) so menu actions apply to whichever window the user is working in.
+setWindowAccessor(() => BrowserWindow.getFocusedWindow() || mainWindow);

@@ -8,10 +8,32 @@
  */
 'use strict';
 
+const { Menu } = require('electron');
+
 // Renderer accessor — set by electron-main.js (and by tests) to the main window.
 let _getWindow = () => null;
 function setWindowAccessor(fn) {
   _getWindow = fn;
+}
+
+// Sync the native Layout menu's checked states from renderer state. Called from
+// the main process whenever the renderer reports a layout change (Settings
+// controls, the topbar quickbar, or the renderer's own state pipeline).
+function syncMenuState(s) {
+  const menu = Menu.getApplicationMenu && Menu.getApplicationMenu();
+  if (!menu || !s || typeof s !== 'object') return;
+  const power = menu.getMenuItemById('power-mode');
+  if (power && typeof s.powerMode === 'boolean') power.checked = s.powerMode;
+  const density = s.density || 'comfortable';
+  // Electron's radio group rejects checking an item while a sibling is still
+  // checked — uncheck the others first, then check the target so the sync
+  // actually sticks (verified against the native menu).
+  ['compact', 'comfortable', 'roomy'].forEach(d => {
+    const item = menu.getMenuItemById('density-' + d);
+    if (item && d !== density) item.checked = false;
+  });
+  const target = menu.getMenuItemById('density-' + density);
+  if (target) target.checked = true;
 }
 
 function applyLayout(kind, value, checked) {
@@ -46,4 +68,4 @@ const LAYOUT_SUBMENU = {
   ]
 };
 
-module.exports = { LAYOUT_SUBMENU, applyLayout, setWindowAccessor };
+module.exports = { LAYOUT_SUBMENU, applyLayout, setWindowAccessor, syncMenuState };
