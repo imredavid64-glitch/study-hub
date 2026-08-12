@@ -109,9 +109,16 @@ app.whenReady().then(() => {
   // returns app.getVersion(); tests use an old version to exercise the path).
   ipcMain.handle('get-app-version', () => '1.0.0');
   // One-click updater: stub the download so tests never touch the network.
-  // Records the payload so we can assert the updater flow actually fired.
+  // First call fails (tests the retry path), second succeeds (tests the
+  // restart path). Records payloads so we can assert the flow fired.
   const dlCalls = [];
-  ipcMain.handle('download-update', async (_event, opts) => { dlCalls.push(opts); return { ok: false, error: 'test stub' }; });
+  ipcMain.handle('download-update', async (_event, opts) => {
+    dlCalls.push(opts);
+    if (dlCalls.length === 1) return { ok: false, error: 'test stub' };
+    return { ok: true, path: '/tmp/Study-Hub-1.1.3.dmg', newApp: '/tmp/staged/Study Hub.app', target: '/tmp/Study Hub.app', version: '1.1.3' };
+  });
+  const applyCalls = [];
+  ipcMain.handle('apply-update', async (_event, opts) => { applyCalls.push(opts); return { ok: true, restarting: true, version: opts.version }; });
 
   // Capture console messages (Electron API changed across versions)
   const webContents = win.webContents;
@@ -407,6 +414,26 @@ app.whenReady().then(() => {
       if (dr.text.indexOf('Update failed') < 0 || dr.retry !== 'Retry Update' || dr.disabled !== false) {
         failures.push('Update prompt: failed download did not degrade to retry (' + dlResult + ')');
       }
+      // Retry now succeeds → banner offers the automatic apply + restart.
+      await webContents.executeJavaScript(`document.getElementById('updateGoBtn').click(); 'retry'`);
+      await new Promise(r => setTimeout(r, 350));
+      const success = await webContents.executeJavaScript(`(() => {
+        const t = document.getElementById('updateBannerText').textContent;
+        const go = document.getElementById('updateGoBtn');
+        return JSON.stringify({ text: t.slice(0, 60), label: go.textContent, disabled: go.disabled });
+      })()`);
+      const sc = JSON.parse(success);
+      if (sc.text.indexOf('Downloaded & verified') < 0 || sc.label !== 'Restart to Update' || sc.disabled !== false) {
+        failures.push('Update prompt: verified download did not offer restart (' + success + ')');
+      }
+      if (dlCalls.length < 2) failures.push('Update prompt: retry did not re-download');
+      // Restart → apply-update must be invoked with the staged payload.
+      await webContents.executeJavaScript(`document.getElementById('updateGoBtn').click(); 'apply'`);
+      await new Promise(r => setTimeout(r, 350));
+      const applied = await webContents.executeJavaScript(`document.getElementById('updateBannerText').textContent.slice(0, 50)`);
+      if (applyCalls.length === 0) failures.push('Update prompt: Restart click did not invoke apply-update');
+      if (applyCalls.length && (applyCalls[0].version !== '1.1.3' || !applyCalls[0].newApp)) failures.push('Update prompt: apply-update got a bad payload');
+      if (applied.indexOf('Restarting') < 0) failures.push('Update prompt: apply-update result not reflected (' + applied + ')');
       // Later dismiss still works after a failure.
       const dismissCheck = await webContents.executeJavaScript(`(() => {
         showUpdateBanner('v1.1.3', '1.1.0');

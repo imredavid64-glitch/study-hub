@@ -16,6 +16,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   downloadUpdate: (opts) => ipcRenderer.invoke('download-update', opts),
   onUpdateProgress: (cb) => ipcRenderer.on('update-download-progress', (_event, d) => cb(d)),
   getAppFingerprint: () => ipcRenderer.invoke('get-app-fingerprint'),
+  // Fully automatic update: apply the staged build and restart, and hear back
+  // on the next launch whether it succeeded.
+  applyUpdate: (opts) => ipcRenderer.invoke('apply-update', opts),
+  onUpdateResult: (cb) => ipcRenderer.on('update-result', (_event, r) => cb(r)),
+  // Verify the running install against the live build.
+  verifyInstall: () => ipcRenderer.invoke('verify-install'),
   platform: process.platform,
   isElectron: true
 });

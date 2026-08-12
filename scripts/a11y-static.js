@@ -110,6 +110,16 @@ if (!/downloadUpdate/.test(preloadJs) || !/onUpdateProgress/.test(preloadJs) || 
 if (!/electron-updater-core/.test(mainJs)) fails.push('electron-main.js does not use the updater core module');
 if (!/verifySha256/.test(updaterJs) || !/pickInstallerAsset/.test(updaterJs)) fails.push('electron-updater-core.js is missing its helpers');
 
+// 14. Automatic apply + verify-install must be wired end to end.
+const applyJs = fs.readFileSync(path.join(ROOT, 'scripts/apply-update.js'), 'utf8');
+if (!/apply-update/.test(mainJs)) fails.push('electron-main.js has no apply-update IPC handler');
+if (!/verify-install/.test(mainJs)) fails.push('electron-main.js has no verify-install IPC handler');
+if (!/scripts[\\/]apply-update/.test(mainJs)) fails.push('electron-main.js does not use the apply-update helper');
+if (!/applyUpdate/.test(preloadJs) || !/onUpdateResult/.test(preloadJs) || !/verifyInstall/.test(preloadJs)) fails.push('electron-preload.js is missing auto-update APIs');
+if (!/applyAutomaticUpdate/.test(js) || !/setupVerifyInstall/.test(js) || !/setupUpdateResultToast/.test(js)) fails.push('app.js is missing the auto-apply/verify/report helpers');
+if (!/id="verifyInstallBtn"/.test(html) || !/id="verifyInstallResult"/.test(html)) fails.push('Settings has no verify-install button/result');
+if (!/swapInstall/.test(applyJs)) fails.push('scripts/apply-update.js is missing the swapInstall helper');
+
 // 9. Window-position memory must be wired into the main process and be
 //    unit-tested (electron-window-state.js is loaded by npm test).
 const winStateJs = fs.readFileSync(path.join(ROOT, 'electron-window-state.js'), 'utf8');

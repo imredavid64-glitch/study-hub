@@ -1,9 +1,13 @@
 const { app, BrowserWindow, Menu, shell, dialog, ipcMain, nativeTheme, screen, net } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
 const { LAYOUT_SUBMENU, setWindowAccessor, syncMenuState, layoutTitleSuffix } = require('./electron-menu');
 const { defaultBounds, sanitizeBounds, loadSessionState, loadWindowState, saveWindowState, recordWindow } = require('./electron-window-state');
 const { sha256Hex, verifySha256, pickInstallerAsset, formatProgress } = require('./electron-updater-core');
+const { extractInstaller, installTarget } = require('./scripts/apply-update');
+
+const LIVE_BUILD_URL = 'https://study-hub-plum-omega.vercel.app'; // source of truth for verify-install
 
 let mainWindow;
 const windows = new Set();
@@ -108,7 +112,7 @@ function createWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) mainWindow = win;
   if (bounds.maximized) win.maximize();
 
-  win.loadFile('index.html');
+  win.loadFile('index.html').then(() => reportUpdateResult(win)).catch(() => {});
   // Remember this window's position/size for the next launch.
   win.on('close', () => {
     if (win.__sessionMemory === false) return; // session memory opted out — leave state untouched
@@ -258,6 +262,85 @@ function openInstallerForPlatform(target) {
   return shell.openPath(target);
 }
 
+// sha256 of a remote URL (used to compare the running install with the live
+// build). Chromium's net module follows redirects and ignores CORS.
+function fetchSha256(url) {
+  return new Promise((resolve, reject) => {
+    const req = net.request(url);
+    const chunks = [];
+    const timer = setTimeout(() => { try { req.abort(); } catch (e) {} reject(new Error('timeout')); }, 15000);
+    req.on('response', (res) => {
+      if (res.statusCode >= 400) { clearTimeout(timer); reject(new Error('HTTP ' + res.statusCode)); return; }
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => { clearTimeout(timer); resolve(sha256Hex(Buffer.concat(chunks))); });
+      res.on('error', (e) => { clearTimeout(timer); reject(e); });
+    });
+    req.on('error', (e) => { clearTimeout(timer); reject(e); });
+    req.end();
+  });
+}
+
+// Verify-install: compare the packaged build's core files against the live
+// deployment so users can confirm their install is the exact current build.
+ipcMain.handle('verify-install', async () => {
+  const local = { appJs: appFileSha256('app.js'), indexHtml: appFileSha256('index.html') };
+  try {
+    const remote = { appJs: await fetchSha256(LIVE_BUILD_URL + '/app.js'), indexHtml: await fetchSha256(LIVE_BUILD_URL + '/index.html') };
+    return { ok: true, local, remote, matches: local.appJs === remote.appJs && local.indexHtml === remote.indexHtml };
+  } catch (e) {
+    return { ok: false, local, remote: null, error: 'Could not reach the live build to compare — check your connection' };
+  }
+});
+
+// Fully automatic update: after download+verify, extract the installer to a
+// staging dir and — if the install location is writable — hand off to the
+// detached applier, which swaps the build and relaunches after this app quits.
+// Otherwise it falls back to opening the installer for a manual install.
+ipcMain.handle('apply-update', async (event, opts) => {
+  if (!opts || !opts.newApp || !opts.target) return { ok: false, error: 'Missing update payload' };
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const userData = app.getPath('userData');
+  const pendingFile = path.join(userData, 'pending-update.json');
+  try {
+    // Is the install location writable? (/Applications usually is not)
+    fs.accessSync(path.dirname(opts.target), fs.constants.W_OK);
+  } catch (e) {
+    const opened = await openInstallerForPlatform(opts.installerFile || opts.newApp);
+    return { ok: false, fallback: true, opened: !opened, path: opts.installerFile };
+  }
+  try {
+    fs.writeFileSync(pendingFile, JSON.stringify({
+      newApp: opts.newApp,
+      target: opts.target,
+      oldPid: process.pid,
+      version: opts.version || '',
+      platform: process.platform,
+    }));
+  } catch (e) {
+    return { ok: false, error: 'Could not stage the update (' + e.message + ')' };
+  }
+  const helper = path.join(__dirname, 'scripts', 'apply-update.js');
+  const child = spawn(process.execPath, [helper, pendingFile], { detached: true, stdio: 'ignore' });
+  child.unref();
+  if (win && !win.isDestroyed()) win.webContents.send('update-download-progress', { received: 1, total: 1, text: 'Applying update…' });
+  // Give the renderer a moment to paint the restart notice, then quit.
+  setTimeout(() => { try { app.quit(); } catch (e) {} }, 800);
+  return { ok: true, restarting: true, version: opts.version };
+});
+
+// Report the previous run's update result to the renderer once, then clear it.
+function reportUpdateResult(win) {
+  try {
+    const resultFile = path.join(app.getPath('userData'), 'update-result.json');
+    if (!fs.existsSync(resultFile)) return;
+    const result = JSON.parse(fs.readFileSync(resultFile, 'utf8'));
+    fs.unlinkSync(resultFile);
+    if (win && !win.isDestroyed()) {
+      setTimeout(() => win.webContents.send('update-result', result), 3000);
+    }
+  } catch (e) { /* nothing to report */ }
+}
+
 ipcMain.handle('download-update', async (event, opts) => {
   if (!opts || !opts.release) return { ok: false, error: 'No release payload' };
   if (activeDownload) return { ok: false, error: 'A download is already in progress' };
@@ -280,8 +363,15 @@ ipcMain.handle('download-update', async (event, opts) => {
       try { fs.unlinkSync(target); } catch (e) {}
       return { ok: false, error: 'Checksum mismatch — download discarded for safety' };
     }
-    const opened = await openInstallerForPlatform(target);
-    return { ok: true, path: target, opened: !opened };
+    // Extract the verified installer into a staging dir for the auto-applier.
+    if (win && !win.isDestroyed()) win.webContents.send('update-download-progress', { received: 1, total: 1, text: 'Preparing update…' });
+    const staging = path.join(app.getPath('userData'), 'update-staging');
+    try {
+      const newApp = await extractInstaller(target, staging, process.platform);
+      return { ok: true, path: target, newApp, target: installTarget(process.platform), version: (opts.version || '').replace(/^v/, '') };
+    } catch (e) {
+      return { ok: false, error: 'Could not prepare the update (' + (e.message || e) + ')' };
+    }
   } catch (e) {
     try { fs.unlinkSync(target); } catch (e2) {}
     return { ok: false, error: String(e && e.message ? e.message : e) };

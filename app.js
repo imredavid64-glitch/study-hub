@@ -4564,6 +4564,8 @@ function setupDownloads() {
   // (desktop only — the web build is always current).
   setTimeout(() => checkForUpdates({ manual: false }), 4000);
   setInterval(() => checkForUpdates({ manual: false }), UPDATE_POLL_MS);
+  setupUpdateResultToast();
+  setupVerifyInstall();
 }
 
 // ---- In-app update prompt ----
@@ -4649,9 +4651,14 @@ function runUpdaterFlow(tag) {
   window.electronAPI.downloadUpdate({ release: latestRelease, version: tag.replace(/^v/, '') })
     .then(res => {
       if (res && res.ok) {
-        text.textContent = '✓ Downloaded & verified — installer ready. Run it to finish updating. ';
-        go.textContent = 'Done';
+        // Downloaded, verified AND extracted to staging — offer the automatic
+        // apply with a restart. Falls back to manual install if the location
+        // isn't writable (e.g. /Applications).
+        text.textContent = '✓ Downloaded & verified — ' + (res.newApp ? 'ready to install automatically.' : 'installer ready.') + ' ';
+        go.textContent = 'Restart to Update';
         go.disabled = false;
+        later.disabled = false; // deferring the restart is fine — the staged update stays put
+        go.onclick = () => applyAutomaticUpdate(res);
       } else {
         text.textContent = '⚠ Update failed: ' + (res && res.error ? res.error : 'unknown error') + ' ';
         go.textContent = 'Retry Update';
@@ -4665,6 +4672,80 @@ function runUpdaterFlow(tag) {
       go.disabled = false;
       later.disabled = false;
     });
+}
+
+// Apply the staged, verified update: main swaps the build via a detached
+// helper and restarts the app. Non-writable install locations fall back to
+// opening the installer for a manual finish.
+function applyAutomaticUpdate(res) {
+  const text = $('updateBannerText');
+  const go = $('updateGoBtn');
+  if (!text || !go || !window.electronAPI || typeof window.electronAPI.applyUpdate !== 'function') return;
+  text.textContent = '🔄 Applying update — the app will restart… ';
+  go.disabled = true;
+  window.electronAPI.applyUpdate({ newApp: res.newApp, target: res.target, version: res.version, installerFile: res.path })
+    .then(r => {
+      if (r && r.ok) {
+        text.textContent = '🔄 Restarting into Study Hub ' + (res.version || '') + '… ';
+      } else if (r && r.fallback) {
+        text.textContent = '✓ Downloaded & verified — the installer is open, finish manually. ';
+        go.textContent = 'Done';
+        go.disabled = false;
+      } else {
+        text.textContent = '⚠ Could not apply automatically: ' + (r && r.error ? r.error : 'unknown error') + ' ';
+        go.textContent = 'Retry Update';
+        go.disabled = false;
+      }
+    })
+    .catch(e => {
+      text.textContent = '⚠ Could not apply automatically: ' + (e && e.message ? e.message : e) + ' ';
+      go.textContent = 'Retry Update';
+      go.disabled = false;
+    });
+}
+
+// Settings → Build integrity: compares the running install's core files
+// against the live deployment and reports pass/fail.
+function setupVerifyInstall() {
+  const btn = $('verifyInstallBtn');
+  if (!btn) return;
+  const resultEl = $('verifyInstallResult');
+  btn.addEventListener('click', async () => {
+    if (!window.electronAPI || typeof window.electronAPI.verifyInstall !== 'function') {
+      if (resultEl) resultEl.innerHTML = '<span class="subtle">Web build — open Downloads → Web app integrity to checksum the served files.</span>';
+      return;
+    }
+    if (resultEl) resultEl.innerHTML = '<span class="subtle">Verifying against the live build…</span>';
+    btn.disabled = true;
+    try {
+      const r = await window.electronAPI.verifyInstall();
+      if (!r || !r.ok) {
+        if (resultEl) resultEl.innerHTML = '<span class="danger-text">⚠ ' + escapeHtml((r && r.error) || 'Verification unavailable') + '</span>';
+      } else if (r.matches) {
+        if (resultEl) resultEl.innerHTML = '<span style="color:var(--accent);font-weight:600">✓ Your install matches the live build.</span>';
+        showToast('✓ Install verified against the live build');
+      } else {
+        if (resultEl) resultEl.innerHTML = '<span class="danger-text">✗ Your install does not match the live build — run an update to refresh it.</span>';
+        showToast('Install differs from the live build', 'error');
+      }
+    } catch (e) {
+      if (resultEl) resultEl.innerHTML = '<span class="danger-text">⚠ Verification failed: ' + escapeHtml(String(e)) + '</span>';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
+// On boot, surface the previous update's outcome as a toast.
+function setupUpdateResultToast() {
+  try {
+    if (!window.electronAPI || typeof window.electronAPI.onUpdateResult !== 'function') return;
+    window.electronAPI.onUpdateResult((r) => {
+      if (!r) return;
+      if (r.ok) showToast('✓ Study Hub updated to v' + (r.version || 'latest') + ' — welcome back!', 'success');
+      else showToast('⚠ Update failed — previous version restored' + (r.error ? ': ' + r.error : ''), 'error');
+    });
+  } catch (e) { /* non-Electron */ }
 }
 
 // ---- PWA integrity checksums ----
