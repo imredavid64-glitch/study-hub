@@ -1,14 +1,65 @@
-const { app, BrowserWindow, Menu, shell, dialog, ipcMain, nativeTheme } = require('electron');
+const { app, BrowserWindow, Menu, shell, dialog, ipcMain, nativeTheme, screen } = require('electron');
 const path = require('path');
-const { LAYOUT_SUBMENU, setWindowAccessor, syncMenuState } = require('./electron-menu');
+const { LAYOUT_SUBMENU, setWindowAccessor, syncMenuState, layoutTitleSuffix } = require('./electron-menu');
+const { defaultBounds, sanitizeBounds, loadWindowState, saveWindowState, recordWindow } = require('./electron-window-state');
 
 let mainWindow;
 const windows = new Set();
 
+// ---- Window-position memory ----
+let savedWindowQueue = null; // lazy: loaded on first window creation
+let cascadeStep = 0;         // offsets for windows opened when no saved slot remains
+let windowCounter = 0;       // unique id per window, so titles/menu apply per window
+
+function windowStateFile() {
+  return path.join(app.getPath('userData'), 'window-state.json');
+}
+
+// Pick the display that contains the saved position (fallback: primary) and
+// hand its work area to sanitizeBounds so off-screen restores get re-centered.
+function resolveBounds(b) {
+  const hasPos = b && Number.isFinite(parseInt(b.x, 10)) && Number.isFinite(parseInt(b.y, 10));
+  let disp = screen.getPrimaryDisplay();
+  if (hasPos) {
+    const x = parseInt(b.x, 10);
+    const y = parseInt(b.y, 10);
+    const hit = screen.getAllDisplays().find(d =>
+      d.workArea.x <= x && x < d.workArea.x + d.workArea.width &&
+      d.workArea.y <= y && y < d.workArea.y + d.workArea.height);
+    if (hit) disp = hit;
+  }
+  return sanitizeBounds(b, disp.workArea);
+}
+
+function restoreBoundsForWindow() {
+  if (savedWindowQueue === null) savedWindowQueue = loadWindowState(windowStateFile());
+  const saved = savedWindowQueue.shift();
+  if (saved) return resolveBounds(saved);
+  // No saved slot: cascade a default-size window from the primary display's center.
+  const d = resolveBounds(defaultBounds());
+  const offset = cascadeStep * 28;
+  cascadeStep++;
+  return Object.assign({}, d, {
+    x: Number.isFinite(d.x) ? d.x + offset : undefined,
+    y: Number.isFinite(d.y) ? d.y + offset : undefined,
+    maximized: false,
+  });
+}
+
+// Apply a layout state to a window's title so multiple windows are
+// distinguishable at a glance ("Study Hub — Roomy ⚡").
+function applyLayoutTitle(win, s) {
+  if (!win || win.isDestroyed()) return;
+  win.setTitle('Study Hub' + layoutTitleSuffix(s));
+}
+
 function createWindow() {
+  const bounds = restoreBoundsForWindow();
   const win = new BrowserWindow({
-    width: 1400,
-    height: 900,
+    width: bounds.width,
+    height: bounds.height,
+    x: bounds.x,
+    y: bounds.y,
     minWidth: 900,
     minHeight: 600,
     title: 'Study Hub',
@@ -22,10 +73,20 @@ function createWindow() {
       preload: path.join(__dirname, 'electron-preload.js')
     }
   });
+  win.__studyHubId = ++windowCounter;
   windows.add(win);
   if (!mainWindow || mainWindow.isDestroyed()) mainWindow = win;
+  if (bounds.maximized) win.maximize();
 
   win.loadFile('index.html');
+  // Remember this window's position/size for the next launch.
+  win.on('close', () => {
+    try {
+      const b = Object.assign(win.getBounds(), { maximized: win.isMaximized() });
+      savedWindowQueue = recordWindow(savedWindowQueue || [], b);
+      saveWindowState(windowStateFile(), savedWindowQueue);
+    } catch (e) { /* bounds may be unavailable during teardown */ }
+  });
   win.on('closed', () => {
     windows.delete(win);
     if (mainWindow === win) mainWindow = null;
@@ -108,8 +169,14 @@ ipcMain.handle('get-app-version', () => app.getVersion());
 ipcMain.handle('get-app-path', () => app.getAppPath());
 
 // Renderer → menu state sync: Settings/quickbar changes update the native menu
-// checkmarks so the Layout menu always reflects the active window's layout.
-ipcMain.on('layout-changed', (_event, s) => syncMenuState(s));
+// checkmarks so the Layout menu always reflects the active window's layout,
+// and the window title shows the layout so multi-window users can tell them
+// apart.
+ipcMain.on('layout-changed', (event, s) => {
+  syncMenuState(s);
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) applyLayoutTitle(win, s);
+});
 
 // Route the shared Layout menu handlers to the focused window (or the primary
 // one) so menu actions apply to whichever window the user is working in.

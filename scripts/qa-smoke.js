@@ -15,7 +15,7 @@
 
 const path = require('path');
 const { app, BrowserWindow, Menu, ipcMain } = require('electron');
-const { LAYOUT_SUBMENU, setWindowAccessor, syncMenuState } = require('../electron-menu');
+const { LAYOUT_SUBMENU, setWindowAccessor, syncMenuState, layoutTitleSuffix } = require('../electron-menu');
 
 const ROOT = path.join(__dirname, '..');
 const APP_HTML = path.join(ROOT, 'index.html');
@@ -86,8 +86,13 @@ app.whenReady().then(() => {
   // Same focused-window routing as the real app, so menu actions land on
   // whichever test window is active (multi-window test relies on this).
   setWindowAccessor(() => BrowserWindow.getFocusedWindow() || win);
-  // Renderer → menu sync: same handler the real main process registers.
-  ipcMain.on('layout-changed', (_event, s) => syncMenuState(s));
+  // Renderer → menu sync: same handler the real main process registers, plus
+  // the window-title update so the multi-window test can assert titles.
+  ipcMain.on('layout-changed', (event, s) => {
+    syncMenuState(s);
+    const w = BrowserWindow.fromWebContents(event.sender);
+    if (w && !w.isDestroyed()) w.setTitle('Study Hub' + layoutTitleSuffix(s));
+  });
 
   // Capture console messages (Electron API changed across versions)
   const webContents = win.webContents;
@@ -344,6 +349,9 @@ app.whenReady().then(() => {
       const w1Untouched = await webContents.executeJavaScript(`state.settings.density === 'compact' && document.documentElement.getAttribute('data-density') === 'compact'`);
       if (!w2Followed) failures.push('Multi-window test: menu click did not apply to the focused window');
       if (!w1Untouched) failures.push('Multi-window test: menu click leaked into the background window');
+      // Titles must follow each window's own layout so users can tell them apart.
+      if (win2.getTitle() !== 'Study Hub — Roomy') failures.push('Multi-window test: win2 title did not follow its layout (got "' + win2.getTitle() + '")');
+      if (win.getTitle() !== 'Study Hub — Compact') failures.push('Multi-window test: win1 title changed with win2\'s layout (got "' + win.getTitle() + '")');
 
       // Renderer-side change in win2 must sync the native menu checkmarks.
       await wc2.executeJavaScript(`state.settings.density='comfortable'; state.settings.powerMode=true; saveState(); applyAppearance(); 'changed'`);
@@ -352,6 +360,7 @@ app.whenReady().then(() => {
       if (!menuSynced) failures.push('Multi-window test: renderer layout change did not sync the menu (comfortable=' + comfortable.checked + ' power=' + power.checked + ' roomy=' + roomy.checked + ')');
       const w2Synced = await wc2.executeJavaScript(`document.documentElement.getAttribute('data-power') === 'true' && document.documentElement.getAttribute('data-density') === 'comfortable'`);
       if (!w2Synced) failures.push('Multi-window test: renderer-side change did not apply in win2');
+      if (win2.getTitle() !== 'Study Hub — Comfortable ⚡') failures.push('Multi-window test: win2 title did not reflect power mode (got "' + win2.getTitle() + '")');
 
       // Clean up: reset win2, close it, hand focus back to win1, re-sync menu.
       await wc2.executeJavaScript(`state.settings.density='compact'; state.settings.powerMode=false; saveState(); applyAppearance(); 'cleaned'`);

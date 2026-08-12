@@ -16,6 +16,15 @@ function setWindowAccessor(fn) {
   _getWindow = fn;
 }
 
+// Human title fragment for a layout state, e.g. "— Roomy ⚡" so users can tell
+// multiple windows apart at a glance (shared so the main process and the QA
+// suite produce identical titles).
+function layoutTitleSuffix(s) {
+  const density = s && s.density ? s.density.charAt(0).toUpperCase() + s.density.slice(1) : 'Comfortable';
+  const power = s && s.powerMode ? ' ⚡' : '';
+  return ' — ' + density + power;
+}
+
 // Sync the native Layout menu's checked states from renderer state. Called from
 // the main process whenever the renderer reports a layout change (Settings
 // controls, the topbar quickbar, or the renderer's own state pipeline).
@@ -68,4 +77,4 @@ const LAYOUT_SUBMENU = {
   ]
 };
 
-module.exports = { LAYOUT_SUBMENU, applyLayout, setWindowAccessor, syncMenuState };
+module.exports = { LAYOUT_SUBMENU, applyLayout, setWindowAccessor, syncMenuState, layoutTitleSuffix };

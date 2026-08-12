@@ -68,11 +68,20 @@ if (!/label: 'Layout'/.test(menuJs)) fails.push('electron-menu.js has no Layout 
 if (!/Compact power mode/.test(menuJs)) fails.push('electron-menu.js Layout menu has no power-mode item');
 if (!/function applyLayout/.test(menuJs)) fails.push('electron-menu.js has no applyLayout handler');
 if (!/function syncMenuState/.test(menuJs)) fails.push('electron-menu.js has no syncMenuState helper');
+if (!/layoutTitleSuffix/.test(menuJs)) fails.push('electron-menu.js has no layoutTitleSuffix helper');
 if (!/LAYOUT_SUBMENU/.test(mainJs)) fails.push('electron-main.js does not mount LAYOUT_SUBMENU');
 if (!/layout-changed/.test(mainJs)) fails.push('electron-main.js has no layout-changed IPC handler');
 if (!/New Window/.test(mainJs)) fails.push('electron-main.js Window menu has no New Window item');
 if (!/notifyLayout/.test(preloadJs)) fails.push('electron-preload.js does not expose notifyLayout');
 if (!/syncNativeMenu/.test(js)) fails.push('app.js has no syncNativeMenu renderer hook');
+
+// 8. Window-position memory must be wired into the main process and be
+//    unit-tested (electron-window-state.js is loaded by npm test).
+const winStateJs = fs.readFileSync(path.join(ROOT, 'electron-window-state.js'), 'utf8');
+if (!/electron-window-state/.test(mainJs)) fails.push('electron-main.js does not use the window-state module');
+if (!/window-state\.json/.test(mainJs)) fails.push('electron-main.js does not persist a window-state.json');
+if (!/sanitizeBounds/.test(winStateJs)) fails.push('electron-window-state.js has no sanitizeBounds helper');
+if (!/recordWindow/.test(winStateJs)) fails.push('electron-window-state.js has no recordWindow helper');
 
 if (fails.length) {
   console.error('a11y static guard FAILED:\n - ' + fails.join('\n - '));
