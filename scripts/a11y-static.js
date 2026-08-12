@@ -55,10 +55,12 @@ if (!afterBody.includes('skip-link')) fails.push('skip-link is not the first ele
 if (!/id="appMain"/.test(html)) fails.push('main content has no id="appMain" anchor');
 
 // 6. The Electron menu must expose the layout switch (density + power mode).
+const menuJs = fs.readFileSync(path.join(ROOT, 'electron-menu.js'), 'utf8');
 const mainJs = fs.readFileSync(path.join(ROOT, 'electron-main.js'), 'utf8');
-if (!/label: 'Layout'/.test(mainJs)) fails.push('electron-main.js has no Layout menu');
-if (!/Compact power mode/.test(mainJs)) fails.push('electron-main.js Layout menu has no power-mode item');
-if (!/function applyLayout/.test(mainJs)) fails.push('electron-main.js has no applyLayout handler');
+if (!/label: 'Layout'/.test(menuJs)) fails.push('electron-menu.js has no Layout menu');
+if (!/Compact power mode/.test(menuJs)) fails.push('electron-menu.js Layout menu has no power-mode item');
+if (!/function applyLayout/.test(menuJs)) fails.push('electron-menu.js has no applyLayout handler');
+if (!/LAYOUT_SUBMENU/.test(mainJs)) fails.push('electron-main.js does not mount LAYOUT_SUBMENU');
 
 if (fails.length) {
   console.error('a11y static guard FAILED:\n - ' + fails.join('\n - '));

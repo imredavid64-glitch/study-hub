@@ -1017,6 +1017,35 @@ function renderDashboard() {
   } catch(e) { if (typeof console !== 'undefined') console.warn('renderDashboard:', e); }
 }
 
+// ===== MODAL FOCUS MANAGEMENT (trap + restore) =====
+// Moves focus into the modal on open, keeps Tab cycling inside it, and
+// returns focus to the element that opened it when it closes.
+function trapModalFocus(modal, onClose) {
+  const prevFocus = document.activeElement;
+  const focusable = () => Array.from(modal.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')).filter(el => {
+    try { return el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden'; } catch (e) { return true; }
+  });
+  const onKey = e => {
+    if (e.key !== 'Tab') return;
+    const els = focusable();
+    if (els.length === 0) return;
+    const first = els[0], last = els[els.length - 1];
+    const inside = modal.contains(document.activeElement);
+    if (e.shiftKey) {
+      if (!inside || document.activeElement === first) { e.preventDefault(); last.focus(); }
+    } else if (!inside || document.activeElement === last) { e.preventDefault(); first.focus(); }
+  };
+  document.addEventListener('keydown', onKey);
+  const firstEl = focusable()[0];
+  if (firstEl) firstEl.focus();
+  else { modal.setAttribute('tabindex', '-1'); modal.focus(); }
+  return () => {
+    document.removeEventListener('keydown', onKey);
+    onClose();
+    if (prevFocus && typeof prevFocus.focus === 'function' && document.contains(prevFocus)) { try { prevFocus.focus(); } catch (e) {} }
+  };
+}
+
 // ===== GOAL WALKTHROUGHS =====
 const WT_STEP_KEYS = ['learn', 'cards', 'quiz', 'mock', 'explain', 'review'];
 const WT_STEP_LABELS = { learn: 'Learn the material', cards: 'Flashcards', quiz: 'Quiz', mock: 'Mock test', explain: 'Explain it back', review: 'Spaced review' };
@@ -1124,8 +1153,8 @@ function generateGoalWalkthrough(goalId) {
   </div>`;
   document.body.appendChild(modal);
   const onEsc = e => { if (e.key === 'Escape') close(); };
-  const close = () => { document.removeEventListener('keydown', onEsc); modal.remove(); };
   document.addEventListener('keydown', onEsc);
+  const close = trapModalFocus(modal, () => { document.removeEventListener('keydown', onEsc); modal.remove(); });
   modal.querySelector('.modal-close').addEventListener('click', close);
   modal.querySelector('.wt-close').addEventListener('click', close);
   modal.addEventListener('click', e => { if (e.target === modal) close(); });
@@ -1757,8 +1786,8 @@ function openExplainVerify(rating, card) {
   </div>`;
   document.body.appendChild(panel);
   const onEsc = e => { if (e.key === 'Escape') close(); };
-  const close = () => { document.removeEventListener('keydown', onEsc); panel.remove(); };
   document.addEventListener('keydown', onEsc);
+  const close = trapModalFocus(panel, () => { document.removeEventListener('keydown', onEsc); panel.remove(); });
   panel.querySelector('.modal-close').addEventListener('click', close);
   panel.addEventListener('click', e => { if (e.target === panel) close(); });
   const box = panel.querySelector('#evExplainBox');
@@ -5164,8 +5193,11 @@ function renderResourceLibrary() {
       modal.className = 'modal-backdrop';
       modal.innerHTML = `<div class="modal-card"><div class="row-between"><h3>${escapeHtml(r.title)}</h3><button class="ghost modal-close">&times;</button></div><pre class="resource-preview-content">${escapeHtml(r.content || r.url || '')}</pre></div>`;
       document.body.appendChild(modal);
-      modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
-      modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+      const onEsc = e => { if (e.key === 'Escape') close(); };
+      document.addEventListener('keydown', onEsc);
+      const close = trapModalFocus(modal, () => { document.removeEventListener('keydown', onEsc); modal.remove(); });
+      modal.querySelector('.modal-close').addEventListener('click', close);
+      modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
     });
   });
   el.querySelectorAll('.resource-preview').forEach(btn => {
@@ -5176,8 +5208,11 @@ function renderResourceLibrary() {
       modal.className = 'modal-backdrop';
       modal.innerHTML = `<div class="modal-card"><div class="row-between"><h3>${escapeHtml(r.title)}</h3><button class="ghost modal-close">&times;</button></div><div class="resource-preview-content">${r.fileData && String(r.fileData).startsWith('data:image') ? '<img style="max-width:100%" src="' + r.fileData + '" alt="' + escapeHtml(r.title) + '" />' : '<pre>' + escapeHtml(r.content || r.fileData || '') + '</pre>'}</div></div>`;
       document.body.appendChild(modal);
-      modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
-      modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+      const onEsc = e => { if (e.key === 'Escape') close(); };
+      document.addEventListener('keydown', onEsc);
+      const close = trapModalFocus(modal, () => { document.removeEventListener('keydown', onEsc); modal.remove(); });
+      modal.querySelector('.modal-close').addEventListener('click', close);
+      modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
     });
   });
 }

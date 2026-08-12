@@ -14,7 +14,8 @@
 'use strict';
 
 const path = require('path');
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, Menu } = require('electron');
+const { LAYOUT_SUBMENU, setWindowAccessor } = require('../electron-menu');
 
 const ROOT = path.join(__dirname, '..');
 const APP_HTML = path.join(ROOT, 'index.html');
@@ -75,6 +76,10 @@ app.whenReady().then(() => {
     height: 900,
     webPreferences: { nodeIntegration: false, contextIsolation: true },
   });
+  // Install the real Layout menu so the menu-driven test exercises the
+  // same code path desktop users get (electron-menu.js shared module).
+  Menu.setApplicationMenu(Menu.buildFromTemplate([LAYOUT_SUBMENU]));
+  setWindowAccessor(() => win);
 
   // Capture console messages (Electron API changed across versions)
   const webContents = win.webContents;
@@ -279,6 +284,42 @@ app.whenReady().then(() => {
     return failures;
   }
 
+  // Menu-driven layout test: drive the real Electron Layout menu (density
+  // radios + power-mode checkbox) and verify the renderer state follows.
+  async function runMenuLayoutTest() {
+    const failures = [];
+    try {
+      const menu = Menu.getApplicationMenu();
+      const power = menu && menu.getMenuItemById('power-mode');
+      const roomy = menu && menu.getMenuItemById('density-roomy');
+      const compact = menu && menu.getMenuItemById('density-compact');
+      if (!power || !roomy || !compact) {
+        failures.push('Menu test: Layout menu items missing from the application menu');
+        return failures;
+      }
+      // Power mode on via the menu checkbox.
+      if (!power.checked) power.click();
+      await new Promise(r => setTimeout(r, 150));
+      const powerOn = await webContents.executeJavaScript(`state.settings.powerMode === true && document.documentElement.getAttribute('data-power') === 'true'`);
+      if (!powerOn) failures.push('Menu test: power-mode click did not apply in the renderer');
+      // Density roomy via the menu radio.
+      roomy.click();
+      await new Promise(r => setTimeout(r, 150));
+      const densityOk = await webContents.executeJavaScript(`state.settings.density === 'roomy' && document.documentElement.getAttribute('data-density') === 'roomy'`);
+      if (!densityOk) failures.push('Menu test: density radio did not apply in the renderer');
+      // Swap back to compact, then power off — leave a clean state.
+      compact.click();
+      await new Promise(r => setTimeout(r, 120));
+      if (power.checked) power.click();
+      await new Promise(r => setTimeout(r, 120));
+      const clean = await webContents.executeJavaScript(`state.settings.density === 'compact' && state.settings.powerMode === false`);
+      if (!clean) failures.push('Menu test: cleanup click did not restore compact/non-power state');
+    } catch (e) {
+      failures.push('Menu test threw: ' + e);
+    }
+    return failures;
+  }
+
   win.loadFile(APP_HTML).then(() => {
     setTimeout(() => {
       webContents.executeJavaScript(sweepScript)
@@ -311,6 +352,10 @@ app.whenReady().then(() => {
           const modalFailures = await runModalAndReverseTest();
           report.modalTest = { failures: modalFailures };
           modalFailures.forEach(f => report.failures.push(f));
+          // Menu-driven layout check.
+          const menuFailures = await runMenuLayoutTest();
+          report.menuTest = { failures: menuFailures };
+          menuFailures.forEach(f => report.failures.push(f));
           for (const c of report.console) {
             if (c.level === 'error' || c.level === 3) {
               if (!isExpectedConsole(c.message)) {

@@ -1,5 +1,6 @@
 const { app, BrowserWindow, Menu, shell, dialog, ipcMain, nativeTheme } = require('electron');
 const path = require('path');
+const { LAYOUT_SUBMENU, setWindowAccessor } = require('./electron-menu');
 
 let mainWindow;
 
@@ -49,21 +50,7 @@ function createWindow() {
         { type: 'separator' }, { role: 'togglefullscreen' }
       ]
     },
-    {
-      label: 'Layout',
-      submenu: [
-        {
-          label: 'Density',
-          submenu: [
-            { label: 'Compact', type: 'radio', click: (item) => applyLayout('density', 'compact', item.checked) },
-            { label: 'Comfortable', type: 'radio', click: (item) => applyLayout('density', 'comfortable', item.checked) },
-            { label: 'Roomy', type: 'radio', click: (item) => applyLayout('density', 'roomy', item.checked) }
-          ]
-        },
-        { type: 'separator' },
-        { label: 'Compact power mode', type: 'checkbox', click: (item) => applyLayout('power', null, item.checked) }
-      ]
-    },
+    LAYOUT_SUBMENU,
     {
       label: 'Window',
       submenu: [
@@ -113,19 +100,5 @@ app.on('web-contents-created', (_event, contents) => {
 ipcMain.handle('get-app-version', () => app.getVersion());
 ipcMain.handle('get-app-path', () => app.getAppPath());
 
-// Layout menu → renderer: apply density / power mode through the app's own
-// state pipeline so Settings, the topbar quickbar, and the DOM stay in sync.
-function applyLayout(kind, value, checked) {
-  const wc = mainWindow && mainWindow.webContents;
-  if (!wc) return;
-  const expr = kind === 'power'
-    ? `state.settings.powerMode = ${!!checked}; saveState(); applyAppearance();
-       if (typeof syncPowerQuick === 'function') syncPowerQuick();
-       var t = document.getElementById('powerModeToggle'); if (t) t.checked = ${!!checked};
-       showToast(${checked} ? '⚡ Compact power mode on' : 'Compact power mode off');`
-    : `state.settings.density = '${value}'; saveState(); applyAppearance();
-       var q = document.getElementById('densityQuickSelect'); if (q) q.value = '${value}';
-       var s = document.getElementById('densitySelect'); if (s) s.value = '${value}';
-       showToast('Layout density: ${value}');`;
-  wc.executeJavaScript(expr).catch(() => {});
-}
+// Route the shared Layout menu handlers to this window.
+setWindowAccessor(() => mainWindow);
