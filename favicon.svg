@@ -1,10 +1,27 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
-    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#0f766e"/>
+      <stop offset="55%" stop-color="#0d9488"/>
       <stop offset="100%" stop-color="#14b8a6"/>
     </linearGradient>
+    <linearGradient id="page" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#d9f3ef"/>
+    </linearGradient>
   </defs>
-  <rect width="100" height="100" rx="20" fill="url(#g)"/>
-  <text x="50" y="68" font-family="system-ui,-apple-system,sans-serif" font-size="52" font-weight="800" fill="white" text-anchor="middle">S</text>
+  <!-- Rounded brand tile -->
+  <rect width="100" height="100" rx="22" fill="url(#bg)"/>
+  <!-- Spark (excellence / aha moment) -->
+  <path d="M50 10 L54.5 23 L67 27.5 L54.5 32 L50 45 L45.5 32 L33 27.5 L45.5 23 Z" fill="#fcd34d"/>
+  <!-- Open book: left page -->
+  <path d="M13 46 Q29 35 48.5 46 L48.5 74 Q29 63 13 74 Z" fill="url(#page)"/>
+  <!-- Open book: right page -->
+  <path d="M87 46 Q71 35 51.5 46 L51.5 74 Q71 63 87 74 Z" fill="url(#page)"/>
+  <!-- Page lines (left) -->
+  <path d="M22 56 Q30 51 40 55" stroke="#0f766e" stroke-width="2.4" stroke-linecap="round" fill="none" opacity="0.35"/>
+  <path d="M22 63 Q30 58 40 62" stroke="#0f766e" stroke-width="2.4" stroke-linecap="round" fill="none" opacity="0.35"/>
+  <!-- Page lines (right) -->
+  <path d="M78 56 Q70 51 60 55" stroke="#0f766e" stroke-width="2.4" stroke-linecap="round" fill="none" opacity="0.35"/>
+  <path d="M78 63 Q70 58 60 62" stroke="#0f766e" stroke-width="2.4" stroke-linecap="round" fill="none" opacity="0.35"/>
 </svg>
