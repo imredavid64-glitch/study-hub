@@ -2482,7 +2482,7 @@ function renderExamEstimator() {
   let html =
     `<div class="est-summary">` +
       `<div class="est-grade" style="color:${est.letter.min >= 90 ? '#237a57' : est.letter.min >= 70 ? '#ca8a04' : '#b42318'}">${est.letter.letter}<small> ${est.letter.label}</small></div>` +
-      `<div class="est-numbers"><div class="est-num">${est.overall}% <span class="est-band">±${est.band}</span></div><div class="est-meta">${est.totalEvidence} practice points · ${lo}–${hi}% band</div></div>` +
+      `<div class="est-numbers"><div class="est-num">${est.overall}% <span class="est-band">±${est.band}</span></div><div class="est-meta">${est.totalEvidence} practice ${est.totalEvidence === 1 ? 'point' : 'points'} · ${lo}–${hi}% band</div></div>` +
       `<div class="est-bar-wrap"><div class="est-bar"><span class="est-band-range" style="left:${lo}%;width:${hi - lo}%"></span><span class="est-fill" style="width:${est.overall}%"></span><div class="est-marker" style="left:${est.overall}%"></div></div><div class="est-meta">Predicted grade band</div></div>` +
     `</div>`;
   // Target selector
