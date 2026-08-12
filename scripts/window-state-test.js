@@ -47,6 +47,13 @@ ok(bad.width === 1400 && bad.height === 900, 'garbage bounds fall back to defaul
 const max = sanitizeBounds({ width: 1400, height: 900, x: 0, y: 0, maximized: true }, area);
 ok(max.maximized === true, 'maximized flag is preserved');
 
+// 6b. The per-window tab survives sanitization (bounded length)
+const withTab = sanitizeBounds({ width: 1200, height: 800, x: 10, y: 10, tab: 'planner' }, area);
+ok(withTab.tab === 'planner', 'tab survives sanitization');
+const longTab = sanitizeBounds({ width: 1200, height: 800, x: 10, y: 10, tab: 'x'.repeat(200) }, area);
+ok(longTab.tab === undefined, 'over-long tab is dropped');
+ok(sanitizeBounds({ width: 1200, height: 800, x: 10, y: 10 }, area).tab === undefined, 'missing tab stays undefined');
+
 // 7. Queue is capped at MAX_WINDOWS, most recent first
 let q = [];
 for (let i = 0; i < 12; i++) q = recordWindow(q, { width: i });

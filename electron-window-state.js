@@ -4,9 +4,10 @@
  * so the QA suite and `npm test` can unit-test the logic in plain Node.
  *
  * State shape on disk (userData/window-state.json):
- *   { "windows": [ { width, height, x, y, maximized }, ... ] }
+ *   { "windows": [ { width, height, x, y, maximized, tab }, ... ] }
  * The queue is capped at 8; the first entry is used for the primary window,
- * later entries feed windows opened via Window → New Window.
+ * later entries feed windows opened via Window → New Window. `tab` is the last
+ * tab that window had open (restored on launch via get-window-tab).
  */
 'use strict';
 
@@ -16,7 +17,7 @@ const path = require('path');
 const MAX_WINDOWS = 8;
 
 function defaultBounds() {
-  return { width: 1400, height: 900, x: undefined, y: undefined, maximized: false };
+  return { width: 1400, height: 900, x: undefined, y: undefined, maximized: false, tab: undefined };
 }
 
 /**
@@ -48,6 +49,7 @@ function sanitizeBounds(b, displayArea) {
     x: Number.isFinite(x) ? x : undefined,
     y: Number.isFinite(y) ? y : undefined,
     maximized,
+    tab: typeof b.tab === 'string' && b.tab.length <= 40 ? b.tab : undefined,
   };
 }
 

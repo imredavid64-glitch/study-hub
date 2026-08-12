@@ -807,6 +807,11 @@ function showTab(tabId) {
   if (tabId === 'studymap' && window.__studyMapRefresh) setTimeout(window.__studyMapRefresh, 0);
   updateWelcomeTitle();
   if (typeof Mobile !== 'undefined' && Mobile.syncMobileNav) Mobile.syncMobileNav(tabId);
+  // Tell the Electron main process which tab this window is on so relaunching
+  // restores the same workspace (browser/preview: no-op).
+  try {
+    if (window.electronAPI && typeof window.electronAPI.notifyTab === 'function') window.electronAPI.notifyTab(tabId);
+  } catch (e) { /* non-Electron — nothing to notify */ }
 }
 function updateWelcomeTitle() {
   const at = qs('.tab.active');
@@ -7252,13 +7257,26 @@ function init() {
       } else { showToast('Use your browser menu → Add to Home Screen'); }
     });
   }
-  showTab('dashboard');
+  restoreInitialTab();
   if (typeof initializeCloudSystem === 'function') {
     initializeCloudSystem().catch(logErrors('initializeCloudSystem'));
   }
   } catch(e) {
     if (typeof console !== 'undefined') console.error('init() error:', e);
   }
+}
+// Boot on the tab this window had open last time (Electron), else dashboard.
+// Dashboard renders immediately so there is no blank flash; the saved tab
+// (if any) replaces it as soon as the main process answers.
+function restoreInitialTab() {
+  showTab('dashboard');
+  try {
+    if (window.electronAPI && typeof window.electronAPI.getWindowTab === 'function') {
+      window.electronAPI.getWindowTab().then((tab) => {
+        if (tab && typeof tab === 'string' && document.getElementById(tab) && tab !== 'dashboard') showTab(tab);
+      }).catch(() => {});
+    }
+  } catch (e) { /* non-Electron — stay on dashboard */ }
 }
 
 // ===== EXPANDABLE CHAT =====

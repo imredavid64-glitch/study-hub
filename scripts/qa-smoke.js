@@ -93,6 +93,11 @@ app.whenReady().then(() => {
     const w = BrowserWindow.fromWebContents(event.sender);
     if (w && !w.isDestroyed()) w.setTitle('Study Hub' + layoutTitleSuffix(s));
   });
+  // Per-window tab memory: mirror the real main process handlers so the
+  // multi-window test can verify tab reporting and boot-time restore.
+  const testTabs = new Map();
+  ipcMain.on('tab-changed', (event, tab) => { if (typeof tab === 'string') testTabs.set(event.sender.id, tab); });
+  ipcMain.handle('get-window-tab', (event) => testTabs.get(event.sender.id) || 'dashboard');
 
   // Capture console messages (Electron API changed across versions)
   const webContents = win.webContents;
@@ -361,6 +366,16 @@ app.whenReady().then(() => {
       const w2Synced = await wc2.executeJavaScript(`document.documentElement.getAttribute('data-power') === 'true' && document.documentElement.getAttribute('data-density') === 'comfortable'`);
       if (!w2Synced) failures.push('Multi-window test: renderer-side change did not apply in win2');
       if (win2.getTitle() !== 'Study Hub — Comfortable ⚡') failures.push('Multi-window test: win2 title did not reflect power mode (got "' + win2.getTitle() + '")');
+      // Per-window tab memory: switching tabs in one window must not affect
+      // the other, and get-window-tab must round-trip what was reported.
+      const w1TabBefore = testTabs.get(webContents.id);
+      await wc2.executeJavaScript(`showTab('planner'); 'tabbed'`);
+      await new Promise(r => setTimeout(r, 150));
+      const w2Tab = testTabs.get(wc2.id);
+      if (w2Tab !== 'planner') failures.push('Multi-window test: tab-changed did not record win2 tab (got ' + w2Tab + ')');
+      if (testTabs.get(webContents.id) !== w1TabBefore) failures.push('Multi-window test: win1 tab changed with win2\'s (was ' + w1TabBefore + ', now ' + testTabs.get(webContents.id) + ')');
+      const roundTrip = await wc2.executeJavaScript(`window.electronAPI && window.electronAPI.getWindowTab ? window.electronAPI.getWindowTab().then(t => t) : 'no-api'`);
+      if (roundTrip !== 'planner') failures.push('Multi-window test: get-window-tab did not round-trip (got ' + roundTrip + ')');
 
       // Clean up: reset win2, close it, hand focus back to win1, re-sync menu.
       await wc2.executeJavaScript(`state.settings.density='compact'; state.settings.powerMode=false; saveState(); applyAppearance(); 'cleaned'`);

@@ -75,7 +75,13 @@ if (!/New Window/.test(mainJs)) fails.push('electron-main.js Window menu has no 
 if (!/notifyLayout/.test(preloadJs)) fails.push('electron-preload.js does not expose notifyLayout');
 if (!/syncNativeMenu/.test(js)) fails.push('app.js has no syncNativeMenu renderer hook');
 
-// 8. Window-position memory must be wired into the main process and be
+// 8. Per-window tab memory must be wired end to end (renderer → preload → main).
+if (!/notifyTab/.test(preloadJs) || !/getWindowTab/.test(preloadJs)) fails.push('electron-preload.js is missing notifyTab/getWindowTab');
+if (!/tab-changed/.test(mainJs) || !/get-window-tab/.test(mainJs)) fails.push('electron-main.js is missing the tab IPC handlers');
+if (!/Restore Window Arrangement/.test(mainJs)) fails.push('electron-main.js Window menu has no Restore Window Arrangement item');
+if (!/restoreInitialTab/.test(js)) fails.push('app.js has no restoreInitialTab boot hook');
+
+// 9. Window-position memory must be wired into the main process and be
 //    unit-tested (electron-window-state.js is loaded by npm test).
 const winStateJs = fs.readFileSync(path.join(ROOT, 'electron-window-state.js'), 'utf8');
 if (!/electron-window-state/.test(mainJs)) fails.push('electron-main.js does not use the window-state module');

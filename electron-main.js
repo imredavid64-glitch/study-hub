@@ -46,6 +46,18 @@ function restoreBoundsForWindow() {
   });
 }
 
+// Reopen the windows from the last session's saved arrangement (up to 6), one
+// per remaining saved slot. New windows created here each consume a slot, so
+// the arrangement is reproduced and then re-saved as it closes.
+function restoreArrangement() {
+  if (savedWindowQueue === null) savedWindowQueue = loadWindowState(windowStateFile());
+  let created = 0;
+  while (windows.size < 6 && savedWindowQueue.length > 0 && created < 8) {
+    createWindow();
+    created++;
+  }
+}
+
 // Apply a layout state to a window's title so multiple windows are
 // distinguishable at a glance ("Study Hub — Roomy ⚡").
 function applyLayoutTitle(win, s) {
@@ -74,6 +86,8 @@ function createWindow() {
     }
   });
   win.__studyHubId = ++windowCounter;
+  // Restore the tab this window had open when it was last closed.
+  win.__studyHubTab = typeof bounds.tab === 'string' ? bounds.tab : 'dashboard';
   windows.add(win);
   if (!mainWindow || mainWindow.isDestroyed()) mainWindow = win;
   if (bounds.maximized) win.maximize();
@@ -82,7 +96,10 @@ function createWindow() {
   // Remember this window's position/size for the next launch.
   win.on('close', () => {
     try {
-      const b = Object.assign(win.getBounds(), { maximized: win.isMaximized() });
+      const b = Object.assign(win.getBounds(), {
+        maximized: win.isMaximized(),
+        tab: win.__studyHubTab || 'dashboard',
+      });
       savedWindowQueue = recordWindow(savedWindowQueue || [], b);
       saveWindowState(windowStateFile(), savedWindowQueue);
     } catch (e) { /* bounds may be unavailable during teardown */ }
@@ -124,6 +141,7 @@ function createWindow() {
       submenu: [
         { role: 'minimize' }, { role: 'zoom' },
         { label: 'New Window', accelerator: 'CmdOrCtrl+Shift+N', click: () => createWindow() },
+        { label: 'Restore Window Arrangement', accelerator: 'CmdOrCtrl+Shift+R', click: () => restoreArrangement() },
         { type: 'separator' },
         ...(isMac ? [{ type: 'separator' }, { role: 'front' }] : [{ role: 'close' }])
       ]
@@ -176,6 +194,18 @@ ipcMain.on('layout-changed', (event, s) => {
   syncMenuState(s);
   const win = BrowserWindow.fromWebContents(event.sender);
   if (win) applyLayoutTitle(win, s);
+});
+
+// Per-window tab memory: the renderer reports every tab switch and asks for its
+// saved tab on boot, so relaunching restores each window to where you left off.
+ipcMain.on('tab-changed', (event, tab) => {
+  if (typeof tab !== 'string') return;
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win && !win.isDestroyed()) win.__studyHubTab = tab.slice(0, 40);
+});
+ipcMain.handle('get-window-tab', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  return (win && win.__studyHubTab) || 'dashboard';
 });
 
 // Route the shared Layout menu handlers to the focused window (or the primary
