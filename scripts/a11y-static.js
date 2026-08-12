@@ -127,6 +127,12 @@ if (!/recordEstimatorPrediction/.test(js) || !/renderPredictionAccuracy/.test(js
 if (!/autoEnqueueAtRisk/.test(js) || !/computeAtRiskAdditions/.test(js)) fails.push('app.js is missing the at-risk auto-recovery wiring');
 if (!/estimateCalibration/.test(js)) fails.push('app.js is missing the self-calibration helper');
 
+// 15. Command palette + undo-able deletes + topic knowledge base.
+if (!/openCommandPalette/.test(js) || !/cmdPalette/.test(js) || !/paletteBtn/.test(js)) fails.push('app.js is missing the command palette (open/palette/dialog)');
+if (!/toastWithUndo/.test(js) || !/__undoPending/.test(js) || !/attachUndoButton/.test(js)) fails.push('app.js is missing the undo-able toast helpers');
+if (!/TOPIC_KB/.test(js) || !/kbMindMap/.test(js)) fails.push('app.js is missing the offline topic knowledge base');
+if (!/id="paletteBtn"/.test(html)) fails.push('Topbar has no Search / command-palette button');
+
 // 9. Window-position memory must be wired into the main process and be
 //    unit-tested (electron-window-state.js is loaded by npm test).
 const winStateJs = fs.readFileSync(path.join(ROOT, 'electron-window-state.js'), 'utf8');

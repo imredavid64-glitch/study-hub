@@ -606,22 +606,57 @@ function deepMerge(t, s) {
 function cloneObj(o) { return JSON.parse(JSON.stringify(o)); }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 6); }
 function generateId() { return uid(); }
+// Pending undo action — a later showToast (e.g. cloud sync) re-appends the
+// Undo button instead of silently destroying the user's chance to revert.
+let __undoPending = null;
 function showToast(msg, type) {
   if (typeof sonner !== 'undefined') {
     if (type === 'error') sonner.error(msg);
     else if (type === 'success') sonner.success(msg);
     else sonner(msg);
-  } else {
-    const el = document.getElementById('toast');
-    if (!el) return;
-    el.textContent = msg;
-    el.classList.remove('hidden');
-    if (type === 'error') el.style.background = '#7f1d1d';
-    else if (type === 'success') el.style.background = '#065f46';
-    else el.style.background = '#152b2a';
-    clearTimeout(el._hide);
-    el._hide = setTimeout(() => { el.classList.add('hidden'); }, 2500);
+    return;
   }
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = '';
+  const span = document.createElement('span');
+  span.textContent = msg;
+  el.appendChild(span);
+  el.classList.remove('hidden');
+  if (type === 'error') el.style.background = '#7f1d1d';
+  else if (type === 'success') el.style.background = '#065f46';
+  else el.style.background = '#152b2a';
+  // Re-attach the pending Undo button so later toasts don't kill the revert.
+  if (__undoPending) attachUndoButton(el);
+  clearTimeout(el._hide);
+  el._hide = setTimeout(() => { el.classList.add('hidden'); }, 2500);
+}
+function attachUndoButton(el) {
+  if (!__undoPending) return;
+  let btn = el.querySelector('.undo-toast-btn');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.textContent = 'Undo';
+    btn.className = 'undo-toast-btn';
+    el.appendChild(btn);
+  }
+  btn.onclick = function() {
+    clearTimeout(__undoPending.timer);
+    const undo = __undoPending.undo;
+    __undoPending = null;
+    undo();
+    el.classList.add('hidden');
+    showToast('Undone');
+  };
+}
+function exportData() {
+  const exportState = cloneObj(state);
+  exportState._exportedAt = new Date().toISOString();
+  exportState._version = '1.0';
+  const blob = new Blob([JSON.stringify(exportState, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `studyhub-backup-${todayStr()}.json`; a.click();
+  URL.revokeObjectURL(url); showToast('Data exported to JSON');
 }
 function showConfirm(msg) {
   return new Promise(resolve => {
@@ -1586,8 +1621,14 @@ function renderKanban() {
     }
   }));
   qsa('[data-del-task]').forEach(b => b.addEventListener('click', () => {
+    const task = state.tasks.find(t => t.id === b.dataset.delTask);
     state.tasks = state.tasks.filter(t => t.id !== b.dataset.delTask);
-    saveState(); renderKanban(); renderDashboard(); showToast('Task deleted');
+    saveState(); renderKanban(); renderDashboard();
+    if (task) {
+      toastWithUndo('Task deleted', function() {}, function() {
+        state.tasks.push(task); saveState(); renderKanban(); renderDashboard();
+      });
+    } else { showToast('Task deleted'); }
   }));
 }
 function generateAutoStudyPlan() {
@@ -2930,8 +2971,14 @@ function renderNoteList() {
     buildNotePreview(); showToast('Note loaded');
   }));
   qsa('[data-del-note]').forEach(b => b.addEventListener('click', () => {
+    const note = state.notes.find(x => x.id === b.dataset.delNote);
     state.notes = state.notes.filter(x => x.id !== b.dataset.delNote);
-    saveState(); renderNoteList(); showToast('Note deleted');
+    saveState(); renderNoteList();
+    if (note) {
+      toastWithUndo('Note deleted', function() {}, function() {
+        state.notes.push(note); saveState(); renderNoteList();
+      });
+    } else { showToast('Note deleted'); }
   }));
 }
 function renderChartTableFromData() {
@@ -4685,15 +4732,7 @@ function setupSettings() {
     if (pp && state.settings.hideMusic) pp.classList.add('hidden');
   }
   safeCall(function() { applyMusicVisibility(); });
-  $('exportDataBtn').addEventListener('click', () => {
-    const exportState = cloneObj(state);
-    exportState._exportedAt = new Date().toISOString();
-    exportState._version = '1.0';
-    const blob = new Blob([JSON.stringify(exportState, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `studyhub-backup-${todayStr()}.json`; a.click();
-    URL.revokeObjectURL(url); showToast('Data exported to JSON');
-  });
+  $('exportDataBtn').addEventListener('click', exportData);
   $('importDataInput').addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -7899,6 +7938,8 @@ function init() {
     const ib = $('installPwaBtn');
     if (ib) ib.style.display = '';
   });
+  const paletteBtn = $('paletteBtn');
+  if (paletteBtn) paletteBtn.addEventListener('click', () => openCommandPalette());
   const homeBtn = $('homeBtn');
   if (homeBtn) homeBtn.addEventListener('click', () => {
     const ov = $('landingOverlay');
@@ -8967,6 +9008,223 @@ function inlinePrompt(title, placeholder, onDone) {
   input.focus();
 }
 
+// ===== COMMAND PALETTE (Ctrl/Cmd+K) + UNDO-ABLE TOASTS =====
+// Global search across tabs, notes, flashcards, tasks and goals — plus quick
+// actions. Self-contained overlay, no HTML changes needed.
+function openCommandPalette() {
+  var old = document.getElementById('cmdPalette');
+  if (old) { old.remove(); return; }
+  var overlay = document.createElement('div');
+  overlay.id = 'cmdPalette';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', 'Command palette');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:flex-start;justify-content:center;z-index:9998;padding:12vh 16px 16px;';
+  var box = document.createElement('div');
+  box.style.cssText = 'background:var(--panel,#fff);border:1px solid var(--border,#ddd);border-radius:14px;width:100%;max-width:560px;box-shadow:0 18px 60px rgba(0,0,0,0.35);overflow:hidden;';
+  var input = document.createElement('input');
+  input.id = 'cmdPaletteInput';
+  input.placeholder = 'Search tabs, notes, cards, tasks, goals…  (↑↓ to navigate, Enter to open, Esc to close)';
+  input.setAttribute('aria-label', 'Search everything');
+  input.style.cssText = 'width:100%;box-sizing:border-box;padding:14px 16px;font-size:1rem;border:none;border-bottom:1px solid var(--border,#ddd);background:transparent;color:var(--ink);outline:none;';
+  var list = document.createElement('div');
+  list.id = 'cmdPaletteList';
+  list.style.cssText = 'max-height:380px;overflow-y:auto;padding:6px;';
+  box.appendChild(input);
+  box.appendChild(list);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  var items = [];
+  function buildIndex(q) {
+    var query = (q || '').toLowerCase().trim();
+    var out = [];
+    // 1) Tabs — always listed, labelled so they group at the top.
+    [
+      ['dashboard', '🏠', 'Dashboard'], ['planner', '📋', 'Planner'], ['sessions', '⏱️', 'Focus Sessions'],
+      ['flashcards', '🗂️', 'Flashcards'], ['quizzes', '❓', 'Quizzes'], ['recalls', '🔁', 'Recalls'],
+      ['notes', '📝', 'Notes'], ['assignments', '📚', 'Assignments'], ['calendar', '📅', 'Calendar'],
+      ['ai-tutor', '🤖', 'AI Tutor'], ['ai-lessons', '🎓', 'AI Lessons'], ['studyguide', '📖', 'Study Guide'],
+      ['coach', '🧭', 'Study Coach'], ['studyroom', '🖊️', 'Study Room'], ['studymap', '🗺️', 'Study Map'],
+      ['calculator', '🧮', 'Calculator'], ['tutorial', '🎮', 'Tutorial'], ['autism', '🧩', 'Autism & Focus'],
+      ['ai-voice', '🎙️', 'AI Voice'], ['generators', '✨', 'Generators'], ['subjects', '🧪', 'Subjects & Labs'],
+      ['resources', '📦', 'Resources'], ['social', '👥', 'Social / Study Mates'], ['analytics', '📊', 'Analytics'],
+      ['warmup', '🧠', 'Warmup'], ['music', '🎵', 'Music'], ['settings', '⚙️', 'Settings'], ['downloads', '📥', 'Downloads']
+    ].forEach(function(t) {
+      if (!query || (t[1] + ' ' + t[2]).toLowerCase().indexOf(query) >= 0) {
+        out.push({ kind: 'tab', tab: t[0], label: t[2], hint: 'Go to tab', icon: t[1] });
+      }
+    });
+    // 2) Content: notes, flashcards, tasks, goals — only when searching.
+    // Search the FULL lists (no .slice) so older entries are findable too;
+    // the total result list is capped below.
+    if (query) {
+      (state.notes || []).forEach(function(n) {
+        if ((n.title + ' ' + (n.subject || '')).toLowerCase().indexOf(query) >= 0) {
+          out.push({ kind: 'note', id: n.id, label: n.title, hint: 'Note · ' + (n.subject || 'General'), icon: '📝' });
+        }
+      });
+      (state.flashcards || []).forEach(function(f) {
+        if ((f.question + ' ' + (f.deck || '')).toLowerCase().indexOf(query) >= 0) {
+          out.push({ kind: 'flashcard', deck: f.deck, label: f.question, hint: 'Card · ' + (f.deck || 'Deck'), icon: '🗂️' });
+        }
+      });
+      (state.tasks || []).forEach(function(t) {
+        if ((t.title || '').toLowerCase().indexOf(query) >= 0) {
+          out.push({ kind: 'task', id: t.id, label: t.title, hint: 'Task · ' + (t.subject || 'General'), icon: '✅' });
+        }
+      });
+      (state.goals || []).forEach(function(g) {
+        if ((g.title || '').toLowerCase().indexOf(query) >= 0) {
+          out.push({ kind: 'goal', id: g.id, label: g.title, hint: 'Goal · ' + (g.subject || 'General'), icon: '🎯' });
+        }
+      });
+      // 3) Quick actions — require ALL query words to appear in the action,
+      // so "newton" never matches "new task" (word-level match, not prefix).
+      var qWords = query.split(/\s+/).filter(Boolean);
+      ['new task', 'add task', 'create task', 'new note', 'add note', 'new flashcard', 'new card', 'start focus', 'start timer', 'export data', 'dark mode', 'load demo data', 'generate study guide', 'generate plan'].forEach(function(a) {
+        if (qWords.every(function(w) { return a.indexOf(w) >= 0; })) {
+          var act = {
+            'new task': { kind: 'action', act: 'task', label: 'Create a new task', icon: '➕' },
+            'add task': { kind: 'action', act: 'task', label: 'Create a new task', icon: '➕' },
+            'create task': { kind: 'action', act: 'task', label: 'Create a new task', icon: '➕' },
+            'new note': { kind: 'action', act: 'note', label: 'Create a new note', icon: '📝' },
+            'add note': { kind: 'action', act: 'note', label: 'Create a new note', icon: '📝' },
+            'new flashcard': { kind: 'action', act: 'flashcard', label: 'Create a new flashcard', icon: '🗂️' },
+            'new card': { kind: 'action', act: 'flashcard', label: 'Create a new flashcard', icon: '🗂️' },
+            'start focus': { kind: 'action', act: 'focus', label: 'Start a 25-minute focus sprint', icon: '⏱️' },
+            'start timer': { kind: 'action', act: 'focus', label: 'Start a 25-minute focus sprint', icon: '⏱️' },
+            'export data': { kind: 'action', act: 'export', label: 'Export all data', icon: '💾' },
+            'dark mode': { kind: 'action', act: 'dark', label: 'Toggle dark mode', icon: '🌙' },
+            'load demo data': { kind: 'action', act: 'demo', label: 'Load demo data', icon: '⚡' },
+            'generate study guide': { kind: 'action', act: 'guide', label: 'Generate a study guide', icon: '📖' },
+            'generate plan': { kind: 'action', act: 'plan', label: 'Generate a study plan', icon: '📋' }
+          }[a];
+          if (act && !out.some(function(o) { return o.kind === 'action' && o.act === act.act; })) out.push(act);
+        }
+      });
+    }
+    return out.slice(0, 40);
+  }
+
+  function run(item) {
+    overlay.remove();
+    if (!item) return;
+    if (item.kind === 'tab') { showTab(item.tab); }
+    else if (item.kind === 'note') {
+      showTab('notes');
+      var n = state.notes.find(function(x) { return x.id === item.id; });
+      if (n) {
+        $('noteId').value = n.id; $('noteTitle').value = n.title; $('noteSubject').value = n.subject; $('noteTags').value = n.tags || '';
+        qsa('.note-style-btn').forEach(function(x) { x.classList.remove('active'); });
+        var sb = qs('.note-style-btn[data-note-style="' + n.style + '"]');
+        if (sb) sb.classList.add('active');
+        var te = $('noteContent');
+        if (te) te.value = n.content || '';
+        if (typeof updateNotePreview === 'function') updateNotePreview();
+      }
+    }
+    else if (item.kind === 'flashcard') { showTab('flashcards'); var d = $('fcDeckFilter'); if (d && item.deck) { d.value = item.deck; } if (typeof renderFlashcardStudy === 'function') renderFlashcardStudy(); }
+    else if (item.kind === 'task') { showTab('planner'); }
+    else if (item.kind === 'goal') { showTab('planner'); }
+    else if (item.kind === 'action') {
+      if (item.act === 'task') { showTab('planner'); if (typeof inlinePrompt === 'function') inlinePrompt('New Task', 'Task title', function(v) { if (v && v.trim()) { addTaskFromAnywhere(v.trim()); } }); }
+      else if (item.act === 'note') { showTab('notes'); var t = $('noteTitle'); if (t) t.focus(); }
+      else if (item.act === 'flashcard') { showTab('flashcards'); var ti = $('newCardQuestion'); if (ti) ti.focus(); }
+      else if (item.act === 'focus') { showTab('sessions'); var sp = $('startPauseTimerBtn'); if (sp) sp.click(); }
+      else if (item.act === 'export') { if (typeof exportData === 'function') exportData(); else if (typeof downloadExport === 'function') downloadExport(); }
+      else if (item.act === 'dark') { if (typeof toggleDarkMode === 'function') toggleDarkMode(); else { state.settings.darkMode = !state.settings.darkMode; saveState(); if (typeof applyAppearance === 'function') applyAppearance(); } }
+      else if (item.act === 'demo') { if (typeof loadDemoData === 'function') loadDemoData(); }
+      else if (item.act === 'guide') { showTab('studyguide'); var g = $('sgTopic'); if (g) g.focus(); }
+      else if (item.act === 'plan') { showTab('studyguide'); var p = $('spSubject'); if (p) p.focus(); }
+    }
+  }
+
+  function render(filtered) {
+    list.innerHTML = '';
+    items = filtered;
+    if (!items.length) {
+      var none = document.createElement('div');
+      none.textContent = 'No matches — try a tab name ("notes"), content ("photosynthesis"), or action ("new task").';
+      none.style.cssText = 'padding:16px;color:var(--muted,#666);font-size:0.85rem;';
+      list.appendChild(none);
+      return;
+    }
+    var sel = 0;
+    items.forEach(function(it, i) {
+      var row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'cmd-palette-row' + (i === sel ? ' selected' : '');
+      row.textContent = it.icon + '  ' + it.label;
+      row.title = it.hint || '';
+      row.addEventListener('mouseenter', function() { qsa('.cmd-palette-row').forEach(function(r, j) { r.classList.toggle('selected', j === i); }); });
+      row.addEventListener('click', function() { run(it); });
+      var hint = document.createElement('span');
+      hint.className = 'cmd-palette-hint';
+      hint.textContent = it.hint || '';
+      row.appendChild(hint);
+      list.appendChild(row);
+    });
+    function setSel(i) {
+      sel = Math.max(0, Math.min(items.length - 1, i));
+      qsa('.cmd-palette-row').forEach(function(r, j) { r.classList.toggle('selected', j === sel); });
+      var el = qsa('.cmd-palette-row')[sel];
+      if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+    }
+    input.onkeydown = function(e) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setSel(sel + 1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); setSel(sel - 1); }
+      else if (e.key === 'Enter') { e.preventDefault(); if (items[sel]) run(items[sel]); }
+      else if (e.key === 'Escape') { overlay.remove(); }
+    };
+  }
+
+  input.addEventListener('input', function() { render(buildIndex(input.value)); });
+  input.addEventListener('keydown', function(e) { if (e.key === 'Escape') overlay.remove(); });
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+  render(buildIndex(''));
+  input.focus();
+}
+
+// Add a task from the command palette (works even when the planner form differs).
+function addTaskFromAnywhere(title) {
+  try {
+    if (typeof addTask === 'function') { addTask(title); return; }
+  } catch (e) {}
+  state.tasks.push({ id: uid(), title: title, status: 'todo', due: todayStr(), subject: 'General', createdAt: todayStr() });
+  saveState();
+  if (typeof renderKanban === 'function') renderKanban();
+  if (typeof renderDashboard === 'function') renderDashboard();
+  showToast('Task added: ' + title);
+}
+
+// Undo-able delete toast: shows an Undo button for 6s, then runs `commit`.
+// If another toast arrives first (e.g. cloud sync), showToast re-attaches the
+// Undo button rather than destroying it.
+function toastWithUndo(message, commit, undo) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  if (__undoPending) clearTimeout(__undoPending.timer);
+  __undoPending = {
+    undo: undo,
+    timer: setTimeout(function() {
+      __undoPending = null;
+      el.classList.add('hidden');
+      if (typeof commit === 'function') commit();
+    }, 6000)
+  };
+  showToast(message);
+  attachUndoButton(el);
+}
+
+// Wire Ctrl/Cmd+K globally to the palette.
+document.addEventListener('keydown', function(e) {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    openCommandPalette();
+  }
+});
+
 function setupGenerators() {
   // ---- Interactive Mind Map (with explanations and more interactiveness) ----
   var mapBtn = $('genMapBtn'), mapTopic = $('genMapTopic'), mapCanvas = $('genMapCanvas');
@@ -9163,6 +9421,9 @@ function setupGenerators() {
   }
   // Offline fallback: builds a useful mind map without the network.
   function fallbackMindMap(topic) {
+    // Prefer the built-in knowledge base so common topics get REAL content.
+    var kb = kbMindMap(topic);
+    if (kb) { parseMindMap(kb); renderMindMap(); return; }
     var branches = [
       'Definition — what is it exactly?',
       'Key parts — the pieces that make it up',
@@ -9634,6 +9895,134 @@ function offlineExplain(topic, area) {
 
 function offlineMindMapText(topic) {
   return topic + '\n- What is it — define ' + topic + ' in one sentence\n  - Key parts\n  - How it fits together\n- How it works — trace the steps\n  - Step 1: start simple\n  - Step 2: follow the cause-and-effect chain\n- Examples — real cases\n  - One from class\n  - One from daily life\n- Why it matters\n  - Connect to other topics you are learning\n- Study tips\n  - Teach it to someone\n  - Quiz yourself tonight';
+}
+
+// Built-in knowledge base used by offline generators so common school topics
+// get REAL content (not templates) even when the AI proxy is unreachable.
+// Format matches parseMindMap: first line = center, "- " = branch, deeper
+// indentation = deeper level. Keywords map many phrasings to one entry.
+const TOPIC_KB = {
+  photosynthesis: {
+    keys: ['photosynth', 'plants make food'],
+    map: 'Photosynthesis\n- Light reactions — capture sunlight in the thylakoid membranes\n  - Chlorophyll absorbs red + blue light, reflects green\n  - Water splits, releasing oxygen as a byproduct\n  - Produces ATP and NADPH (energy carriers)\n- Calvin cycle — builds sugar in the stroma\n  - Carbon fixation: CO2 joins RuBP\n  - Uses ATP + NADPH from the light reactions\n  - Produces G3P, which becomes glucose\n- Pigments\n  - Chlorophyll a and b\n  - Carotenoids (orange/yellow, help in low light)\n- Equation\n  6CO2 + 6H2O + light -> C6H12O6 + 6O2\n- Environmental factors\n  - Light intensity, CO2 level, temperature, water\n- Why it matters\n  - Base of almost every food chain\n  - Produces the oxygen we breathe'
+  },
+  cellularrespiration: {
+    keys: ['cellular respir', 'cell respir', 'respiration'],
+    map: 'Cellular Respiration\n- Glycolysis — in the cytoplasm\n  - Glucose splits into 2 pyruvate\n  - Nets 2 ATP + 2 NADH, no oxygen needed\n- Krebs cycle (citric acid) — in the mitochondria\n  - Pyruvate converted to acetyl-CoA\n  - Produces NADH, FADH2, and 2 ATP\n- Electron transport chain — inner mitochondrial membrane\n  - NADH/FADH2 drop electrons, pump protons\n  - ATP synthase makes ~34 ATP per glucose\n  - Oxygen is the final electron acceptor (forms water)\n- Equation\n  C6H12O6 + 6O2 -> 6CO2 + 6H2O + ~38 ATP\n- Why it matters\n  - Turns food into usable energy (ATP)\n  - Works with photosynthesis in the carbon cycle'
+  },
+  mitosis: {
+    keys: ['mitosis', 'cell division', 'cell cycle'],
+    map: 'Mitosis\n- Interphase — preparation\n  - G1: cell grows, makes proteins\n  - S: DNA replicates (chromosomes become sister chromatids)\n  - G2: final checks and growth\n- Prophase\n  - Chromosomes condense and become visible\n  - Spindle fibers form\n- Metaphase\n  - Chromosomes line up at the equator (metaphase plate)\n- Anaphase\n  - Sister chromatids separate to opposite poles\n- Telophase + cytokinesis\n  - Two new nuclei form; cytoplasm splits\n  - Result: 2 identical diploid daughter cells\n- Why it matters\n  - Growth and repair of tissues\n  - Uncontrolled mitosis = cancer'
+  },
+  meiosis: {
+    keys: ['meiosis', 'gamete'],
+    map: 'Meiosis\n- Meiosis I — reduction division\n  - Prophase I: homologous chromosomes pair (crossing over swaps DNA)\n  - Metaphase I: pairs line up; independent assortment shuffles traits\n  - Anaphase I: homologs separate (chromosome number halves)\n- Meiosis II — like mitosis, no DNA replication first\n  - Sister chromatids separate\n  - Produces 4 haploid cells\n- Result\n  - 4 genetically unique gametes (sperm/egg)\n- Genetic variation\n  - Crossing over, independent assortment, fertilization\n- Why it matters\n  - Sexual reproduction\n  - Source of genetic diversity'
+  },
+  newtonlaws: {
+    keys: ['newton', 'newton\'s law', 'laws of motion'],
+    map: 'Newton\'s Laws of Motion\n- First law — inertia\n  - Objects keep moving (or stay still) unless a net force acts\n  - Example: passengers lurch forward when a bus stops\n- Second law — F = ma\n  - Force = mass x acceleration\n  - Same force on lighter object = bigger acceleration\n- Third law — action/reaction\n  - Every force has an equal, opposite force\n  - Example: rocket pushes gas down, gas pushes rocket up\n- Applying them\n  - Friction, gravity, and normal force combine\n  - Draw free-body diagrams to find net force\n- Why it matters\n  - Basis of engineering, rockets, cars, sports'
+  },
+  watercycle: {
+    keys: ['water cycle', 'hydrologic'],
+    map: 'The Water Cycle\n- Evaporation\n  - Sun heats water, liquid becomes vapor\n  - Most from oceans\n- Transpiration\n  - Plants release water vapor from leaves\n- Condensation\n  - Water vapor cools and forms clouds\n- Precipitation\n  - Rain, snow, sleet, hail falls to Earth\n- Runoff + infiltration\n  - Water flows over land to rivers/lakes, or soaks into groundwater\n- Why it matters\n  - Moves water and heat around the planet\n  - Drives weather and climate patterns'
+  },
+  periodic: {
+    keys: ['periodic table', 'periodic'],
+    map: 'The Periodic Table\n- Structure\n  - Rows = periods (energy levels)\n  - Columns = groups (same valence electrons, similar properties)\n- Key groups\n  - Group 1 alkali metals: reactive, 1 valence electron\n  - Group 18 noble gases: stable, full outer shell\n  - Transition metals: middle block, many uses\n- Reading an element\n  - Atomic number = protons\n  - Atomic mass, symbol, name\n- Trends\n  - Electronegativity and ionization energy increase up-right\n  - Atomic radius increases down-left\n- Why it matters\n  - Predicts reactions and bonding\n  - Organizes all known matter'
+  },
+  dna: {
+    keys: ['dna', 'genetics', 'genes'],
+    map: 'DNA\n- Structure — double helix\n  - Sugar-phosphate backbone on the outside\n  - Nitrogen bases pair inside: A-T, C-G\n  - Hydrogen bonds hold the pairs\n- Replication\n  - Helicase unzips the helix\n  - Polymerase adds complementary bases\n  - Result: 2 identical double helices\n- Genes and proteins\n  - DNA -> RNA (transcription) -> protein (translation)\n  - Codons (3 bases) code for amino acids\n- Mutations\n  - Changes in the sequence\n  - Can be neutral, harmful, or beneficial\n- Why it matters\n  - Heredity — traits pass from parent to child\n  - Basis of medicine, forensics, biotech'
+  },
+  evolution: {
+    keys: ['evolution', 'natural selection', 'darwin'],
+    map: 'Evolution by Natural Selection\n- Variation\n  - Individuals in a population differ\n  - Variation comes from mutations + sexual reproduction\n- Overproduction\n  - More offspring than can survive\n- Competition + survival\n  - Individuals with helpful traits survive and reproduce\n- Inheritance\n  - Helpful traits pass to offspring\n- Evidence\n  - Fossils, homologous structures, DNA, observed in labs\n- Speciation\n  - Populations separated long enough become new species\n- Why it matters\n  - Explains the diversity of life\n  - Basis of modern biology and medicine'
+  },
+  ecosystems: {
+    keys: ['ecosystem', 'food web', 'biome'],
+    map: 'Ecosystems\n- Energy flow\n  - Producers (plants) capture sunlight\n  - Consumers eat producers and each other\n  - Decomposers recycle nutrients\n- Food chains and webs\n  - Arrows show energy direction: plant -> herbivore -> carnivore\n  - About 10% of energy passes to each level\n- Nutrient cycles\n  - Carbon, nitrogen, water cycles\n- Biomes\n  - Tundra, forest, desert, grassland, aquatic\n- Threats\n  - Habitat loss, pollution, invasive species, climate change\n- Why it matters\n  - We depend on ecosystems for food, air, water'
+  },
+  quadratic: {
+    keys: ['quadratic', 'quadratics'],
+    map: 'Quadratic Equations\n- Standard form\n  ax^2 + bx + c = 0\n  - a, b, c are constants; a ≠ 0\n- Solutions\n  - Up to 2 real roots (x-intercepts)\n  - Discriminant b^2 - 4ac tells how many\n- Factoring\n  - Find two numbers that multiply to ac, add to b\n  - Set each factor to zero\n- Quadratic formula\n  x = (-b ± sqrt(b^2 - 4ac)) / 2a\n  - Works for every quadratic\n- Completing the square\n  - Rewrite as (x - h)^2 = k\n  - Reveals the vertex\n- Graph — parabola\n  - Vertex at x = -b/2a\n  - Opens up if a > 0, down if a < 0\n- Why it matters\n  - Physics: projectile motion, gravity'
+  },
+  pythagorean: {
+    keys: ['pythagor', 'right triangle'],
+    map: 'Pythagorean Theorem\n- The rule\n  a^2 + b^2 = c^2\n  - a, b = legs of a right triangle\n  - c = hypotenuse (longest side, opposite the right angle)\n- Finding a missing side\n  - Hypotenuse: c = sqrt(a^2 + b^2)\n  - Leg: a = sqrt(c^2 - b^2)\n- Pythagorean triples\n  - 3-4-5, 5-12-13, 8-15-17 (whole-number sides)\n- Proof idea\n  - Area of squares on each side; big square = sum of two\n- Applications\n  - Distance between points: d = sqrt((x2-x1)^2 + (y2-y1)^2)\n  - Construction, navigation, screens sizes\n- Why it matters\n  - Gateway to trigonometry and geometry'
+  },
+  fractions: {
+    keys: ['fraction', 'fractions'],
+    map: 'Fractions\n- Parts of a fraction\n  - Numerator (top) = how many parts\n  - Denominator (bottom) = how many total\n- Equivalent fractions\n  - Multiply or divide top and bottom by the same number\n- Adding / subtracting\n  - Get a common denominator first\n  - Keep the denominator, add the numerators\n- Multiplying\n  - Top x top, bottom x bottom, then simplify\n- Dividing\n  - Flip the second fraction, then multiply\n- Simplifying\n  - Divide top and bottom by their greatest common factor\n- Why it matters\n  - Recipes, measurements, money, probability'
+  },
+  ww2: {
+    keys: ['world war 2', 'world war ii', 'wwii', 'ww2', 'second world war'],
+    map: 'World War II\n- Causes\n  - Treaty of Versailles resentment, Great Depression\n  - Rise of fascism (Hitler, Mussolini)\n  - Expansion: Japan in Asia, Germany in Europe\n- Major events\n  - 1939: Germany invades Poland — war begins\n  - 1941: Pearl Harbor; Germany invades USSR\n  - 1944: D-Day — Allies land in Normandy\n  - 1945: atomic bombs on Hiroshima and Nagasaki\n- Allies vs Axis\n  - Allies: UK, USSR, USA, China, Free France\n  - Axis: Germany, Italy, Japan\n- Home front\n  - Rationing, women in factories, propaganda\n- Holocaust\n  - Systematic murder of ~6 million Jews and millions of others\n- Aftermath\n  - United Nations founded\n  - Cold War begins; decolonization accelerates'
+  },
+  coldwar: {
+    keys: ['cold war'],
+    map: 'The Cold War\n- Ideological clash\n  - Capitalism (USA) vs communism (USSR)\n  - No direct large-scale fighting — proxy wars instead\n- Key moments\n  - Berlin blockade + airlift (1948-49)\n  - Cuban missile crisis (1962) — closest to nuclear war\n  - Vietnam and Korean wars as proxy conflicts\n  - Space race: Sputnik, Apollo 11\n- Arms race\n  - Nuclear deterrence: MAD (mutually assured destruction)\n- Fall of communism\n  - 1989: Berlin Wall falls\n  - 1991: Soviet Union dissolves\n- Why it matters\n  - Shaped modern borders, alliances (NATO), and tech'
+  },
+  americanrev: {
+    keys: ['american revolution', 'revolutionary war'],
+    map: 'The American Revolution\n- Causes\n  - Taxation without representation (Stamp Act, Tea Act)\n  - Enlightenment ideas: rights, consent\n- Key events\n  - 1775: Lexington and Concord — first shots\n  - 1776: Declaration of Independence signed\n  - 1777: Saratoga — turning point (French support)\n  - 1781: Yorktown — British surrender\n- Key figures\n  - George Washington, Thomas Jefferson, Benjamin Franklin\n- Ideas\n  - Life, liberty, and the pursuit of happiness\n  - Government by consent of the governed\n- Aftermath\n  - 1783: Treaty of Paris recognizes independence\n  - U.S. Constitution + Bill of Rights follow'
+  },
+  frenchrev: {
+    keys: ['french revolution'],
+    map: 'The French Revolution\n- Causes\n  - Extreme inequality: estates system (clergy, nobility, everyone else)\n  - Financial crisis, famine, Enlightenment ideas\n- Key events\n  - 1789: Storming of the Bastille (July 14)\n  - 1789: Declaration of the Rights of Man\n  - 1793-94: Reign of Terror (Robespierre)\n  - 1799: Napoleon takes power\n- Key ideas\n  - Liberty, equality, fraternity\n- Results\n  - End of absolute monarchy\n  - Spread of nationalism and democratic ideals across Europe\n- Why it matters\n  - Template for modern revolutions and human rights'
+  },
+  essay: {
+    keys: ['essay', 'essay writing', 'writing an essay'],
+    map: 'Essay Writing\n- Structure — three parts\n  - Introduction: hook, context, thesis statement\n  - Body: paragraphs, each with one main idea + evidence\n  - Conclusion: restate thesis, synthesize, leave an idea\n- Thesis statement\n  - One arguable claim that answers the prompt\n- Body paragraphs — TEEL\n  - Topic sentence, Evidence, Explanation, Link\n- Transitions\n  - Connect paragraphs: however, therefore, in contrast\n- Revision\n  - Read aloud; check clarity, flow, and word choice\n  - Cut weak words, vary sentence length\n- Why it matters\n  - Shows thinking clearly — used in school, work, life'
+  },
+  literarydevices: {
+    keys: ['literary devices', 'figurative language', 'rhetorical devices'],
+    map: 'Literary Devices\n- Sound devices\n  - Alliteration: repeated starting sounds (\'silly snakes\')\n  - Onomatopoeia: words that sound like meaning (\'buzz\')\n  - Assonance: repeated vowel sounds\n- Figurative language\n  - Simile: like/as (\'brave as a lion\')\n  - Metaphor: direct comparison (\'time is a thief\')\n  - Personification: human traits to objects\n  - Hyperbole: extreme exaggeration\n- Structure devices\n  - Foreshadowing, irony (dramatic/verbal/situational)\n  - Symbolism: objects carrying deeper meaning\n- Why they matter\n  - Create imagery, mood, and meaning\n  - Spot them when analyzing any text'
+  },
+  shakespeare: {
+    keys: ['shakespeare', 'romeo and juliet', 'hamlet', 'macbeth'],
+    map: 'Shakespeare\n- His world\n  - Elizabethan England, Globe Theatre\n  - Plays for all classes — groundlings to nobility\n- Genres\n  - Tragedies (Hamlet, Macbeth, Romeo and Juliet)\n  - Comedies (A Midsummer Night\'s Dream, Twelfth Night)\n  - Histories (Henry V, Richard III)\n- Language\n  - Iambic pentameter: 10 syllables, unstressed-stressed\n  - Soliloquy: character speaks thoughts alone\n  - Blank verse vs prose (high vs low status)\
+- Themes\n  - Love, power, ambition, fate vs free will, appearance vs reality\n- Why he endures\n  - Universal human conflicts\n  - Coined hundreds of words and phrases still in use'
+  },
+  nutrition: {
+    keys: ['nutrition', 'healthy eating', 'balanced diet'],
+    map: 'Nutrition\n- Macronutrients\n  - Carbohydrates: main energy source\n  - Proteins: building blocks, muscle and repair\n  - Fats: energy storage, hormones, cell membranes\n- Micronutrients\n  - Vitamins (A, C, D, B12...) and minerals (iron, calcium)\n- Balanced plate\n  - Half vegetables and fruit\n  - Quarter protein, quarter whole grains\n- Hydration\n  - Water regulates temperature and digestion\n- Reading labels\n  - Serving size, added sugar, sodium, saturated fat\n- Why it matters\n  - Fuels learning, energy, and long-term health'
+  },
+  bodysystems: {
+    keys: ['body systems', 'human body', 'organ systems', 'circulatory'],
+    map: 'Human Body Systems\n- Circulatory\n  - Heart pumps blood; arteries carry away, veins return\n  - Delivers oxygen and nutrients, removes waste\n- Respiratory\n  - Lungs exchange O2 and CO2 at alveoli\n- Digestive\n  - Mouth -> stomach -> small intestine (absorbs) -> large intestine\n- Nervous\n  - Brain + spinal cord + nerves; neurons send electrical signals\n- Skeletal + muscular\n  - Bones support; muscles pull on bones to move\n- Immune\n  - White blood cells and antibodies fight pathogens\n- Why it matters\n  - Systems work together to keep you alive and healthy'
+  },
+  climate: {
+    keys: ['climate change', 'global warming'],
+    map: 'Climate Change\n- The greenhouse effect\n  - CO2, methane, and water vapor trap heat\n  - Natural, but human emissions are adding more\n- Causes\n  - Burning fossil fuels, deforestation, agriculture\n- Effects\n  - Rising global temperatures and sea levels\n  - More extreme weather: heatwaves, floods, droughts\n  - Habitat loss and species shifts\n- Solutions\n  - Renewable energy (solar, wind)\n  - Energy efficiency, public transit, reforestation\n- Why it matters\n  - Affects food, water, health, and every ecosystem'
+  },
+  binary: {
+    keys: ['binary', 'binary numbers', 'base 2'],
+    map: 'Binary Numbers\n- What it is\n  - Base-2: digits 0 and 1 only\n  - Computers store everything as bits (0/1)\n- Place values\n  - Powers of 2: 1, 2, 4, 8, 16, 32...\n- Converting\n  - 1010 = 8 + 0 + 2 + 0 = 10\n  - 1101 = 8 + 4 + 0 + 1 = 13\n- Bytes\n  - 8 bits = 1 byte (0-255)\n  - Text, images, sound are all encoded in bytes\n- Why it matters\n  - Foundation of all computing'
+  },
+  spanish: {
+    keys: ['spanish', 'español'],
+    map: 'Spanish Basics\n- Greetings\n  - Hola (hello), Buenos días (good morning), Adiós (goodbye)\n  - ¿Cómo estás? (how are you?), Muy bien (very well)\n- Pronouns\n  - Yo, tú, él/ella, nosotros, ellos/ellas\n- Verbs\n  - Ser vs estar (permanent vs temporary)\n  - Common -ar verbs: hablar, comer (-er), vivir (-ir)\n- Question words\n  - Qué, quién, dónde, cuándo, por qué, cómo\n- Numbers\n  - Uno, dos, tres, cuatro, cinco...\n- Practice tips\n  - Label your room in Spanish, talk to yourself daily'
+  },
+  french: {
+    keys: ['french', 'français'],
+    map: 'French Basics\n- Greetings\n  - Bonjour (hello), Merci (thank you), Au revoir (goodbye)\n  - Comment ça va? (how are you?), Ça va bien (I\'m well)\n- Pronouns\n  - Je, tu, il/elle, nous, vous, ils/elles\n- Verbs\n  - Être and avoir are essential helpers\n  - Regular -er verbs: parler, manger\n- Question words\n  - Quoi, qui, où, quand, pourquoi, comment\n- Numbers\n  - Un, deux, trois, quatre, cinq...\n- Practice tips\n  - Set your phone to French, narrate your day'
+  }
+};
+
+// Best-effort KB lookup for offline mind maps: matches the topic string
+// against entry keys (also inside topic names). Returns the raw map text or null.
+function kbMindMap(topic) {
+  if (!topic) return null;
+  const t = topic.toLowerCase().trim();
+  let best = null, bestLen = 0;
+  Object.keys(TOPIC_KB).forEach(function(key) {
+    const e = TOPIC_KB[key];
+    const hits = [key, ...(e.keys || [])].filter(function(k) {
+      return k.length >= 4 && (t.indexOf(k) >= 0 || k.indexOf(t) >= 0);
+    });
+    if (hits.length && hits[0].length > bestLen) { best = e.map; bestLen = hits[0].length; }
+  });
+  return best;
 }
 
 function offlineQuiz(topic, subject, level, count, type) {

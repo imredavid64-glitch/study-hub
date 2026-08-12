@@ -24,7 +24,12 @@ const constRe = /const EST_LETTERS = \[[\s\S]*?\n\];/;
 const constM = appJs.match(constRe);
 assert.ok(constM && constM[0], 'found EST_LETTERS const');
 vm.runInContext(constM[0], sandbox);
-const fns = ['estLetter', 'estRecencyWeight', 'computeExamEstimate', 'computePredictionStats', 'computeAtRiskAdditions', 'estimateCalibration'];
+// Offline knowledge base + lookup for the mind-map generator.
+const kbRe = /const TOPIC_KB = \{[\s\S]*?\n\};/;
+const kbM = appJs.match(kbRe);
+assert.ok(kbM && kbM[0], 'found TOPIC_KB const');
+vm.runInContext(kbM[0], sandbox);
+const fns = ['estLetter', 'estRecencyWeight', 'computeExamEstimate', 'computePredictionStats', 'computeAtRiskAdditions', 'estimateCalibration', 'kbMindMap'];
 for (const fn of fns) {
   const re = new RegExp('function ' + fn + '\\b[\\s\\S]*?\\n\\}', 'm');
   const m = appJs.match(re);
@@ -225,5 +230,17 @@ calibState.estimatorTrack = track2; // bias +10 → offset −5
 const cal = sandbox.computeExamEstimate(calibState);
 ok(cal.calib === -5, 'estimate exposes its calibration offset');
 ok(cal.overall <= raw.overall, 'calibrated estimate is not higher than raw (' + cal.overall + ' vs ' + raw.overall + ')');
+
+// Topic knowledge base: real content for common topics, null for unknown.
+assert.ok(typeof sandbox.kbMindMap === 'function', 'kbMindMap loaded');
+const kbP = sandbox.kbMindMap('Photosynthesis');
+ok(kbP && kbP.indexOf('Calvin cycle') >= 0, 'KB photosynthesis → Calvin cycle content');
+ok(kbP && kbP.indexOf('Light reactions') >= 0, 'KB photosynthesis → light reactions');
+const kbMit = sandbox.kbMindMap('mitosis');
+ok(kbMit && kbMit.indexOf('Interphase') >= 0, 'KB mitosis → interphase content');
+const kbWw = sandbox.kbMindMap('World War II');
+ok(kbWw && kbWw.indexOf('Pearl Harbor') >= 0, 'KB ww2 → Pearl Harbor content');
+const kbN = sandbox.kbMindMap('completely made up topic xyz');
+ok(kbN === null, 'KB unknown topic → null (falls back to template)');
 
 console.log(`\nexam grade estimator: ${passed} assertions passed`);
