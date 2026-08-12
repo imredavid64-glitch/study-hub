@@ -11,6 +11,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getWindowTab: () => ipcRenderer.invoke('get-window-tab'),
   // Session-memory opt-in (window arrangement + per-window tabs).
   notifySessionMemory: (enabled) => ipcRenderer.send('session-memory-changed', enabled),
+  // One-click updater: ask main to download + verify + open the installer for
+  // this platform, with live progress events back to the renderer.
+  downloadUpdate: (opts) => ipcRenderer.invoke('download-update', opts),
+  onUpdateProgress: (cb) => ipcRenderer.on('update-download-progress', (_event, d) => cb(d)),
+  getAppFingerprint: () => ipcRenderer.invoke('get-app-fingerprint'),
   platform: process.platform,
   isElectron: true
 });

@@ -99,6 +99,17 @@ if (!/checkForUpdates/.test(js) || !/showUpdateBanner/.test(js) || !/compareVers
 if (!/id="pwaChecksumList"/.test(html)) fails.push('Downloads tab has no pwaChecksumList container');
 if (!/loadPwaChecksums/.test(js) || !/PWA_INTEGRITY_FILES/.test(js)) fails.push('app.js is missing the PWA checksum loader');
 
+// 13. One-click updater must be wired end to end (renderer → preload → main),
+//    with periodic polling and About-dialog self-checksums.
+const updaterJs = fs.readFileSync(path.join(ROOT, 'electron-updater-core.js'), 'utf8');
+if (!/runUpdaterFlow/.test(js)) fails.push('app.js has no runUpdaterFlow updater');
+if (!/UPDATE_POLL_MS/.test(js)) fails.push('app.js has no periodic update polling');
+if (!/download-update/.test(mainJs)) fails.push('electron-main.js has no download-update IPC handler');
+if (!/get-app-fingerprint/.test(mainJs)) fails.push('electron-main.js has no get-app-fingerprint IPC');
+if (!/downloadUpdate/.test(preloadJs) || !/onUpdateProgress/.test(preloadJs) || !/getAppFingerprint/.test(preloadJs)) fails.push('electron-preload.js is missing updater APIs');
+if (!/electron-updater-core/.test(mainJs)) fails.push('electron-main.js does not use the updater core module');
+if (!/verifySha256/.test(updaterJs) || !/pickInstallerAsset/.test(updaterJs)) fails.push('electron-updater-core.js is missing its helpers');
+
 // 9. Window-position memory must be wired into the main process and be
 //    unit-tested (electron-window-state.js is loaded by npm test).
 const winStateJs = fs.readFileSync(path.join(ROOT, 'electron-window-state.js'), 'utf8');

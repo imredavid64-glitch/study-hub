@@ -1,7 +1,9 @@
-const { app, BrowserWindow, Menu, shell, dialog, ipcMain, nativeTheme, screen } = require('electron');
+const { app, BrowserWindow, Menu, shell, dialog, ipcMain, nativeTheme, screen, net } = require('electron');
+const fs = require('fs');
 const path = require('path');
 const { LAYOUT_SUBMENU, setWindowAccessor, syncMenuState, layoutTitleSuffix } = require('./electron-menu');
 const { defaultBounds, sanitizeBounds, loadSessionState, loadWindowState, saveWindowState, recordWindow } = require('./electron-window-state');
+const { sha256Hex, verifySha256, pickInstallerAsset, formatProgress } = require('./electron-updater-core');
 
 let mainWindow;
 const windows = new Set();
@@ -173,12 +175,24 @@ function createWindow() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+// sha256 of a file inside the app bundle (Electron's fs reads through asar
+// transparently, so the packaged app.js/index.html are readable here).
+function appFileSha256(rel) {
+  try {
+    return sha256Hex(fs.readFileSync(path.join(__dirname, rel)));
+  } catch (e) {
+    return 'unavailable';
+  }
+}
+
 function showAbout() {
+  const appJs = appFileSha256('app.js');
+  const indexHtml = appFileSha256('index.html');
   dialog.showMessageBox(mainWindow, {
     type: 'info',
     title: 'About Study Hub',
-    message: 'Study Hub v1.0.0',
-    detail: 'Plan smarter. Practice deeper. Improve daily.\n\nBuilt with Electron + Web Technologies.\nGitHub: https://github.com/imredavid64-glitch/study-hub',
+    message: 'Study Hub v' + app.getVersion(),
+    detail: 'Plan smarter. Practice deeper. Improve daily.\n\nBuilt with Electron + Web Technologies.\nGitHub: https://github.com/imredavid64-glitch/study-hub\n\nBuild fingerprints (sha256):\napp.js:    ' + appJs + '\nindex.html: ' + indexHtml + '\n\nCompare these against the Web app (PWA) integrity panel on the Downloads tab to verify this build.',
     buttons: ['OK']
   });
 }
@@ -201,6 +215,80 @@ app.on('web-contents-created', (_event, contents) => {
 
 ipcMain.handle('get-app-version', () => app.getVersion());
 ipcMain.handle('get-app-path', () => app.getAppPath());
+// Self-checksum for the About dialog / Downloads integrity panel.
+ipcMain.handle('get-app-fingerprint', () => ({ appJs: appFileSha256('app.js'), indexHtml: appFileSha256('index.html') }));
+
+// ---- One-click updater ----
+let activeDownload = null;
+
+// Download a URL to disk with progress (Chromium's net module follows the
+// GitHub release redirects automatically).
+function downloadTo(url, target, onProgress) {
+  return new Promise((resolve, reject) => {
+    const req = net.request(url);
+    req.on('response', (res) => {
+      if (res.statusCode >= 400) {
+        reject(new Error('HTTP ' + res.statusCode));
+        return;
+      }
+      const total = parseInt(res.headers['content-length'] || '0', 10) || 0;
+      const ws = fs.createWriteStream(target);
+      let received = 0;
+      res.on('data', (chunk) => {
+        received += chunk.length;
+        ws.write(chunk);
+        if (onProgress) onProgress(received, total);
+      });
+      res.on('end', () => ws.end(() => resolve({ target, received, total })));
+      res.on('error', (e) => { ws.destroy(); try { fs.unlinkSync(target); } catch (e2) {} reject(e); });
+    });
+    req.on('error', (e) => { try { fs.unlinkSync(target); } catch (e2) {} reject(e); });
+    req.end();
+  });
+}
+
+// Verify + open the downloaded installer for the current platform. The file is
+// only ever opened after its sha256 matches the release digest, and nothing is
+// executed directly (macOS mounts the dmg, Windows reveals the zip, Linux
+// chmods + opens the AppImage for the user to run).
+function openInstallerForPlatform(target) {
+  if (process.platform === 'darwin') return shell.openPath(target);
+  if (process.platform === 'win32') return shell.showItemInFolder(target);
+  try { fs.chmodSync(target, 0o755); } catch (e) {}
+  return shell.openPath(target);
+}
+
+ipcMain.handle('download-update', async (event, opts) => {
+  if (!opts || !opts.release) return { ok: false, error: 'No release payload' };
+  if (activeDownload) return { ok: false, error: 'A download is already in progress' };
+  // Pick the installer for THIS platform and refuse to proceed without one.
+  const asset = pickInstallerAsset(opts.release, process.platform);
+  if (!asset) return { ok: false, error: 'No installer published for this platform yet' };
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const progress = (received, total) => {
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('update-download-progress', { received, total, text: formatProgress(received, total) });
+    }
+  };
+  activeDownload = true;
+  const ext = process.platform === 'darwin' ? 'dmg' : process.platform === 'win32' ? 'zip' : 'AppImage';
+  const target = path.join(app.getPath('downloads'), 'Study-Hub-' + (opts.version || 'update') + '.' + ext);
+  try {
+    await downloadTo(asset.browser_download_url, target, progress);
+    const buf = fs.readFileSync(target);
+    if (!verifySha256(buf, asset.digest)) {
+      try { fs.unlinkSync(target); } catch (e) {}
+      return { ok: false, error: 'Checksum mismatch — download discarded for safety' };
+    }
+    const opened = await openInstallerForPlatform(target);
+    return { ok: true, path: target, opened: !opened };
+  } catch (e) {
+    try { fs.unlinkSync(target); } catch (e2) {}
+    return { ok: false, error: String(e && e.message ? e.message : e) };
+  } finally {
+    activeDownload = null;
+  }
+});
 
 // Renderer → menu state sync: Settings/quickbar changes update the native menu
 // checkmarks so the Layout menu always reflects the active window's layout,

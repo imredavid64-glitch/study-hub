@@ -14,7 +14,7 @@
     "cap:sync": "npm run build:mobile && npx cap sync",
     "cap:ios": "npm run build:mobile && npx cap sync ios && npx cap open ios",
     "cap:android": "npm run build:mobile && npx cap sync android && npx cap open android",
-    "test": "node --check app.js && node --check cloud-core.js && node --check electron-main.js && node --check electron-menu.js && node --check electron-window-state.js && node scripts/window-state-test.js",
+    "test": "node --check app.js && node --check cloud-core.js && node --check electron-main.js && node --check electron-menu.js && node --check electron-window-state.js && node --check electron-updater-core.js && node scripts/window-state-test.js && node scripts/updater-test.js",
     "test:qa": "electron scripts/qa-smoke.js"
   },
   "keywords": [

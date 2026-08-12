@@ -108,6 +108,10 @@ app.whenReady().then(() => {
   // Version lookup for the in-app update prompt (the real main process
   // returns app.getVersion(); tests use an old version to exercise the path).
   ipcMain.handle('get-app-version', () => '1.0.0');
+  // One-click updater: stub the download so tests never touch the network.
+  // Records the payload so we can assert the updater flow actually fired.
+  const dlCalls = [];
+  ipcMain.handle('download-update', async (_event, opts) => { dlCalls.push(opts); return { ok: false, error: 'test stub' }; });
 
   // Capture console messages (Electron API changed across versions)
   const webContents = win.webContents;
@@ -374,24 +378,45 @@ app.whenReady().then(() => {
       // Renderer-side change in win2 must sync the native menu checkmarks.
       await wc2.executeJavaScript(`state.settings.density='comfortable'; state.settings.powerMode=true; saveState(); applyAppearance(); 'changed'`);
       await new Promise(r => setTimeout(r, 200));
-      // In-app update prompt: version compare + banner show/dismiss (deterministic).
+      // In-app update prompt: version compare + banner + one-click updater flow.
+      // The test env has the preload, so Update triggers the updater path; the
+      // stubbed download-update handler fails fast and the banner must degrade
+      // gracefully to a Retry state (no navigation, no crash).
       const verCheck = await webContents.executeJavaScript(`(() => {
         const cmp = [compareVersions('1.1.3','1.1.0'), compareVersions('1.1.0','1.1.0'), compareVersions('1.0.9','1.1.0')];
         localStorage.removeItem('updateDismissed');
         const ubEl = document.getElementById('updateBanner'); if (ubEl) ubEl.style.display = '';
-        showUpdateBanner('v1.1.3', '1.1.0', '');
+        showUpdateBanner('v1.1.3', '1.1.0');
         const visible = !document.getElementById('updateBanner').classList.contains('hidden');
+        const btnLabel = document.getElementById('updateGoBtn').textContent;
         document.getElementById('updateGoBtn').click();
-        const wentDownloads = document.getElementById('downloads').classList.contains('active');
-        showUpdateBanner('v1.1.3', '1.1.0', '');
+        return JSON.stringify({ cmp, visible, btnLabel });
+      })()`);
+      const v = JSON.parse(verCheck);
+      await new Promise(r => setTimeout(r, 350)); // let the stubbed invoke resolve
+      if (JSON.stringify(v.cmp) !== '[1,0,-1]') failures.push('Update prompt: compareVersions wrong (' + verCheck + ')');
+      if (!v.visible || v.btnLabel !== 'Update & Install') failures.push('Update prompt: banner did not offer the one-click updater (' + verCheck + ')');
+      if (dlCalls.length === 0) failures.push('Update prompt: Update click did not invoke download-update');
+      if (dlCalls.length && (!dlCalls[0].release || dlCalls[0].version !== '1.1.3')) failures.push('Update prompt: download-update got a bad payload');
+      const dlResult = await webContents.executeJavaScript(`(() => {
+        const t = document.getElementById('updateBannerText').textContent;
+        const go = document.getElementById('updateGoBtn');
+        return JSON.stringify({ text: t.slice(0, 60), retry: go.textContent, disabled: go.disabled });
+      })()`);
+      const dr = JSON.parse(dlResult);
+      if (dr.text.indexOf('Update failed') < 0 || dr.retry !== 'Retry Update' || dr.disabled !== false) {
+        failures.push('Update prompt: failed download did not degrade to retry (' + dlResult + ')');
+      }
+      // Later dismiss still works after a failure.
+      const dismissCheck = await webContents.executeJavaScript(`(() => {
+        showUpdateBanner('v1.1.3', '1.1.0');
         document.getElementById('updateDismissBtn').click();
         const dismissed = localStorage.getItem('updateDismissed') === 'v1.1.3';
         const reHidden = document.getElementById('updateBanner').classList.contains('hidden');
-        return JSON.stringify({ cmp, visible, wentDownloads, dismissed, reHidden });
+        return JSON.stringify({ dismissed, reHidden });
       })()`);
-      const v = JSON.parse(verCheck);
-      if (JSON.stringify(v.cmp) !== '[1,0,-1]') failures.push('Update prompt: compareVersions wrong (' + verCheck + ')');
-      if (!v.visible || !v.wentDownloads || !v.dismissed || !v.reHidden) failures.push('Update prompt: banner flow broken (' + verCheck + ')');
+      const dchk = JSON.parse(dismissCheck);
+      if (!dchk.dismissed || !dchk.reHidden) failures.push('Update prompt: dismiss flow broken (' + dismissCheck + ')');
       await webContents.executeJavaScript(`showTab('dashboard'); 'reset-tab'`);
       const menuSynced = comfortable.checked === true && power.checked === true && roomy.checked === false;
       if (!menuSynced) failures.push('Multi-window test: renderer layout change did not sync the menu (comfortable=' + comfortable.checked + ' power=' + power.checked + ' roomy=' + roomy.checked + ')');

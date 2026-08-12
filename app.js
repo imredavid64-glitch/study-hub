@@ -4551,13 +4551,19 @@ async function runHealthCheck() {
 const DL_RELEASE_URL = 'https://api.github.com/repos/imredavid64-glitch/study-hub-installers/releases/latest';
 const DL_CACHE_KEY = 'dlLatestRelease';
 
+let latestRelease = null;        // cached release payload for the updater flow
+let updateProgressUnsub = null;  // progress listener cleanup
+const UPDATE_POLL_MS = 6 * 60 * 60 * 1000; // re-check every 6 hours
+
 function setupDownloads() {
   loadLiveDownloads();
   loadPwaChecksums();
   const checkBtn = $('checkUpdatesBtn');
   if (checkBtn) checkBtn.addEventListener('click', () => checkForUpdates({ manual: true }));
-  // Auto-check shortly after boot (desktop only — the web build is always current).
+  // Auto-check shortly after boot, then re-check periodically while running
+  // (desktop only — the web build is always current).
   setTimeout(() => checkForUpdates({ manual: false }), 4000);
+  setInterval(() => checkForUpdates({ manual: false }), UPDATE_POLL_MS);
 }
 
 // ---- In-app update prompt ----
@@ -4588,9 +4594,10 @@ function checkForUpdates(opts) {
         .then(r => (r.ok ? r.json() : null))
         .then(release => {
           if (!release || !release.tag_name) { if (opts.manual) showToast('No published releases found'); return; }
+          latestRelease = release; // remember for the one-click updater
           const latest = release.tag_name.replace(/^v/, '');
           if (compareVersions(latest, cur) > 0) {
-            showUpdateBanner(release.tag_name, cur, release.html_url);
+            showUpdateBanner(release.tag_name, cur);
           } else if (opts.manual) {
             showToast('You\'re on the latest version (v' + cur + ') 🎉');
           }
@@ -4601,17 +4608,63 @@ function checkForUpdates(opts) {
   } catch (e) { /* non-Electron or offline — silent */ }
 }
 
-function showUpdateBanner(tag, cur, releaseUrl) {
+function showUpdateBanner(tag, cur) {
   const banner = $('updateBanner');
   const text = $('updateBannerText');
   if (!banner || !text) return;
   if (localStorage.getItem('updateDismissed') === tag) return; // already declined this version
-  text.textContent = '📦 Study Hub ' + tag + ' is available — you\'re on v' + cur + '. ';
+  text.textContent = '📦 Study Hub ' + tag + ' is available — you\'re on v' + cur + '.';
   const go = $('updateGoBtn');
+  go.textContent = window.electronAPI && window.electronAPI.downloadUpdate ? 'Update & Install' : 'Update';
+  go.onclick = () => {
+    if (window.electronAPI && typeof window.electronAPI.downloadUpdate === 'function') {
+      runUpdaterFlow(tag);
+    } else {
+      banner.classList.add('hidden');
+      showTab('downloads'); // web builds have no installer — go to the download page
+    }
+  };
   const later = $('updateDismissBtn');
-  go.onclick = () => { banner.classList.add('hidden'); showTab('downloads'); };
   later.onclick = () => { banner.classList.add('hidden'); localStorage.setItem('updateDismissed', tag); };
   banner.classList.remove('hidden');
+}
+
+// One-click updater: main downloads the installer for this platform, verifies
+// its sha256 against the release digest, and opens it for the user to finish.
+// The banner shows live progress and never hides on failure so the user can
+// retry from the same spot.
+function runUpdaterFlow(tag) {
+  const banner = $('updateBanner');
+  const text = $('updateBannerText');
+  const go = $('updateGoBtn');
+  const later = $('updateDismissBtn');
+  if (!banner || !text || !latestRelease) return;
+  if (updateProgressUnsub) { try { updateProgressUnsub(); } catch (e) {} updateProgressUnsub = null; }
+  updateProgressUnsub = window.electronAPI.onUpdateProgress((d) => {
+    text.textContent = '⬇ Downloading Study Hub ' + tag + '… ' + (d && d.text ? d.text : '') + ' ';
+  });
+  go.disabled = true;
+  later.disabled = true;
+  text.textContent = '⬇ Downloading Study Hub ' + tag + '… (starting) ';
+  window.electronAPI.downloadUpdate({ release: latestRelease, version: tag.replace(/^v/, '') })
+    .then(res => {
+      if (res && res.ok) {
+        text.textContent = '✓ Downloaded & verified — installer ready. Run it to finish updating. ';
+        go.textContent = 'Done';
+        go.disabled = false;
+      } else {
+        text.textContent = '⚠ Update failed: ' + (res && res.error ? res.error : 'unknown error') + ' ';
+        go.textContent = 'Retry Update';
+        go.disabled = false;
+        later.disabled = false;
+      }
+    })
+    .catch(e => {
+      text.textContent = '⚠ Update failed: ' + (e && e.message ? e.message : e) + ' ';
+      go.textContent = 'Retry Update';
+      go.disabled = false;
+      later.disabled = false;
+    });
 }
 
 // ---- PWA integrity checksums ----
@@ -8124,18 +8177,24 @@ function setupCalculator() {
 
 function evalExpr(expr) {
   try {
-    var e = expr.replace(/\u00d7/g, '*').replace(/\u00f7/g, '/').replace(/\u2212/g, '-');
+    var e = String(expr).replace(/\u00d7/g, '*').replace(/\u00f7/g, '/').replace(/\u2212/g, '-');
     e = e.replace(/\^/g, '**');
+    // The √ / sin / cos / tan / log / ln / abs buttons append the bare name
+    // ("sqrt9"), so auto-insert the parens before rewriting to Math.* calls.
+    e = e.replace(/(sqrt|sin|cos|tan|log|ln|abs)(\d+(?:\.\d+)?)/g, '$1($2)');
     e = e.replace(/sqrt\(/g, 'Math.sqrt(');
     e = e.replace(/sin\(/g, 'Math.sin(');
     e = e.replace(/cos\(/g, 'Math.cos(');
     e = e.replace(/tan\(/g, 'Math.tan(');
     e = e.replace(/log\(/g, 'Math.log10(');
     e = e.replace(/ln\(/g, 'Math.log(');
-    e = e.replace(/pi/g, 'Math.PI');
-    e = e.replace(/\be\b(?!\s*\()/g, 'Math.E');
     e = e.replace(/abs\(/g, 'Math.abs(');
-    e = e.replace(/!\)/, ')'); // factorial placeholder
+    e = e.replace(/pi/g, 'Math.PI');
+    e = e.replace(/\be(?=\d)/g, 'Math.E*'); // "e5" → Math.E*5 ("2e3" stays scientific notation)
+    e = e.replace(/\be\b(?!\s*\()/g, 'Math.E');
+    // Factorial: 5! → 120
+    e = e.replace(/(\d+)!/g, function(_, n) { var f = 1; for (var i = 2; i <= +n; i++) f *= i; return f; });
+    e = e.replace(/!\)/, ')'); // legacy placeholder
     return String(Function('"use strict"; return (' + e + ')')());
   } catch(e) { return 'Error'; }
 }
