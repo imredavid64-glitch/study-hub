@@ -1585,6 +1585,26 @@ button.danger:hover {
   letter-spacing: 0.02em;
 }
 
+/* Skip-to-content link: hidden until keyboard focus */
+.skip-link {
+  position: fixed;
+  top: -60px;
+  left: 16px;
+  z-index: 10001;
+  background: var(--accent);
+  color: var(--btn-color);
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  text-decoration: none;
+  transition: top 0.2s ease;
+}
+.skip-link:focus {
+  top: 12px;
+  outline: var(--focus-ring-width) solid var(--focus-ring-strong);
+  outline-offset: 2px;
+}
+
 /* Topbar quick layout switch */
 .layout-quickbar { display: flex; align-items: center; gap: 6px; }
 .layout-quickbar select {

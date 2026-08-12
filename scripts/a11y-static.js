@@ -47,8 +47,21 @@ if (noAlt.length) {
 if (!/id="densityQuickSelect"[^>]*aria-label/.test(html)) fails.push('densityQuickSelect is missing an aria-label');
 if (!/id="powerModeQuickBtn"[^>]*aria-pressed/.test(html)) fails.push('powerModeQuickBtn is missing aria-pressed');
 
+// 5. Skip-to-content link must exist, be first in the body, and target #appMain.
+const bodyStart = html.indexOf('<body');
+const afterBody = html.slice(bodyStart, bodyStart + 600);
+if (!/class="skip-link"[^>]*href="#appMain"/.test(html)) fails.push('skip-link is missing or does not target #appMain');
+if (!afterBody.includes('skip-link')) fails.push('skip-link is not the first element inside <body>');
+if (!/id="appMain"/.test(html)) fails.push('main content has no id="appMain" anchor');
+
+// 6. The Electron menu must expose the layout switch (density + power mode).
+const mainJs = fs.readFileSync(path.join(ROOT, 'electron-main.js'), 'utf8');
+if (!/label: 'Layout'/.test(mainJs)) fails.push('electron-main.js has no Layout menu');
+if (!/Compact power mode/.test(mainJs)) fails.push('electron-main.js Layout menu has no power-mode item');
+if (!/function applyLayout/.test(mainJs)) fails.push('electron-main.js has no applyLayout handler');
+
 if (fails.length) {
   console.error('a11y static guard FAILED:\n - ' + fails.join('\n - '));
   process.exit(1);
 }
-console.log('a11y static guard passed (' + controls.length + ' static controls, ' + imgs.length + ' images)');
+console.log('a11y static guard passed (' + controls.length + ' static controls, ' + imgs.length + ' images, skip link + electron menu ok)');

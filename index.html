@@ -29,6 +29,7 @@
     <script>window.addEventListener('error',function(e){var msg=e.message||e;try{var log=JSON.parse(localStorage.getItem('_js_errors')||'[]');log.push({msg:msg,time:new Date().toISOString()});if(log.length>20)log.shift();localStorage.setItem('_js_errors',JSON.stringify(log))}catch(_){}});window.addEventListener('unhandledrejection',function(e){window.dispatchEvent(new ErrorEvent('error',{message:'Promise: '+(e.reason&&e.reason.message||e.reason||'unknown')}))});</script>
     </head>
   <body>
+  <a class="skip-link" href="#appMain">Skip to main content</a>
   <div class="ambient"></div>
     <div id="judgeBanner" class="judge-banner">
     <span class="judge-banner-text"><strong>🏆 Hackathon Judge Mode Active:</strong> Click 'Load Demo Data' to instantly populate decks, quizzes, and streak analytics without signing up.</span>
@@ -75,7 +76,7 @@
         </nav>
       </aside>
 
-      <main class="main">
+      <main class="main" id="appMain" tabindex="-1">
         <header class="topbar card">
           <div class="topbar-left">
             <button id="mobileMenuBtn" class="mobile-menu-btn ghost" title="Toggle menu">

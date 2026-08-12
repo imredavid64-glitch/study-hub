@@ -157,6 +157,13 @@ app.whenReady().then(() => {
     // focused — headless-hidden windows fall back to the UA default ring.
     win.show();
     win.focus();
+    // Hide onboarding / landing overlays so Tab order starts at the app shell,
+    // and drop any leftover focus so the first Tab lands on the skip link.
+    await webContents.executeJavaScript(`(() => {
+      ['setupModal', 'landingOverlay'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+      if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur();
+      return 'overlays hidden';
+    })()`).catch(() => {});
     await new Promise(r => setTimeout(r, 250));
     const steps = [];
     const pressTab = () => new Promise(res => {
@@ -183,11 +190,93 @@ app.whenReady().then(() => {
     const landed = steps.filter(s => !s.body);
     const failures = [];
     if (landed.length === 0) failures.push('Keyboard walk: Tab never moved focus off <body>');
+    if (steps[0] && steps[0].cls !== '.skip-link') failures.push('Keyboard walk: first Tab did not land on the skip-to-content link (got ' + (steps[0] && steps[0].cls) + ')');
     const noRing = landed.filter(s => ['button', 'a', 'input', 'select', 'textarea', '[tabindex]'].indexOf(s.tag) >= 0 && s.ring === 'none');
     if (noRing.length > Math.ceil(landed.length / 3)) {
       failures.push('Keyboard walk: ' + noRing.length + '/' + landed.length + ' focused controls had no visible focus ring (e.g. ' + JSON.stringify(noRing[0]) + ')');
     }
     return { steps: steps.length, landed: landed.length, failures };
+  }
+
+  // Modal + reverse-traversal checks: focus must move freely inside a modal
+  // (no trap), reach the close button, close on Escape, and Shift+Tab must
+  // walk backwards without ever sticking on <body>.
+  async function runModalAndReverseTest() {
+    const failures = [];
+    const press = (opts) => new Promise(res => {
+      webContents.sendInputEvent(Object.assign({ type: 'keyDown', keyCode: 'Tab' }, opts));
+      webContents.sendInputEvent(Object.assign({ type: 'keyUp', keyCode: 'Tab' }, opts));
+      setTimeout(res, 35);
+    });
+    const focusInfo = () => webContents.executeJavaScript(`(() => {
+      const el = document.activeElement;
+      return {
+        tag: el && el.tagName ? el.tagName.toLowerCase() : '',
+        id: (el && el.id) || '',
+        cls: (el && el.className && typeof el.className === 'string') ? el.className.split(' ')[0] : '',
+        allCls: (el && el.className && typeof el.className === 'string') ? el.className : '',
+        txt: el && el.textContent ? el.textContent.trim().replace(/\s+/g, ' ').slice(0, 18) : ''
+      };
+    })()`);
+    // Open the goal-walkthrough modal and move focus into it (as a proper modal would).
+    const opened = await webContents.executeJavaScript(`(() => {
+      try {
+        if (typeof state === 'undefined' || typeof generateGoalWalkthrough !== 'function') return 'no-app';
+        state.goals.push({ id: '__kbtest', title: 'Keyboard Test Goal', subject: 'Math', deadline: '2099-01-01', hours: 8 });
+        generateGoalWalkthrough('__kbtest');
+        const close = document.querySelector('.wt-modal .modal-close');
+        if (close) close.focus();
+        return !!close ? 'opened' : 'no-close';
+      } catch (e) { return 'error: ' + e; }
+    })()`);
+    if (opened !== 'opened') failures.push('Modal test: could not open walkthrough modal (' + opened + ')');
+    else {
+      // Tab forward through the modal — focus must visit distinct stops.
+      const seen = new Set();
+      const seq = [];
+      let prev = '', stuck = false;
+      for (let i = 0; i < 10; i++) {
+        await press();
+        const f = await focusInfo();
+        const key = f.tag + '|' + f.id + '|' + f.cls + '|' + f.txt;
+        seq.push(key);
+        if (prev && key === prev) stuck = true;
+        seen.add(key);
+        prev = key;
+      }
+      report.modalSeq = seq;
+      if (seen.size < 3) failures.push('Modal test: focus did not move through the modal (only ' + seen.size + ' distinct stops)');
+      if (stuck) failures.push('Modal test: focus got stuck on a single element inside the modal');
+      // Shift+Tab backwards must return to the close button.
+      let backToClose = false;
+      for (let i = 0; i < 12 && !backToClose; i++) {
+        await press({ modifiers: ['shift'] });
+        const f = await focusInfo();
+        if (String(f.allCls || f.cls).indexOf('modal-close') >= 0) backToClose = true;
+      }
+      if (!backToClose) failures.push('Modal test: Shift+Tab did not return focus to the modal close button');
+      // Escape closes the modal.
+      webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+      webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+      await new Promise(r => setTimeout(r, 150));
+      const closed = await webContents.executeJavaScript(`!document.querySelector('.wt-modal')`);
+      if (!closed) failures.push('Modal test: Escape did not close the modal');
+    }
+    // Clean up the test goal.
+    await webContents.executeJavaScript(`(() => {
+      if (typeof state !== 'undefined') { state.goals = state.goals.filter(g => g.id !== '__kbtest'); saveState(); }
+      if (typeof renderGoalWalkthroughs === 'function') renderGoalWalkthroughs();
+      return 'cleaned';
+    })()`).catch(() => {});
+    // Reverse traversal across the app: Shift+Tab must keep moving focus.
+    let reverseLanded = 0;
+    for (let i = 0; i < 6; i++) {
+      await press({ modifiers: ['shift'] });
+      const f = await focusInfo();
+      if (f.tag && f.tag !== 'body') reverseLanded++;
+    }
+    if (reverseLanded === 0) failures.push('Keyboard walk: Shift+Tab never moved focus off <body>');
+    return failures;
   }
 
   win.loadFile(APP_HTML).then(() => {
@@ -218,6 +307,10 @@ app.whenReady().then(() => {
           const kb = await runKeyboardWalk();
           report.keyboard = { steps: kb.steps, landed: kb.landed };
           kb.failures.forEach(f => report.failures.push(f));
+          // Modal + reverse-traversal checks.
+          const modalFailures = await runModalAndReverseTest();
+          report.modalTest = { failures: modalFailures };
+          modalFailures.forEach(f => report.failures.push(f));
           for (const c of report.console) {
             if (c.level === 'error' || c.level === 3) {
               if (!isExpectedConsole(c.message)) {

@@ -1123,7 +1123,9 @@ function generateGoalWalkthrough(goalId) {
     </div>
   </div>`;
   document.body.appendChild(modal);
-  const close = () => modal.remove();
+  const onEsc = e => { if (e.key === 'Escape') close(); };
+  const close = () => { document.removeEventListener('keydown', onEsc); modal.remove(); };
+  document.addEventListener('keydown', onEsc);
   modal.querySelector('.modal-close').addEventListener('click', close);
   modal.querySelector('.wt-close').addEventListener('click', close);
   modal.addEventListener('click', e => { if (e.target === modal) close(); });
@@ -1754,7 +1756,9 @@ function openExplainVerify(rating, card) {
     <p id="evResult" class="small" style="margin-top:10px;min-height:1.2em"></p>
   </div>`;
   document.body.appendChild(panel);
-  const close = () => panel.remove();
+  const onEsc = e => { if (e.key === 'Escape') close(); };
+  const close = () => { document.removeEventListener('keydown', onEsc); panel.remove(); };
+  document.addEventListener('keydown', onEsc);
   panel.querySelector('.modal-close').addEventListener('click', close);
   panel.addEventListener('click', e => { if (e.target === panel) close(); });
   const box = panel.querySelector('#evExplainBox');
