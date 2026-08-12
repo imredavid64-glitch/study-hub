@@ -78,6 +78,12 @@ Cloud sync, leaderboards, and study-mate matching need three one-time steps:
 enable anonymous sign-ins, apply the RLS migration, and add the service key.
 Follow the runbook: **[docs/supabase-setup.md](docs/supabase-setup.md)**.
 
+### Full documentation
+For the complete reference — purpose, target audience, every feature,
+architecture, installation guides (browser / desktop / mobile), user manual,
+configuration & environment variables, deployment, CI, the security model,
+and troubleshooting — see **[docs/PROJECT_DOCUMENTATION.md](docs/PROJECT_DOCUMENTATION.md)**.
+
 ### Security
 See **[SECURITY.md](SECURITY.md)** for the data model, secrets inventory, and
 known tradeoffs.
