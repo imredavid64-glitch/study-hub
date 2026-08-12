@@ -34,6 +34,18 @@
   --border: #dbe8e4;
   --text: #1f2b2b;
   --surface: #f6faf7;
+  /* Button design tokens — flat, matte, consistent */
+  --on-accent: #f4fffd;
+  --btn-bg: var(--accent);
+  --btn-color: #f4fffd;
+  --btn-radius: 12px;
+  --btn-padding: 10px 16px;
+  --btn-hover-filter: brightness(0.95);
+  --btn-ghost-bg: #eef4f2;
+  --btn-ghost-color: #1f3736;
+  --btn-ghost-border: transparent;
+  --btn-danger-bg: var(--danger);
+  --btn-danger-color: #fff3f1;
 }
 
 /* Theme: Blue */
@@ -147,6 +159,11 @@
   --sidebar-active-bg: #1a1a1a;
   --sidebar-active-text: #fff;
   --sidebar-text: #aaa;
+  /* Dark-mode button tokens: flat surfaces with readable text */
+  --btn-ghost-bg: #222222;
+  --btn-ghost-color: #e8e8e8;
+  --btn-ghost-border: #333333;
+  --on-accent: #f4fffd;
 }
 
 [data-dark="true"] body {
@@ -1316,8 +1333,7 @@ body {
   padding: 20px;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.tab > article.card:not(.top-gap) + article.card:not(.top-gap),
-.subject-panel > article.card:not(.top-gap) + article.card:not(.top-gap) { margin-top: 18px; }
+
 .card:hover {
   border-color: color-mix(in srgb, var(--accent) 22%, rgba(24, 60, 60, 0.09));
   box-shadow: var(--shadow);
@@ -1349,6 +1365,15 @@ body {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+}
+
+.dash-top-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 900px) {
+  .dash-top-grid { grid-template-columns: 1fr; }
 }
 
 .social-grid {
@@ -1438,10 +1463,10 @@ textarea {
 
 button {
   border: none;
-  background: var(--accent);
-  color: #f4fffd;
-  padding: 10px 16px;
-  border-radius: 12px;
+  background: var(--btn-bg);
+  color: var(--btn-color);
+  padding: var(--btn-padding);
+  border-radius: var(--btn-radius);
   font-weight: 600;
   cursor: pointer;
   transition: filter 150ms ease, transform 150ms ease;
@@ -1453,23 +1478,23 @@ button:active {
   transform: scale(0.97);
 }
 button:hover {
-  filter: brightness(0.95);
+  filter: var(--btn-hover-filter);
 }
 button.ghost,
 .file-label {
-  background: #eef4f2;
-  color: #1f3736;
-  border: 1px solid transparent;
+  background: var(--btn-ghost-bg);
+  color: var(--btn-ghost-color);
+  border: 1px solid var(--btn-ghost-border);
 }
 button.ghost:hover {
   border-color: var(--accent);
 }
 button.danger {
-  background: var(--danger);
-  color: #fff3f1;
+  background: var(--btn-danger-bg);
+  color: var(--btn-danger-color);
 }
 button.danger:hover {
-  filter: brightness(0.95);
+  filter: var(--btn-hover-filter);
 }
 
 .file-label input {
@@ -2621,8 +2646,8 @@ canvas {
 }
 
 .voice-btn.mode-switch {
-  background: #eef4f2;
-  color: var(--ink);
+  background: var(--btn-ghost-bg);
+  color: var(--btn-ghost-color);
   width: 44px;
   height: 44px;
   font-size: 1.1rem;
@@ -2678,8 +2703,8 @@ canvas {
   border-radius: 8px;
   font-size: 0.85rem;
   font-weight: 600;
-  background: #eef4f2;
-  color: var(--ink);
+  background: var(--btn-ghost-bg);
+  color: var(--btn-ghost-color);
   border: 2px solid transparent;
   cursor: pointer;
 }
@@ -4499,10 +4524,10 @@ canvas {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
-  border-radius: 12px;
-  background: var(--accent);
-  color: #fff;
+  padding: var(--btn-padding);
+  border-radius: var(--btn-radius);
+  background: var(--btn-bg);
+  color: var(--btn-color);
   border: 1px solid transparent;
   text-decoration: none;
   font-weight: 600;
@@ -4754,21 +4779,22 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
 }
 
-/* --- Primary buttons: flat, matte --- */
-button:where(:not(.ghost):not(.nav-btn):not(.theme-swatch):not(.palette-swatch):not(.calc-btn):not(.mobile-nav-item):not(.chip):not(.empty-state-button):not(.shortcut-key):not(.toast-close)) {
-  background: var(--accent);
+/* --- Primary buttons: flat, matte (ghost/tonal variants keep their own look) --- */
+button:where(:not(.ghost):not(.nav-btn):not(.theme-swatch):not(.palette-swatch):not(.calc-btn):not(.mobile-nav-item):not(.chip):not(.empty-state-button):not(.shortcut-key):not(.toast-close):not(.sub-nav-btn):not(.voice-btn)) {
+  background: var(--btn-bg);
+  color: var(--btn-color);
   box-shadow: none;
   transition: filter 160ms ease, transform 160ms ease;
 }
-button:where(:not(.ghost):not(.nav-btn):not(.theme-swatch):not(.palette-swatch):not(.calc-btn):not(.mobile-nav-item):not(.chip):not(.empty-state-button):not(.shortcut-key):not(.toast-close)):hover {
+button:where(:not(.ghost):not(.nav-btn):not(.theme-swatch):not(.palette-swatch):not(.calc-btn):not(.mobile-nav-item):not(.chip):not(.empty-state-button):not(.shortcut-key):not(.toast-close):not(.sub-nav-btn):not(.voice-btn)):hover {
   transform: none;
-  filter: brightness(0.95);
+  filter: var(--btn-hover-filter);
   box-shadow: none;
 }
 
 /* --- Ghost buttons: crisp border + accent tint --- */
 button.ghost, .btn-ghost {
-  border: 1px solid color-mix(in srgb, var(--muted) 22%, transparent);
+  border: 1px solid var(--btn-ghost-border);
   transition: background 160ms ease, border-color 160ms ease;
 }
 button.ghost:hover, .btn-ghost:hover {
