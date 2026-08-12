@@ -4553,6 +4553,105 @@ const DL_CACHE_KEY = 'dlLatestRelease';
 
 function setupDownloads() {
   loadLiveDownloads();
+  loadPwaChecksums();
+  const checkBtn = $('checkUpdatesBtn');
+  if (checkBtn) checkBtn.addEventListener('click', () => checkForUpdates({ manual: true }));
+  // Auto-check shortly after boot (desktop only — the web build is always current).
+  setTimeout(() => checkForUpdates({ manual: false }), 4000);
+}
+
+// ---- In-app update prompt ----
+// Desktop only: compares the installed app version with the latest release tag
+// and raises a dismissible banner when a newer build exists.
+function compareVersions(a, b) {
+  const pa = String(a).split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b).split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d !== 0) return d > 0 ? 1 : -1;
+  }
+  return 0;
+}
+
+function checkForUpdates(opts) {
+  opts = opts || {};
+  try {
+    if (!window.electronAPI || typeof window.electronAPI.getAppVersion !== 'function') {
+      if (opts.manual) showToast('Web build is always current — use a desktop installer for version checks');
+      return;
+    }
+    window.electronAPI.getAppVersion().then(installed => {
+      const cur = String(installed).replace(/^v/, '');
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), 8000) : null;
+      fetch(DL_RELEASE_URL, ctrl ? { signal: ctrl.signal } : undefined)
+        .then(r => (r.ok ? r.json() : null))
+        .then(release => {
+          if (!release || !release.tag_name) { if (opts.manual) showToast('No published releases found'); return; }
+          const latest = release.tag_name.replace(/^v/, '');
+          if (compareVersions(latest, cur) > 0) {
+            showUpdateBanner(release.tag_name, cur, release.html_url);
+          } else if (opts.manual) {
+            showToast('You\'re on the latest version (v' + cur + ') 🎉');
+          }
+        })
+        .catch(() => { if (opts.manual) showToast('Could not check for updates right now'); })
+        .finally(() => { if (timer) clearTimeout(timer); });
+    }).catch(() => { if (opts.manual) showToast('Version lookup unavailable'); });
+  } catch (e) { /* non-Electron or offline — silent */ }
+}
+
+function showUpdateBanner(tag, cur, releaseUrl) {
+  const banner = $('updateBanner');
+  const text = $('updateBannerText');
+  if (!banner || !text) return;
+  if (localStorage.getItem('updateDismissed') === tag) return; // already declined this version
+  text.textContent = '📦 Study Hub ' + tag + ' is available — you\'re on v' + cur + '. ';
+  const go = $('updateGoBtn');
+  const later = $('updateDismissBtn');
+  go.onclick = () => { banner.classList.add('hidden'); showTab('downloads'); };
+  later.onclick = () => { banner.classList.add('hidden'); localStorage.setItem('updateDismissed', tag); };
+  banner.classList.remove('hidden');
+}
+
+// ---- PWA integrity checksums ----
+// Computes sha256 of the files this build serves so users can verify their
+// installed copy (desktop package or saved PWA) matches the published build.
+const PWA_INTEGRITY_FILES = ['index.html', 'app.js', 'styles.css', 'sw.js'];
+
+async function sha256Hex(buf) {
+  const digest = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function loadPwaChecksums() {
+  const el = $('pwaChecksumList');
+  if (!el) return;
+  if (!(window.crypto && crypto.subtle)) { el.innerHTML = '<p class="subtle">Checksum computing unavailable in this browser.</p>'; return; }
+  const rows = [];
+  for (const f of PWA_INTEGRITY_FILES) {
+    try {
+      const r = await fetch(f, { cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const hex = await sha256Hex(await r.arrayBuffer());
+      rows.push({ f, hex });
+    } catch (e) {
+      rows.push({ f, hex: null });
+    }
+  }
+  el.innerHTML = rows.map(row => `<div class="dl-row">
+    <code class="dl-name">${escapeHtml(row.f)}</code>
+    <span class="dl-sha">sha256: ${row.hex ? escapeHtml(row.hex.slice(0, 12)) + '…' : 'unavailable'}</span>
+    ${row.hex ? `<button class="ghost dl-copy" data-sha="${row.hex}" title="Copy full sha256" style="padding:2px 8px;font-size:0.78rem">⧉ copy</button>` : ''}
+  </div>`).join('');
+  el.querySelectorAll('.dl-copy').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText('sha256:' + btn.dataset.sha);
+        showToast('Checksum copied to clipboard');
+      } catch (e) { showToast('sha256:' + btn.dataset.sha, 'error'); }
+    });
+  });
 }
 
 function dlHumanSize(bytes) {

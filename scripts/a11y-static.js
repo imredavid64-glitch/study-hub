@@ -93,6 +93,12 @@ if (!/id="liveReleaseBox"/.test(html)) fails.push('Downloads tab has no liveRele
 if (!/loadLiveDownloads/.test(js) || !/DL_RELEASE_URL/.test(js)) fails.push('app.js is missing the live downloads loader');
 if (!/dl-copy/.test(js)) fails.push('app.js is missing the checksum copy button');
 
+// 12. In-app update prompt + PWA integrity checksums must be wired up.
+if (!/id="updateBanner"/.test(html) || !/id="updateGoBtn"/.test(html)) fails.push('index.html is missing the update banner');
+if (!/checkForUpdates/.test(js) || !/showUpdateBanner/.test(js) || !/compareVersions/.test(js)) fails.push('app.js is missing the update-prompt helpers');
+if (!/id="pwaChecksumList"/.test(html)) fails.push('Downloads tab has no pwaChecksumList container');
+if (!/loadPwaChecksums/.test(js) || !/PWA_INTEGRITY_FILES/.test(js)) fails.push('app.js is missing the PWA checksum loader');
+
 // 9. Window-position memory must be wired into the main process and be
 //    unit-tested (electron-window-state.js is loaded by npm test).
 const winStateJs = fs.readFileSync(path.join(ROOT, 'electron-window-state.js'), 'utf8');

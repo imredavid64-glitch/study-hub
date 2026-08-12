@@ -105,6 +105,9 @@ app.whenReady().then(() => {
     const item = Menu.getApplicationMenu() && Menu.getApplicationMenu().getMenuItemById('session-memory');
     if (item) item.checked = enabled !== false;
   });
+  // Version lookup for the in-app update prompt (the real main process
+  // returns app.getVersion(); tests use an old version to exercise the path).
+  ipcMain.handle('get-app-version', () => '1.0.0');
 
   // Capture console messages (Electron API changed across versions)
   const webContents = win.webContents;
@@ -191,6 +194,9 @@ app.whenReady().then(() => {
     // and drop any leftover focus so the first Tab lands on the skip link.
     await webContents.executeJavaScript(`(() => {
       ['setupModal', 'landingOverlay'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+      // Pin the update banner hidden with an inline style too — the async update
+      // check may resolve mid-walk and re-show it via classList otherwise.
+      const ub = document.getElementById('updateBanner'); if (ub) ub.style.display = 'none';
       if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur();
       return 'overlays hidden';
     })()`).catch(() => {});
@@ -368,6 +374,25 @@ app.whenReady().then(() => {
       // Renderer-side change in win2 must sync the native menu checkmarks.
       await wc2.executeJavaScript(`state.settings.density='comfortable'; state.settings.powerMode=true; saveState(); applyAppearance(); 'changed'`);
       await new Promise(r => setTimeout(r, 200));
+      // In-app update prompt: version compare + banner show/dismiss (deterministic).
+      const verCheck = await webContents.executeJavaScript(`(() => {
+        const cmp = [compareVersions('1.1.3','1.1.0'), compareVersions('1.1.0','1.1.0'), compareVersions('1.0.9','1.1.0')];
+        localStorage.removeItem('updateDismissed');
+        const ubEl = document.getElementById('updateBanner'); if (ubEl) ubEl.style.display = '';
+        showUpdateBanner('v1.1.3', '1.1.0', '');
+        const visible = !document.getElementById('updateBanner').classList.contains('hidden');
+        document.getElementById('updateGoBtn').click();
+        const wentDownloads = document.getElementById('downloads').classList.contains('active');
+        showUpdateBanner('v1.1.3', '1.1.0', '');
+        document.getElementById('updateDismissBtn').click();
+        const dismissed = localStorage.getItem('updateDismissed') === 'v1.1.3';
+        const reHidden = document.getElementById('updateBanner').classList.contains('hidden');
+        return JSON.stringify({ cmp, visible, wentDownloads, dismissed, reHidden });
+      })()`);
+      const v = JSON.parse(verCheck);
+      if (JSON.stringify(v.cmp) !== '[1,0,-1]') failures.push('Update prompt: compareVersions wrong (' + verCheck + ')');
+      if (!v.visible || !v.wentDownloads || !v.dismissed || !v.reHidden) failures.push('Update prompt: banner flow broken (' + verCheck + ')');
+      await webContents.executeJavaScript(`showTab('dashboard'); 'reset-tab'`);
       const menuSynced = comfortable.checked === true && power.checked === true && roomy.checked === false;
       if (!menuSynced) failures.push('Multi-window test: renderer layout change did not sync the menu (comfortable=' + comfortable.checked + ' power=' + power.checked + ' roomy=' + roomy.checked + ')');
       const w2Synced = await wc2.executeJavaScript(`document.documentElement.getAttribute('data-power') === 'true' && document.documentElement.getAttribute('data-density') === 'comfortable'`);

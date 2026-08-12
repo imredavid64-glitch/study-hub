@@ -488,6 +488,13 @@ body {
   display: none;
 }
 
+/* In-app update banner — same geometry as the judge banner, flat accent surface */
+.update-banner {
+  background: var(--accent);
+  background-image: none;
+}
+.update-banner .judge-banner-dismiss { background: rgba(255,255,255,0.18); }
+
 @keyframes slideDown {
   from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
   to { opacity: 1; transform: translateX(-50%) translateY(0); }

@@ -36,6 +36,11 @@
     <button id="exitJudgeBtn" class="ghost judge-banner-exit hidden">Exit Judge Mode</button>
     <button id="dismissBannerBtn" class="ghost judge-banner-dismiss">Dismiss</button>
   </div>
+  <div id="updateBanner" class="judge-banner update-banner hidden">
+    <span class="judge-banner-text" id="updateBannerText"></span>
+    <button id="updateGoBtn" class="ghost judge-banner-dismiss">Update</button>
+    <button id="updateDismissBtn" class="ghost judge-banner-dismiss">Later</button>
+  </div>
   <div id="toast" class="toast hidden"></div>
   <div class="app-shell">
       <aside class="sidebar">
@@ -2425,9 +2430,14 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
           <h2 class="tab-title">⬇ Download Study Hub</h2>
           <p class="subtle">Get the full app on any device. Desktop apps are self-contained installers. On Android and iOS you install the app straight from this site — no App Store or Google Play required.</p>
           <div id="liveReleaseBox" class="card top-gap" aria-live="polite">
-            <h3>🛠 Latest release</h3>
+            <h3>🛠 Latest release <button id="checkUpdatesBtn" class="ghost btn-sm" style="float:right">Check for updates</button></h3>
             <p class="subtle">Live from the installers repo — file sizes, checksums and download links refresh automatically.</p>
             <div id="liveReleaseList"><p class="subtle">Loading latest release…</p></div>
+          </div>
+          <div class="card top-gap">
+            <h3>🌐 Web app (PWA) integrity</h3>
+            <p class="subtle">sha256 checksums of the files this build serves — compare them against your installed copy (desktop app or saved PWA) to confirm you're running the exact published build.</p>
+            <div id="pwaChecksumList"><p class="subtle">Computing checksums…</p></div>
           </div>
           <div class="split-grid">
             <article class="card">
