@@ -4247,7 +4247,36 @@ function setupSettings() {
       state.settings.powerMode = this.checked;
       saveState();
       if (typeof applyAppearance === 'function') applyAppearance();
+      syncPowerQuick();
       showToast(this.checked ? '⚡ Compact power mode on — cards collapsed to dense lists' : 'Compact power mode off');
+    });
+  }
+  // Topbar quick layout switch: syncs with the Settings select/toggle.
+  function syncPowerQuick() {
+    const p = $('powerModeQuickBtn');
+    if (p) p.setAttribute('aria-pressed', state.settings.powerMode ? 'true' : 'false');
+  }
+  const powerQuick = $('powerModeQuickBtn');
+  if (powerQuick) {
+    syncPowerQuick();
+    powerQuick.addEventListener('click', () => {
+      state.settings.powerMode = !state.settings.powerMode;
+      saveState();
+      if (typeof applyAppearance === 'function') applyAppearance();
+      const t = $('powerModeToggle'); if (t) t.checked = state.settings.powerMode;
+      syncPowerQuick();
+      showToast(state.settings.powerMode ? '⚡ Compact power mode on' : 'Compact power mode off');
+    });
+  }
+  const densityQuick = $('densityQuickSelect');
+  if (densityQuick) {
+    densityQuick.value = state.settings.density || 'comfortable';
+    densityQuick.addEventListener('change', () => {
+      state.settings.density = densityQuick.value;
+      saveState();
+      if (typeof applyAppearance === 'function') applyAppearance();
+      const s = $('densitySelect'); if (s) s.value = densityQuick.value;
+      showToast('Layout density: ' + densityQuick.value);
     });
   }
   function applyMusicVisibility() {

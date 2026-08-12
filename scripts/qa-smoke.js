@@ -126,23 +126,98 @@ app.whenReady().then(() => {
       out.cssRules = [...document.styleSheets].reduce((n, s) => { try { return n + s.cssRules.length; } catch (e) { return n; } }, 0);
       out.font = getComputedStyle(document.body).fontFamily;
       out.healthFns = typeof runHealthCheck === 'function';
+      // Accessibility sweep: no unlabeled controls, no unnamed icon-only
+      // buttons, no images without alt text.
+      out.a11y = (() => {
+        const unlabeled = [], iconOnly = [], noAlt = [];
+        document.querySelectorAll('input, select, textarea').forEach(el => {
+          if (['hidden', 'submit', 'button', 'reset'].includes(el.type)) return;
+          const named = el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') ||
+            (el.id && document.querySelector('label[for="' + CSS.escape(el.id) + '"]')) ||
+            el.closest('label') || el.getAttribute('placeholder');
+          if (!named) unlabeled.push((el.id ? '#' + el.id : el.tagName.toLowerCase()));
+        });
+        document.querySelectorAll('button').forEach(b => {
+          const txt = (b.innerText || '').trim();
+          if (!txt && !b.getAttribute('aria-label') && !b.getAttribute('title') && b.offsetParent !== null) {
+            iconOnly.push((b.className || '').slice(0, 40));
+          }
+        });
+        document.querySelectorAll('img').forEach(im => { if (!im.hasAttribute('alt')) noAlt.push(im.src.split('/').pop()); });
+        return { unlabeled: unlabeled.slice(0, 20), iconOnly: iconOnly.slice(0, 20), noAlt: noAlt.slice(0, 10) };
+      })();
       return out;
     })()
   `;
 
+  // Keyboard navigation walk: press real Tab keys and verify focus lands on
+  // focusable controls with a visible focus ring (and never gets stuck).
+  async function runKeyboardWalk() {
+    // :focus-visible only matches in a window that is actually shown and
+    // focused — headless-hidden windows fall back to the UA default ring.
+    win.show();
+    win.focus();
+    await new Promise(r => setTimeout(r, 250));
+    const steps = [];
+    const pressTab = () => new Promise(res => {
+      webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Tab' });
+      webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab' });
+      setTimeout(res, 35);
+    });
+    for (let i = 0; i < 32; i++) {
+      await pressTab();
+      const s = await webContents.executeJavaScript(`(() => {
+        const el = document.activeElement;
+        if (!el || el === document.body) return { body: true };
+        const cs = getComputedStyle(el);
+        return {
+          body: false,
+          tag: el.tagName.toLowerCase(),
+          id: el.id ? '#' + el.id : '',
+          cls: typeof el.className === 'string' && el.className ? '.' + el.className.split(' ')[0] : '',
+          ring: cs.outlineStyle !== 'none' ? (cs.outlineWidth + ' ' + cs.outlineStyle) : 'none'
+        };
+      })()`);
+      steps.push(s);
+    }
+    const landed = steps.filter(s => !s.body);
+    const failures = [];
+    if (landed.length === 0) failures.push('Keyboard walk: Tab never moved focus off <body>');
+    const noRing = landed.filter(s => ['button', 'a', 'input', 'select', 'textarea', '[tabindex]'].indexOf(s.tag) >= 0 && s.ring === 'none');
+    if (noRing.length > Math.ceil(landed.length / 3)) {
+      failures.push('Keyboard walk: ' + noRing.length + '/' + landed.length + ' focused controls had no visible focus ring (e.g. ' + JSON.stringify(noRing[0]) + ')');
+    }
+    return { steps: steps.length, landed: landed.length, failures };
+  }
+
   win.loadFile(APP_HTML).then(() => {
     setTimeout(() => {
       webContents.executeJavaScript(sweepScript)
-        .then((result) => {
+        .then(async (result) => {
           report.tabs = result.tabs || [];
           report.cssRules = result.cssRules;
           report.font = result.font;
+          report.a11y = result.a11y || {};
           for (const tab of report.tabs) {
             if (!tab.ok) report.failures.push('Tab broken: ' + JSON.stringify(tab));
           }
           if (report.tabs.length === 0) report.failures.push('No tabs found — did the app boot?');
           if (!result.healthFns) report.failures.push('runHealthCheck not defined — app JS may not have loaded');
           if ((report.cssRules || 0) < 100) report.failures.push('Suspiciously few CSS rules: ' + report.cssRules);
+          // A11y guard: unlabeled controls, unnamed icon-only buttons, images without alt.
+          if ((result.a11y.unlabeled || []).length > 0) {
+            report.failures.push('A11y: ' + result.a11y.unlabeled.length + ' unlabeled controls: ' + result.a11y.unlabeled.slice(0, 5).join(', '));
+          }
+          if ((result.a11y.iconOnly || []).length > 0) {
+            report.failures.push('A11y: ' + result.a11y.iconOnly.length + ' icon-only buttons without a name: ' + result.a11y.iconOnly.slice(0, 5).join(', '));
+          }
+          if ((result.a11y.noAlt || []).length > 0) {
+            report.failures.push('A11y: images without alt: ' + result.a11y.noAlt.slice(0, 5).join(', '));
+          }
+          // Keyboard navigation walk.
+          const kb = await runKeyboardWalk();
+          report.keyboard = { steps: kb.steps, landed: kb.landed };
+          kb.failures.forEach(f => report.failures.push(f));
           for (const c of report.console) {
             if (c.level === 'error' || c.level === 3) {
               if (!isExpectedConsole(c.message)) {

@@ -37,6 +37,9 @@ jobs:
       - name: Run test suite
         run: npm test
 
+      - name: Accessibility guard
+        run: node scripts/a11y-static.js
+
       - name: Validate build
         run: node build.js
 
@@ -61,5 +64,6 @@ jobs:
           ELECTRON_DISABLE_SANDBOX: "1"
         run: |
           # xvfb gives Electron a virtual display; the smoke test sweeps all
-          # 28 tabs and fails on console errors or broken panels.
+          # tabs, runs the a11y label guard and the keyboard focus walk, and
+          # fails on console errors, broken panels, or focus-ring regressions.
           xvfb-run -a npm run test:qa

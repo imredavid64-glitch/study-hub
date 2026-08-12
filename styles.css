@@ -1585,6 +1585,21 @@ button.danger:hover {
   letter-spacing: 0.02em;
 }
 
+/* Topbar quick layout switch */
+.layout-quickbar { display: flex; align-items: center; gap: 6px; }
+.layout-quickbar select {
+  width: auto;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  border-radius: 10px;
+  min-height: 0;
+}
+.layout-quickbar #powerModeQuickBtn { padding: 6px 10px; border-radius: 10px; font-size: 0.95rem; min-width: 0; }
+#powerModeQuickBtn[aria-pressed="true"] { background: var(--accent); color: var(--btn-color); border-color: transparent; }
+@media (max-width: 960px) {
+  .layout-quickbar { display: none; }
+}
+
 .row-between {
   display: flex;
   justify-content: space-between;
