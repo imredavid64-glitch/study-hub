@@ -15,25 +15,19 @@ const vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 const appJs = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
 
-const startMarker = '// ===== EXAM GRADE ESTIMATOR =====';
-const endMarker = '// ===== PLAYLIST =====';
-const start = appJs.indexOf(startMarker);
-const end = appJs.indexOf(endMarker);
-assert.ok(start > 0, 'estimator section marker found');
-assert.ok(end > start, 'estimator section end marker found');
-
-// Pull the EST_LETTERS const and the three pure functions out of the section source.
-const section = appJs.slice(start, end);
+// Pull the EST_LETTERS const and the pure functions out of app.js. Each
+// function name is unique in the file, so matching against the whole source
+// (not a section) keeps the extraction robust to where features live.
 const sandbox = { Date, Math, String, Number, Set, Object, Array };
 vm.createContext(sandbox);
 const constRe = /const EST_LETTERS = \[[\s\S]*?\n\];/;
-const constM = section.match(constRe);
+const constM = appJs.match(constRe);
 assert.ok(constM && constM[0], 'found EST_LETTERS const');
 vm.runInContext(constM[0], sandbox);
-const fns = ['estLetter', 'estRecencyWeight', 'computeExamEstimate', 'computePredictionStats'];
+const fns = ['estLetter', 'estRecencyWeight', 'computeExamEstimate', 'computePredictionStats', 'computeAtRiskAdditions'];
 for (const fn of fns) {
   const re = new RegExp('function ' + fn + '\\b[\\s\\S]*?\\n\\}', 'm');
-  const m = section.match(re);
+  const m = appJs.match(re);
   assert.ok(m && m[0], 'found function ' + fn);
   vm.runInContext(m[0], sandbox);
 }
@@ -169,5 +163,33 @@ const beforeNew = sandbox.computeExamEstimate(rec);
 rec.quizAttempts.push({ id: 'qnew', topic: 'Math', subject: 'Math', score: 9, total: 10, pct: 90, date: new Date().toISOString() });
 const afterNew = sandbox.computeExamEstimate(rec);
 ok(afterNew.overall > beforeNew.overall, 'adding a 90% quiz raises the overall estimate');
+
+// 13. At-risk auto-recovery decision logic
+const atRiskEst = sandbox.computeExamEstimate({
+  quizAttempts: [{ topic: 'Chem', subject: 'Chem', score: 5, total: 10, pct: 50, date: new Date().toISOString() }],
+  mockTestHistory: [], assignments: [], confusionLog: []
+});
+const confLog = [
+  { topic: 'Chem', concept: 'Acids', date: '2026-08-10' },
+  { topic: 'Chem', concept: 'Bases', date: '2026-08-11' },
+  { topic: 'Chem', concept: 'Old stuff', date: '2020-01-01' },
+  { topic: 'Physics', concept: 'Forces', date: '2026-08-11' }
+];
+const add1 = sandbox.computeAtRiskAdditions('Chem', atRiskEst, confLog, [], '2026-08-01');
+ok(add1.length === 2, 'only recent Chem concepts are candidates (' + add1.length + ')');
+ok(add1.some(a => a.concept === 'Acids') && add1.some(a => a.concept === 'Bases'), 'both recent concepts returned');
+ok(!add1.some(a => a.concept === 'Old stuff'), 'stale concept excluded');
+ok(!add1.some(a => a.concept === 'Forces'), 'other-subject concept excluded');
+// Already in queue → deduped
+const add2 = sandbox.computeAtRiskAdditions('Chem', atRiskEst, confLog, [{ topic: 'Chem', concept: 'Acids' }], '2026-08-01');
+ok(add2.length === 1 && add2[0].concept === 'Bases', 'already-queued concepts are not duplicated');
+// Not at risk (high estimate) → nothing
+const safeEst = sandbox.computeExamEstimate({
+  quizAttempts: [{ topic: 'Chem', subject: 'Chem', score: 10, total: 10, pct: 100, date: new Date().toISOString() }],
+  mockTestHistory: [], assignments: [], confusionLog: []
+});
+ok(sandbox.computeAtRiskAdditions('Chem', safeEst, confLog, [], '2026-08-01').length === 0, 'healthy subject → no auto-enqueue');
+// Missing estimate → nothing
+ok(sandbox.computeAtRiskAdditions('Chem', null, confLog, [], '2026-08-01').length === 0, 'no estimate → no auto-enqueue');
 
 console.log(`\nexam grade estimator: ${passed} assertions passed`);

@@ -182,6 +182,7 @@ const DEFAULT_STATE = {
   confusionLog: [],
   estimatorTrack: [],
   reviewQueue: [],
+  autoReview: {},
   walkthroughProgress: {},
   resources: [],
   aiChatHistory: [], lessonChatHistory: [], voiceTranscript: [],
@@ -751,6 +752,49 @@ function clearReviewQueueForTopic(topic) {
     state.reviewQueue = state.reviewQueue.filter(i => !String(i.topic).toLowerCase().includes(String(topic).toLowerCase()));
     if (state.reviewQueue.length !== before) { saveState(); renderReviewQueue(); }
   } catch (e) { /* never break */ }
+}
+// Pure decision logic for at-risk recovery: which of a subject's recently
+// confused concepts should be enqueued for review (not already in the queue).
+function computeAtRiskAdditions(subject, est, confusionLog, queue, cutoffStr) {
+  const out = [];
+  if (!subject || !est) return out;
+  const sub = est.perSubject.find(p => p.name === subject);
+  if (!sub || sub.est >= 70) return out;
+  const seen = new Set((queue || []).filter(i => i.topic === subject).map(i => i.concept));
+  (confusionLog || [])
+    .filter(c => String(c.topic || '').trim() === subject && c.date >= cutoffStr)
+    .slice(0, 6)
+    .forEach(c => {
+      const concept = String(c.concept || c.topic || 'Unknown').trim().slice(0, 120);
+      if (!seen.has(concept)) out.push({ concept, lastConfused: c.date });
+    });
+  return out;
+}
+// At-risk auto-recovery: when an exam is close and the subject is tracking
+// below a C, surface its recently-confused topics into today's review queue.
+// Each subject is auto-enqueued at most once per day, and items already in
+// the queue are never duplicated. Returns how many were added.
+function autoEnqueueAtRisk(subject, daysLeft) {
+  try {
+    if (!subject) return 0;
+    const est = computeExamEstimate(state);
+    if (!est) return 0;
+    const sub = est.perSubject.find(p => p.name === subject);
+    if (!sub || sub.est >= 70) return 0;
+    const today = todayStr();
+    state.autoReview = state.autoReview || {};
+    if (state.autoReview[subject] === today) return 0; // once per subject per day
+    const queue = state.reviewQueue || (state.reviewQueue = []);
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 21);
+    const cutoffStr = cutoff.toISOString().split('T')[0];
+    const additions = computeAtRiskAdditions(subject, est, state.confusionLog || [], queue, cutoffStr);
+    additions.forEach(c => {
+      queue.push({ id: uid(), topic: subject, concept: c.concept, source: 'exam-recovery', count: 1, added: today, due: today, lastConfused: c.lastConfused || today, reviews: 0, lastReviewed: null });
+    });
+    state.autoReview[subject] = today;
+    if (additions.length > 0) { saveState(); if (typeof renderReviewQueue === 'function') renderReviewQueue(); }
+    return additions.length;
+  } catch (e) { return 0; }
 }
 function escapeHtml(t) {
   const d = document.createElement('div');
@@ -4256,6 +4300,7 @@ function renderExamRadar() {
   const gradeChip = (p) => p ? `<span class="exam-grade-chip" style="color:${estColor(p.letter.letter)}">🎯 ${p.letter.letter} · ${p.est}%</span>` : '';
   const nearestEst = estFor(nearest.subject);
   const nearestAtRisk = nearestEst && nearestEst.est < 70 && nearest.days <= 7;
+  const recovered = nearestAtRisk ? autoEnqueueAtRisk(nearest.subject, nearest.days) : 0;
   let html = `<div class="exam-radar-banner ${phase.cls}">
     <div class="exam-radar-head">
       <span class="exam-radar-countdown">${nearest.days <= 0 ? 'D-DAY 🚨' : 'D−' + nearest.days}</span>
@@ -4266,7 +4311,7 @@ function renderExamRadar() {
     </div>
     <p class="small" style="margin:6px 0 0">${phase.tip}</p>
     ${nearestEst ? `<p class="small" style="margin:6px 0 0;font-weight:700">📈 Predicted grade for ${escapeHtml(nearest.subject)}: ${gradeChip(nearestEst)} (band ${Math.max(0, nearestEst.est - nearestEst.band)}–${Math.min(100, nearestEst.est + nearestEst.band)}%)</p>` : ''}
-    ${nearestAtRisk ? `<p class="small" style="margin:6px 0 0;font-weight:700">🚨 You are tracking below a C in ${escapeHtml(nearest.subject)} with ${nearest.days} day${nearest.days > 1 ? 's' : ''} to go — prioritize daily retrieval practice.</p>` : ''}
+    ${nearestAtRisk ? `<p class="small" style="margin:6px 0 0;font-weight:700">🚨 You are tracking below a C in ${escapeHtml(nearest.subject)} with ${nearest.days} day${nearest.days > 1 ? 's' : ''} to go — prioritize daily retrieval practice.${recovered > 0 ? ` ${recovered} confused ${recovered > 1 ? 'topics' : 'topic'} added to today's review queue ⏰` : ''}</p>` : ''}
     ${noRecentWork ? `<p class="small" style="margin:6px 0 0;font-weight:700">⚠️ No study sessions logged for ${escapeHtml(nearest.subject)} in the last 7 days — start today.</p>` : ''}
   </div>`;
   html += '<div class="exam-radar-list">';
