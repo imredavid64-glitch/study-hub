@@ -185,14 +185,19 @@
             <article class="card">
               <h3>Add Goal</h3>
               <form id="goalForm" class="stack">
+                <label class="field-label" for="goalTitle">Goal title</label>
                 <input id="goalTitle" placeholder="Goal title (e.g. Ace Calculus midterm)" required />
+                <label class="field-label" for="goalSubject">Subject</label>
                 <input id="goalSubject" placeholder="Subject" required />
+                <label class="field-label" for="goalDeadline">Deadline</label>
                 <input id="goalDeadline" type="date" required />
+                <label class="field-label" for="goalPriority">Priority</label>
                 <select id="goalPriority">
                   <option value="high">High Priority</option>
                   <option value="medium" selected>Medium Priority</option>
                   <option value="low">Low Priority</option>
                 </select>
+                <label class="field-label" for="goalHours">Planned hours</label>
                 <input id="goalHours" type="number" min="1" value="8" required />
                 <button type="submit">Create Goal</button>
               </form>
@@ -200,9 +205,13 @@
             <article class="card">
               <h3>Add Task</h3>
               <form id="taskForm" class="stack">
+                <label class="field-label" for="taskTitle">Task</label>
                 <input id="taskTitle" placeholder="Task (e.g. Chemistry chapter 3 problems)" required />
+                <label class="field-label" for="taskSubject">Subject</label>
                 <input id="taskSubject" placeholder="Subject" required />
+                <label class="field-label" for="taskDue">Due date</label>
                 <input id="taskDue" type="date" required />
+                <label class="field-label" for="taskEffort">Effort (hours)</label>
                 <input id="taskEffort" type="number" min="1" value="2" required />
                 <button type="submit">Add Task</button>
               </form>
@@ -265,10 +274,15 @@
             <article class="card">
               <h3>Log Study Session</h3>
               <form id="sessionForm" class="stack">
+                <label class="field-label" for="sessionSubject">Subject</label>
                 <input id="sessionSubject" placeholder="Subject" required />
+                <label class="field-label" for="sessionObjective">Objective</label>
                 <input id="sessionObjective" placeholder="Objective" required />
+                <label class="field-label" for="sessionMinutes">Minutes</label>
                 <input id="sessionMinutes" type="number" min="5" value="45" required />
+                <label class="field-label" for="sessionQuality">Quality (1–10)</label>
                 <input id="sessionQuality" type="number" min="1" max="10" value="8" required />
+                <label class="field-label" for="sessionMethod">Method</label>
                 <input id="sessionMethod" placeholder="Method (active recall, practice test, etc.)" required />
                 <label class="inline"><input id="sessionDeep" type="checkbox" /> Deep work session</label>
                 <textarea id="sessionNotes" placeholder="What worked? What blocked progress?"></textarea>
@@ -288,8 +302,11 @@
             <article class="card">
               <h3>Create Flashcard</h3>
               <form id="flashcardForm" class="stack">
+                <label class="field-label" for="cardDeck">Deck name</label>
                 <input id="cardDeck" placeholder="Deck name (e.g. Biology Terms)" required />
+                <label class="field-label" for="cardQuestion">Question</label>
                 <textarea id="cardQuestion" placeholder="Question / prompt" required></textarea>
+                <label class="field-label" for="cardAnswer">Answer</label>
                 <textarea id="cardAnswer" placeholder="Answer / explanation" required></textarea>
                 <button type="submit">Add Flashcard</button>
               </form>
@@ -364,7 +381,9 @@
             <article class="card">
               <h3>AI Quiz Generator</h3>
               <form id="quizGeneratorForm" class="stack">
+                <label class="field-label" for="quizTopic">Topic</label>
                 <input id="quizTopic" placeholder="Topic (e.g. 'cell division', 'World War II', 'quadratic equations')" />
+                <label class="field-label" for="quizSubject">Subject</label>
                 <select id="quizSubject">
                   <option value="math">Math</option>
                   <option value="science">Science</option>
@@ -372,11 +391,13 @@
                   <option value="literature">Literature</option>
                   <option value="general">General Study Skills</option>
                 </select>
+                <label class="field-label" for="quizLevel">Level</label>
                 <select id="quizLevel">
                   <option value="easy">Easy</option>
                   <option value="medium" selected>Medium</option>
                   <option value="hard">Hard</option>
                 </select>
+                <label class="field-label" for="quizType">Question type</label>
                 <select id="quizType">
                   <option value="multiple">Multiple Choice</option>
                   <option value="truefalse">True / False</option>
@@ -384,6 +405,7 @@
                   <option value="fillblank">Fill in the Blank</option>
                   <option value="mixed">Mixed (AI Generated)</option>
                 </select>
+                <label class="field-label" for="quizCount">Number of questions</label>
                 <input id="quizCount" type="number" min="3" max="20" value="8" />
                 <button type="submit">Create Quiz</button>
               </form>
@@ -411,6 +433,7 @@
             </div>
             <div class="split-grid">
               <form id="mockTestForm" class="stack">
+                <label class="field-label" for="mockTestSubject">Subject</label>
                 <select id="mockTestSubject">
                   <option value="math">Math</option>
                   <option value="science">Science</option>
@@ -418,12 +441,15 @@
                   <option value="literature">Literature</option>
                   <option value="general">General Study Skills</option>
                 </select>
+                <label class="field-label" for="mockTestLevel">Level</label>
                 <select id="mockTestLevel">
                   <option value="easy">Easy</option>
                   <option value="medium" selected>Medium</option>
                   <option value="hard">Hard</option>
                 </select>
+                <label class="field-label" for="mockTestCount">Number of questions</label>
                 <input id="mockTestCount" type="number" min="5" max="40" value="20" />
+                <label class="field-label" for="mockTestDuration">Minutes</label>
                 <input id="mockTestDuration" type="number" min="5" max="180" value="30" />
                 <button type="submit">Start Mock Test</button>
               </form>
@@ -2315,6 +2341,7 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
                     <option value="wide">Wide — use the full screen</option>
                   </select>
                 </div>
+                <label class="top-gap" style="display:flex;align-items:center;gap:8px;font-weight:600"><input type="checkbox" id="powerModeToggle" /> ⚡ Compact power mode — collapse cards into dense lists</label>
               </div>
             </article>
             <article class="card">

@@ -176,7 +176,7 @@ function __(key) { const l = _lang(); return LOCALES[l]?.[key] || LOCALES.en[key
 
 const DEFAULT_STATE = {
   profile: { name: 'Scholar', major: 'General Studies', weeklyTargetHours: 20, targetGpa: 3.8, setupComplete: false, subjects: [], interests: '', learningStyle: '', difficulties: '', goals: '', xp: 0, currentStreak: 0 },
-    settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', font: 'default', density: 'comfortable', radius: 'soft', layout: 'balanced', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', stickyNotes: [], warmupStats: { bestStreak: 0, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, explainVerify: true, _ach: { goalsCompleted: 0, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
+    settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', font: 'default', density: 'comfortable', radius: 'soft', layout: 'balanced', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', stickyNotes: [], warmupStats: { bestStreak: 0, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, explainVerify: true, powerMode: false, _ach: { goalsCompleted: 0, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
   goals: [], tasks: [], sessions: [], flashcards: [], notes: [], assignments: [],
   reflections: [], quizAttempts: [], mockTestHistory: [], recallHistory: [],
   confusionLog: [],
@@ -193,7 +193,7 @@ const DEFAULT_STATE = {
 // ===== DEMO DATA FOR JUDGE MODE =====
 const DEMO_DATA = {
   profile: { name: 'Judge', major: 'All Subjects', weeklyTargetHours: 25, targetGpa: 4.0, setupComplete: true, subjects: ['AP Physics', 'SAT Prep', 'Organic Chemistry'], interests: 'Competitive academics, Test preparation', learningStyle: 'visual', difficulties: 'None', goals: 'Ace all exams, Get into top college', xp: 450, currentStreak: 7 },
-  settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', font: 'default', density: 'comfortable', radius: 'soft', layout: 'balanced', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', stickyNotes: [], warmupStats: { bestStreak: 7, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, explainVerify: true, _ach: { goalsCompleted: 1, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
+  settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', font: 'default', density: 'comfortable', radius: 'soft', layout: 'balanced', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', stickyNotes: [], warmupStats: { bestStreak: 7, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, explainVerify: true, powerMode: false, _ach: { goalsCompleted: 1, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
   goals: [
     { id: 'demo_goal_1', title: 'Ace AP Physics Exam', subject: 'AP Physics', deadline: '2026-12-15', priority: 'high', hours: 20, createdAt: '2026-08-01' },
     { id: 'demo_goal_2', title: 'SAT Score 1500+', subject: 'SAT Prep', deadline: '2026-11-01', priority: 'high', hours: 30, createdAt: '2026-08-01' },
@@ -4240,6 +4240,16 @@ function setupSettings() {
       showToast(this.checked ? 'Explain-then-verify on — explain the “why” before rating cards' : 'Explain-then-verify off — rate cards directly');
     });
   }
+  var powerModeToggle = $('powerModeToggle');
+  if (powerModeToggle) {
+    powerModeToggle.checked = !!state.settings.powerMode;
+    powerModeToggle.addEventListener('change', function() {
+      state.settings.powerMode = this.checked;
+      saveState();
+      if (typeof applyAppearance === 'function') applyAppearance();
+      showToast(this.checked ? '⚡ Compact power mode on — cards collapsed to dense lists' : 'Compact power mode off');
+    });
+  }
   function applyMusicVisibility() {
     const mp = $('musicPlayer');
     if (mp) mp.style.display = state.settings.hideMusic ? 'none' : '';
@@ -4387,6 +4397,7 @@ function applyAppearance() {
   root.setAttribute('data-font', s.font || 'default');
   root.setAttribute('data-density', s.density || 'comfortable');
   root.setAttribute('data-radius', s.radius || 'soft');
+  if (s.powerMode) root.setAttribute('data-power', 'true'); else root.removeAttribute('data-power');
   const radiusMap = { sharp: '8px', soft: '18px', round: '26px' };
   root.style.setProperty('--radius', radiusMap[s.radius] || '18px');
   if (s.font === 'serif') {
@@ -6891,6 +6902,35 @@ function deleteLecture(id) {
   renderSavedLectures();
 }
 
+// ===== ACCESSIBILITY: give every form control an accessible name =====
+const A11Y_ACRONYMS = { calEvent: 'Calendar event', calc: 'Calculator', cal: 'Calendar', gclassroom: 'Google Classroom', miniTerm: 'Mini term', sm: 'Study map', sg: 'Study guide', sp: 'Spaced repetition', wb: 'Whiteboard', conv: 'Conversion', voice: 'Voice conversation', pdf: 'PDF', cs: 'CS', lang: 'Language', gen: 'Generator', ai: 'AI', mock: 'Mock', quiz: 'Quiz', goal: 'Goal', task: 'Task' };
+const A11Y_WORD_FIXES = { gpa: 'GPA', img: 'image', id: 'ID', ai: 'AI', pdf: 'PDF', css: 'CSS', api: 'API', url: 'URL', ui: 'UI', xp: 'XP' };
+function a11yLabelFromId(id) {
+  const raw = String(id || '');
+  const lower = raw.toLowerCase();
+  const fix = words => words.split(' ').map(w => A11Y_WORD_FIXES[w] || w).join(' ');
+  for (const k of Object.keys(A11Y_ACRONYMS)) {
+    if (lower.startsWith(k.toLowerCase())) {
+      const rest = raw.slice(k.length).replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
+      return fix((A11Y_ACRONYMS[k] + ' ' + rest).trim());
+    }
+  }
+  const words = raw.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(' ');
+  return fix(words.join(' ')).replace(/^./, c => c.toUpperCase());
+}
+function ensureInputLabels() {
+  let labeled = 0;
+  document.querySelectorAll('input, select, textarea').forEach(el => {
+    if (el.type === 'hidden' || el.type === 'submit' || el.type === 'button' || el.type === 'reset') return;
+    if (el.getAttribute('aria-label') || el.getAttribute('aria-labelledby')) return;
+    const id = el.id;
+    if (id && document.querySelector('label[for="' + CSS.escape(id) + '"]')) return;
+    const labelText = el.getAttribute('placeholder') || (id ? a11yLabelFromId(id) : '');
+    if (labelText) { el.setAttribute('aria-label', labelText); labeled++; }
+  });
+  return labeled;
+}
+
 // ===== GOOGLE APPS CONNECTION =====
 let googleAuth = { connected: false, accessToken: null, scope: '' };
 
@@ -7053,6 +7093,7 @@ function init() {
   safeCall(setupStudyRoom);
   safeCall(setupAnalytics);
   safeCall(setupSettings);
+  safeCall(ensureInputLabels);
   safeCall(applyExamLockNav);
   safeCall(renderExamLockBanner);
   safeCall(updateCloudStatusUI);

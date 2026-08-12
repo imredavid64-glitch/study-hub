@@ -52,6 +52,11 @@
   --focus-ring-color: color-mix(in srgb, var(--accent) 60%, transparent);
   --focus-ring-strong: color-mix(in srgb, var(--accent) 70%, white 20%);
   --focus-ring-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  /* Input + list-item tokens (light defaults; dark overrides below) */
+  --input-bg: #ffffff;
+  --input-border: #cfded9;
+  --input-color: var(--ink);
+  --item-bg: var(--surface);
 }
 
 /* Theme: Blue */
@@ -85,6 +90,36 @@
 [data-density="roomy"] .topbar { padding: 18px 20px; }
 [data-density="roomy"] input, [data-density="roomy"] select, [data-density="roomy"] textarea { padding: 11px 16px; }
 [data-density="roomy"] .tab { gap: 22px; }
+
+/* ===== COMPACT POWER MODE — collapse cards into dense lists ===== */
+[data-power="true"] .app-shell { padding: 10px; gap: 12px; }
+[data-power="true"] .tab { gap: 8px; }
+[data-power="true"] .split-grid, [data-power="true"] .dash-top-grid, [data-power="true"] .metric-grid, [data-power="true"] .social-grid { gap: 8px; }
+[data-power="true"] .card { padding: 10px 12px; }
+[data-power="true"] .card h3 { margin-bottom: 8px; font-size: 0.95rem; }
+[data-power="true"] .card .subtle { font-size: 0.8rem; }
+[data-power="true"] .topbar { padding: 8px 12px; }
+[data-power="true"] .topbar h2 { font-size: 1.2rem; }
+[data-power="true"] .nav-btn { padding: 6px 10px; font-size: 0.8rem; }
+[data-power="true"] .sidebar { padding: 12px; }
+[data-power="true"] .nav { gap: 3px; }
+[data-power="true"] .metric h3 { font-size: 1.5rem; }
+[data-power="true"] .list li, [data-power="true"] .item { padding: 8px 10px; border-radius: 10px; }
+[data-power="true"] .btn { padding: 7px 12px; font-size: 0.85rem; }
+[data-power="true"] .btn-sm { padding: 4px 9px; font-size: 0.75rem; }
+[data-power="true"] input, [data-power="true"] select, [data-power="true"] textarea { padding: 6px 10px; }
+/* Dashboard lists: cards become compact single-column rows */
+[data-power="true"] .goal-walk-grid { grid-template-columns: 1fr; gap: 6px; }
+[data-power="true"] .goal-walk-card { flex-direction: row; align-items: center; gap: 10px; padding: 8px 12px; }
+[data-power="true"] .goal-walk-card .goal-walk-top { flex: 1; min-width: 0; }
+[data-power="true"] .goal-walk-card .goal-walk-cta { margin-top: 0; }
+[data-power="true"] .wt-dots { display: none; }
+[data-power="true"] .review-queue-list, [data-power="true"] .review-block-list { gap: 6px; }
+[data-power="true"] .review-queue-item, [data-power="true"] .review-block-item, [data-power="true"] .peer-activity-item { padding: 8px 10px; }
+[data-power="true"] .peer-activity-feed { max-height: 220px; gap: 6px; }
+[data-power="true"] .chip-wrap { gap: 6px; }
+[data-power="true"] .chip { padding: 4px 9px; font-size: 0.78rem; }
+[data-power="true"] .exam-radar, [data-power="true"] .countdown-list { gap: 6px; }
 
 /* Theme: Orange */
 [data-theme="orange"] {
@@ -170,6 +205,10 @@
   --btn-ghost-color: #e8e8e8;
   --btn-ghost-border: #333333;
   --on-accent: #f4fffd;
+  /* Dark-mode input tokens */
+  --input-bg: #1a1a1a;
+  --input-border: #333333;
+  --input-color: #e8e8e8;
 }
 
 [data-dark="true"] body {
@@ -184,9 +223,9 @@
 [data-dark="true"] input,
 [data-dark="true"] textarea,
 [data-dark="true"] select {
-  background: #1a1a1a;
-  border-color: #333;
-  color: #e8e8e8;
+  background: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--input-color);
 }
 
 [data-dark="true"] input:focus,
@@ -202,16 +241,16 @@
 
 [data-dark="true"] .calc-btn,
 [data-dark="true"] .calc-display {
-  background: #1a1a1a;
-  border-color: #333;
-  color: #e8e8e8;
+  background: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--input-color);
 }
 
 [data-dark="true"] .onb-field input,
 [data-dark="true"] .setup-subject-option {
-  background: #1a1a1a;
-  border-color: #333;
-  color: #e8e8e8;
+  background: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--input-color);
 }
 
 [data-dark="true"] .setup-subject-option:hover {
@@ -226,9 +265,9 @@
 [data-dark="true"] [class*="note-"] .note-content textarea,
 [data-dark="true"] [class*="note-"] .note-content input,
 [data-dark="true"] .note-field {
-  background: #1a1a1a;
-  border-color: #333;
-  color: #e8e8e8;
+  background: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--input-color);
 }
 
 [data-dark="true"] .science-image-placeholder {
@@ -1430,7 +1469,7 @@ body {
 
 .list li,
 .item {
-  background: #f6faf7;
+  background: var(--item-bg);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
@@ -1463,8 +1502,9 @@ button {
 input,
 textarea,
 select {
-  border: 1px solid #cfded9;
-  background: #ffffff;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--input-color);
   border-radius: 12px;
   padding: 10px 11px;
   width: 100%;
@@ -1534,6 +1574,15 @@ button.danger:hover {
 
 .top-gap {
   margin-top: 10px;
+}
+
+.field-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+  margin: 6px 0 -2px;
+  letter-spacing: 0.02em;
 }
 
 .row-between {
@@ -2624,8 +2673,8 @@ canvas {
 }
 
 .voice-transcript {
-  background: #f6faf7;
-  border: 1px solid #dbe8e4;
+  background: var(--item-bg);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px;
   min-height: 100px;
@@ -2700,8 +2749,8 @@ canvas {
 }
 
 .pdf-content-preview {
-  background: #fff;
-  border: 1px solid #dbe8e4;
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px;
   max-height: 300px;
@@ -2815,7 +2864,7 @@ canvas {
 .health-table th,
 .health-table td {
   padding: 8px 12px;
-  border: 1px solid #dbe8e4;
+  border: 1px solid var(--border);
   text-align: left;
 }
 
@@ -2838,7 +2887,7 @@ canvas {
 
 .quiz-type-card {
   padding: 12px;
-  border: 2px solid #dbe8e4;
+  border: 2px solid var(--border);
   border-radius: 12px;
   cursor: pointer;
   text-align: center;
@@ -2869,7 +2918,7 @@ canvas {
 .written-answer {
   width: 100%;
   padding: 12px;
-  border: 2px solid #dbe8e4;
+  border: 2px solid var(--border);
   border-radius: 12px;
   font-size: 1rem;
   font-family: inherit;
@@ -4194,8 +4243,8 @@ canvas {
 
 /* ===== SOCIAL MEDIA ===== */
 .social-embed {
-  background: #f6faf7;
-  border: 1px solid #dbe8e4;
+  background: var(--item-bg);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 20px;
   text-align: center;
