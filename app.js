@@ -2422,8 +2422,24 @@ function estRecencyWeight(dateStr, now) {
   return Math.max(0.25, Math.min(1, 1 - days / 28));
 }
 // Pure model — returns null when there's no evidence at all.
+// Self-calibration: if the prediction tracker shows the model consistently
+// over- or under-predicting, shift estimates toward reality. Applies half the
+// measured bias (damped so a single bad run can't swing the model), clamped to
+// ±8 pts, and only after at least 4 tracked predictions. Returns the offset to
+// ADD to raw estimates (negative when the model over-predicts) plus the sample
+// size, or { offset: 0, sample: 0 } when there isn't enough data.
+function estimateCalibration(s) {
+  const track = s && s.estimatorTrack ? s.estimatorTrack : [];
+  if (track.length < 4) return { offset: 0, sample: track.length };
+  let bias = 0;
+  track.forEach(r => { bias += (r.predicted - r.actual); });
+  bias /= track.length;
+  const offset = Math.max(-8, Math.min(8, Math.round(-bias / 2)));
+  return { offset, sample: track.length };
+}
 function computeExamEstimate(s) {
   const now = Date.now();
+  const calib = estimateCalibration(s);
   const subjects = {};
   const evidence = [];
   const addEvidence = (subject, pct, weight, kind, date, meta) => {
@@ -2472,6 +2488,8 @@ function computeExamEstimate(s) {
     if (est === undefined) est = 50; // only confusion evidence — assume neutral
     // Confusion penalty: up to -12 pts for recent confusion, -3 per recent hit beyond 1
     if (sub.confusionRecent > 0) est -= Math.min(12, 3 + (sub.confusionRecent - 1) * 3);
+    // Self-calibration: shift toward measured reality (offset is 0 without data)
+    est += calib.offset;
     est = Math.max(5, Math.min(99, Math.round(est)));
     band = Math.max(4, 12 - sub.tests * 2);
     if (!kinds.has('grade') && sub.tests === 0 && sub.confusion > 0) band = 18;
@@ -2486,7 +2504,7 @@ function computeExamEstimate(s) {
     overallW += w;
     totalEvidence += p.tests;
   });
-  const overall = Math.max(5, Math.min(99, Math.round(overallSum / overallW)));
+  const overall = Math.max(5, Math.min(99, Math.round(overallSum / overallW + calib.offset)));
   const overallBand = Math.max(3, 10 - Math.min(10, totalEvidence) * 0.7);
   // Gap analysis: weakest subjects + subjects where recent confusion is heavy
   const weakest = perSubject.slice().sort((a, b) => a.est - b.est).slice(0, 2);
@@ -2494,7 +2512,7 @@ function computeExamEstimate(s) {
   const gaps = [];
   weakest.forEach(p => { if (p.est < 78) gaps.push(`${p.name}: ~${p.est}% (${p.tests} practice ${p.tests === 1 ? 'point' : 'points'})`); });
   confused.forEach(p => { if (!gaps.some(g => g.startsWith(p.name + ':'))) gaps.push(`${p.name}: ${p.confusionRecent} recent confused ${p.confusionRecent === 1 ? 'topic' : 'topics'}`); });
-  return { overall, band: overallBand, letter: estLetter(overall), perSubject, gaps: gaps.slice(0, 4), totalEvidence };
+  return { overall, band: overallBand, letter: estLetter(overall), perSubject, gaps: gaps.slice(0, 4), totalEvidence, calib: calib.offset };
 }
 // Records what the model predicted BEFORE a new result arrived, then stores
 // the actual outcome alongside it — so prediction accuracy can be measured.
@@ -2585,12 +2603,13 @@ function renderExamEstimatePreview() {
   if (badge) badge.textContent = `${est.letter.letter} · ${est.overall}%`;
   const lo = Math.max(0, est.overall - est.band);
   const hi = Math.min(100, est.overall + est.band);
+  const calibNote = est.calib ? `<div class="est-meta" style="margin-top:4px">⚖️ Auto-calibrated ${est.calib > 0 ? '+' : ''}${est.calib} pts from ${(state.estimatorTrack || []).length} tracked predictions</div>` : '';
   el.innerHTML =
     `<div class="est-summary">` +
       `<div class="est-grade" style="color:${est.letter.min >= 90 ? '#237a57' : est.letter.min >= 70 ? '#ca8a04' : '#b42318'}">${est.letter.letter}<small> ${est.letter.label}</small></div>` +
       `<div class="est-numbers"><div class="est-num">${est.overall}% <span class="est-band">±${est.band}</span></div><div class="est-meta">${est.totalEvidence} practice ${est.totalEvidence === 1 ? 'point' : 'points'} · band ${lo}–${hi}%</div></div>` +
       `<div class="est-bar-wrap"><div class="est-bar"><span class="est-band-range" style="left:${lo}%;width:${hi - lo}%"></span><span class="est-fill" style="width:${est.overall}%"></span></div><div class="est-meta">Grade band</div></div>` +
-    `</div>` +
+    `</div>` + calibNote +
     (est.gaps.length ? `<div class="est-gap"><strong>🎯 To lift this grade:</strong> ${est.gaps.map(g => escapeHtml(g)).join(' · ')}</div>` : '');
 }
 function renderExamEstimator() {
@@ -2629,7 +2648,7 @@ function renderExamEstimator() {
     html += `<div class="est-subject-row"><span class="est-subject-name">${escapeHtml(p.name)}</span><span class="est-subject-grade" style="color:${c}">${p.letter.letter} · ${p.est}%</span><div class="est-subject-bar"><span style="width:${p.est}%;background:${c}"></span></div><span class="est-subject-evidence">${p.tests} practice · ${kinds}${p.confusionRecent ? ` · ${p.confusionRecent} recent confused topic${p.confusionRecent > 1 ? 's' : ''}` : ''}</span></div>`;
   });
   html += '</div>';
-  html += `<p class="subtle" style="margin:0">Model: practice scores (recency-weighted) + graded work, minus a penalty for confusion logged in the last 14 days. More practice narrows the band.</p>`;
+  html += `<p class="subtle" style="margin:0">Model: practice scores (recency-weighted) + graded work, minus a penalty for confusion logged in the last 14 days. More practice narrows the band.${est.calib ? ` The estimator is currently <strong>auto-calibrated ${est.calib > 0 ? '+' : ''}${est.calib} pts</strong> from its measured prediction bias — check “Estimator vs Reality” below.` : ''}</p>`;
   el.innerHTML = html;
   const sel = $('estTargetSelect');
   if (sel) sel.addEventListener('change', () => {

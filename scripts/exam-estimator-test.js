@@ -24,7 +24,7 @@ const constRe = /const EST_LETTERS = \[[\s\S]*?\n\];/;
 const constM = appJs.match(constRe);
 assert.ok(constM && constM[0], 'found EST_LETTERS const');
 vm.runInContext(constM[0], sandbox);
-const fns = ['estLetter', 'estRecencyWeight', 'computeExamEstimate', 'computePredictionStats', 'computeAtRiskAdditions'];
+const fns = ['estLetter', 'estRecencyWeight', 'computeExamEstimate', 'computePredictionStats', 'computeAtRiskAdditions', 'estimateCalibration'];
 for (const fn of fns) {
   const re = new RegExp('function ' + fn + '\\b[\\s\\S]*?\\n\\}', 'm');
   const m = appJs.match(re);
@@ -191,5 +191,39 @@ const safeEst = sandbox.computeExamEstimate({
 ok(sandbox.computeAtRiskAdditions('Chem', safeEst, confLog, [], '2026-08-01').length === 0, 'healthy subject → no auto-enqueue');
 // Missing estimate → nothing
 ok(sandbox.computeAtRiskAdditions('Chem', null, confLog, [], '2026-08-01').length === 0, 'no estimate → no auto-enqueue');
+
+// 14. Self-calibration from measured prediction bias
+ok(sandbox.estimateCalibration({}).offset === 0 && sandbox.estimateCalibration({}).sample === 0, 'no track → no calibration');
+const track2 = [
+  { predicted: 90, actual: 80 }, { predicted: 88, actual: 78 },
+  { predicted: 86, actual: 76 }, { predicted: 84, actual: 74 }
+]; // bias +10 → model over-predicts → offset should be −5 (half, clamped)
+const c1 = sandbox.estimateCalibration({ estimatorTrack: track2 });
+ok(c1.offset === -5, 'over-predicting model gets −5 pts offset (' + c1.offset + ')');
+ok(c1.sample === 4, 'sample size reported');
+const track3 = [
+  { predicted: 60, actual: 80 }, { predicted: 62, actual: 82 },
+  { predicted: 64, actual: 84 }, { predicted: 66, actual: 86 }
+]; // bias −20 → half is +10 → clamped to +8
+ok(sandbox.estimateCalibration({ estimatorTrack: track3 }).offset === 8, 'under-predicting model clamps at +8');
+const track4 = [track2[0], track2[1], track2[2]]; // only 3 samples
+ok(sandbox.estimateCalibration({ estimatorTrack: track4 }).offset === 0, 'fewer than 4 predictions → no calibration');
+const track5 = [
+  { predicted: 80, actual: 79 }, { predicted: 80, actual: 81 },
+  { predicted: 80, actual: 80 }, { predicted: 80, actual: 80 }
+];
+ok(sandbox.estimateCalibration({ estimatorTrack: track5 }).offset === 0, 'unbiased model → zero offset');
+
+// 15. Calibration shifts the estimate end-to-end
+const baseState = {
+  quizAttempts: [{ topic: 'Math', subject: 'Math', score: 8, total: 10, pct: 80, date: new Date().toISOString() }],
+  mockTestHistory: [], assignments: [], confusionLog: [], estimatorTrack: []
+};
+const raw = sandbox.computeExamEstimate(baseState);
+const calibState = JSON.parse(JSON.stringify(baseState));
+calibState.estimatorTrack = track2; // bias +10 → offset −5
+const cal = sandbox.computeExamEstimate(calibState);
+ok(cal.calib === -5, 'estimate exposes its calibration offset');
+ok(cal.overall <= raw.overall, 'calibrated estimate is not higher than raw (' + cal.overall + ' vs ' + raw.overall + ')');
 
 console.log(`\nexam grade estimator: ${passed} assertions passed`);
