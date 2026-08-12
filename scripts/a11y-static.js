@@ -119,6 +119,7 @@ if (!/applyUpdate/.test(preloadJs) || !/onUpdateResult/.test(preloadJs) || !/ver
 if (!/applyAutomaticUpdate/.test(js) || !/setupVerifyInstall/.test(js) || !/setupUpdateResultToast/.test(js)) fails.push('app.js is missing the auto-apply/verify/report helpers');
 if (!/id="verifyInstallBtn"/.test(html) || !/id="verifyInstallResult"/.test(html)) fails.push('Settings has no verify-install button/result');
 if (!/swapInstall/.test(applyJs)) fails.push('scripts/apply-update.js is missing the swapInstall helper');
+if (!/id="runHealthCheckBtn"/.test(html) || !/id="healthCheckResults"/.test(html)) fails.push('Settings is missing the system health check card');
 
 // 9. Window-position memory must be wired into the main process and be
 //    unit-tested (electron-window-state.js is loaded by npm test).
