@@ -6483,7 +6483,9 @@ function setupSubjects() {
       ], { maxTokens: 1024 });
       $("mindmapResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(txt) + '</div>';
     } catch (e) {
-      $("mindmapResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(offlineMindMapText(labels[topic] || topic)) + '</div>' + offlineNote();
+      const topicLabel = labels[topic] || topic;
+      const kbMap = kbMindMap(topicLabel);
+      $("mindmapResult").innerHTML = '<div class="chat-bubble assistant">' + renderMarkdown(kbMap || offlineMindMapText(topicLabel)) + '</div>' + offlineNote();
       logErrors('mindmap')(e);
     }
   });
@@ -10048,7 +10050,30 @@ function offlineNote() {
 
 // Generic structured explainer used across subjects (science, social studies,
 // english, health, math). The `area` picks relevant thinking hints.
+// KB-aware explainer: converts a TOPIC_KB mind-map entry into a readable
+// markdown explanation, so offline/desktop answers are real content.
+function kbExplain(topic) {
+  const map = kbMindMap(topic);
+  if (!map) return null;
+  const lines = map.split('\n').map(function(l) { return l.replace(/\s+$/, ''); });
+  let out = '**' + lines[0].trim() + '**\n';
+  lines.slice(1).forEach(function(line) {
+    const indent = (line.match(/^ */) || [''])[0].length;
+    const trimmed = line.replace(/^ */, '');
+    if (/^[-•] /.test(trimmed)) {
+      const txt = trimmed.replace(/^[-•] /, '');
+      if (indent === 0) out += '\n**' + txt + '**\n';
+      else out += '- ' + txt + '\n';
+    } else if (trimmed) {
+      out += '  ' + trimmed + '\n';
+    }
+  });
+  return out.trim();
+}
+
 function offlineExplain(topic, area) {
+  const kbText = kbExplain(topic);
+  if (kbText) return kbText;
   const hints = {
     math: ['Think of math as a pattern language — every rule has a why.', 'Estimate before you calculate, then check your answer makes sense.', 'Work one step at a time and label each step.'],
     physics: ['Think of a ball rolling on a slope — force changes motion.', 'Draw the forces as arrows; each arrow is one push or pull.', 'Estimate the answer before calculating, then check.'],
@@ -10118,8 +10143,16 @@ const TOPIC_KB = {
     map: 'Evolution by Natural Selection\n- Variation\n  - Individuals in a population differ\n  - Variation comes from mutations + sexual reproduction\n- Overproduction\n  - More offspring than can survive\n- Competition + survival\n  - Individuals with helpful traits survive and reproduce\n- Inheritance\n  - Helpful traits pass to offspring\n- Evidence\n  - Fossils, homologous structures, DNA, observed in labs\n- Speciation\n  - Populations separated long enough become new species\n- Why it matters\n  - Explains the diversity of life\n  - Basis of modern biology and medicine'
   },
   ecosystems: {
-    keys: ['ecosystem', 'food web', 'biome'],
+    keys: ['ecosystem', 'ecology', 'food web', 'biome'],
     map: 'Ecosystems\n- Energy flow\n  - Producers (plants) capture sunlight\n  - Consumers eat producers and each other\n  - Decomposers recycle nutrients\n- Food chains and webs\n  - Arrows show energy direction: plant -> herbivore -> carnivore\n  - About 10% of energy passes to each level\n- Nutrient cycles\n  - Carbon, nitrogen, water cycles\n- Biomes\n  - Tundra, forest, desert, grassland, aquatic\n- Threats\n  - Habitat loss, pollution, invasive species, climate change\n- Why it matters\n  - We depend on ecosystems for food, air, water'
+  },
+  cellstructure: {
+    keys: ['cell biology', 'cell structure', 'organelles', 'cells'],
+    map: 'Cell Biology\n- Cell theory\n  - All living things are made of cells\n  - Cells are the basic unit of life\n  - New cells come from existing cells\n- Key organelles\n  - Nucleus: stores DNA, controls the cell\n  - Mitochondria: make ATP (energy) — the powerhouse\n  - Ribosomes: build proteins\n  - Endoplasmic reticulum: makes and transports proteins/lipids\n  - Golgi apparatus: packages and ships molecules\n  - Chloroplasts (plants only): capture sunlight for photosynthesis\n  - Cell wall (plants only): rigid support\n- Differences\n  - Prokaryotes (no nucleus): bacteria\n  - Eukaryotes (nucleus): animals, plants, fungi, protists\n- Why it matters\n  - Basis of all biology — disease, medicine, genetics'
+  },
+  bodysystems: {
+    keys: ['human body systems', 'body systems', 'organ systems', 'circulatory', 'respiratory'],
+    map: 'Human Body Systems\n- Circulatory\n  - Heart pumps blood through arteries, veins, capillaries\n  - Carries oxygen, nutrients, hormones; removes waste\n- Respiratory\n  - Lungs exchange O2 and CO2 at alveoli\n- Digestive\n  - Mouth -> esophagus -> stomach -> intestines\n  - Breaks food into nutrients the body can absorb\n- Nervous\n  - Brain, spinal cord, nerves — sends and processes signals\n- Muscular + skeletal\n  - Muscles pull on bones to move\n  - Bones protect organs and make blood cells\n- Excretory\n  - Kidneys filter blood, make urine\n- Immune\n  - White blood cells, antibodies defend against pathogens\n- Why it matters\n  - Systems work together to keep the body alive and healthy'
   },
   quadratic: {
     keys: ['quadratic', 'quadratics'],
