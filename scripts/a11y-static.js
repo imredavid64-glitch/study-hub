@@ -130,6 +130,8 @@ if (!/estimateCalibration/.test(js)) fails.push('app.js is missing the self-cali
 // 15. Command palette + undo-able deletes + topic knowledge base.
 if (!/openCommandPalette/.test(js) || !/cmdPalette/.test(js) || !/paletteBtn/.test(js)) fails.push('app.js is missing the command palette (open/palette/dialog)');
 if (!/cmd-palette-group/.test(js) || !/cmd-palette-foot/.test(js)) fails.push('app.js command palette is missing group headers / footer hints');
+if (!/fuzzyScore/.test(js) || !/fuzzyMatch/.test(js)) fails.push('app.js command palette is missing fuzzy matching');
+if (!/paletteRecent/.test(js) || !/rememberRecent/.test(js)) fails.push('app.js command palette is missing recent-items memory');
 if (!/toastWithUndo/.test(js) || !/__undoPending/.test(js) || !/attachUndoButton/.test(js)) fails.push('app.js is missing the undo-able toast helpers');
 if (!/TOPIC_KB/.test(js) || !/kbMindMap/.test(js)) fails.push('app.js is missing the offline topic knowledge base');
 if (!/id="paletteBtn"/.test(html)) fails.push('Topbar has no Search / command-palette button');

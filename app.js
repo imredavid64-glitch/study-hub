@@ -9011,6 +9011,30 @@ function inlinePrompt(title, placeholder, onDone) {
 // ===== COMMAND PALETTE (Ctrl/Cmd+K) + UNDO-ABLE TOASTS =====
 // Global search across tabs, notes, flashcards, tasks and goals — plus quick
 // actions. Self-contained overlay, no HTML changes needed.
+
+// Fuzzy subsequence match: every query char appears in order in the text.
+// Returns a score (lower = better) or null when there is no match.
+function fuzzyScore(query, text) {
+  if (!query) return 0;
+  var hay = text.toLowerCase();
+  var exact = hay.indexOf(query);
+  if (exact >= 0) return exact; // exact substring — position decides
+  var qi = 0, first = -1, prev = -1, gaps = 0;
+  for (var i = 0; i < hay.length && qi < query.length; i++) {
+    if (hay[i] === query[qi]) {
+      if (first < 0) first = i;
+      if (prev >= 0) gaps += (i - prev - 1);
+      prev = i; qi++;
+    }
+  }
+  if (qi < query.length) return null; // not even a subsequence
+  return first + gaps * 2; // early + consecutive matches rank best
+}
+// True when the query fuzzy-matches the text (helper for call sites).
+function fuzzyMatch(query, text) {
+  return fuzzyScore(query, text) !== null;
+}
+
 function openCommandPalette() {
   var old = document.getElementById('cmdPalette');
   if (old) { old.remove(); return; }
@@ -9036,9 +9060,27 @@ function openCommandPalette() {
   document.body.appendChild(overlay);
 
   var items = [];
+  // Recent selections, newest first (persisted in settings, max 6).
+  function recentItems() {
+    return (state.settings && state.settings.paletteRecent) || [];
+  }
+  function rememberRecent(item) {
+    if (!item || !item.label) return;
+    state.settings.paletteRecent = state.settings.paletteRecent || [];
+    var list = state.settings.paletteRecent.filter(function(r) { return r.label !== item.label || r.kind !== item.kind; });
+    list.unshift({ kind: item.kind, tab: item.tab || null, id: item.id || null, act: item.act || null, label: item.label, icon: item.icon || '', group: item.group || '' });
+    state.settings.paletteRecent = list.slice(0, 6);
+    try { saveState(); } catch (e) {}
+  }
   function buildIndex(q) {
     var query = (q || '').toLowerCase().trim();
     var out = [];
+    // 0) Recents — shown first when the palette opens empty.
+    if (!query) {
+      recentItems().forEach(function(r) {
+        out.push({ kind: r.kind, tab: r.tab, id: r.id, act: r.act, label: r.label, hint: 'Recent', icon: '🕘 ' + (r.icon || ''), group: 'Recent' });
+      });
+    }
     // 1) Tabs — always listed, labelled so they group at the top.
     [
       ['dashboard', '🏠', 'Dashboard'], ['planner', '📋', 'Planner'], ['sessions', '⏱️', 'Focus Sessions'],
@@ -9051,8 +9093,10 @@ function openCommandPalette() {
       ['resources', '📦', 'Resources'], ['social', '👥', 'Social / Study Mates'], ['analytics', '📊', 'Analytics'],
       ['warmup', '🧠', 'Warmup'], ['music', '🎵', 'Music'], ['settings', '⚙️', 'Settings'], ['downloads', '📥', 'Downloads']
     ].forEach(function(t) {
-      if (!query || (t[1] + ' ' + t[2]).toLowerCase().indexOf(query) >= 0) {
-        out.push({ kind: 'tab', tab: t[0], label: t[2], hint: 'Go to tab', icon: t[1], group: 'Tabs' });
+      var hay = (t[1] + ' ' + t[2]).toLowerCase();
+      var sc = query ? fuzzyScore(query, hay) : 0;
+      if (!query || sc !== null) {
+        out.push({ kind: 'tab', tab: t[0], label: t[2], hint: 'Go to tab', icon: t[1], group: 'Tabs', score: sc });
       }
     });
     // 2) Content: notes, flashcards, tasks, goals — only when searching.
@@ -9060,30 +9104,25 @@ function openCommandPalette() {
     // the total result list is capped below.
     if (query) {
       (state.notes || []).forEach(function(n) {
-        if ((n.title + ' ' + (n.subject || '')).toLowerCase().indexOf(query) >= 0) {
-          out.push({ kind: 'note', id: n.id, label: n.title, hint: 'Note · ' + (n.subject || 'General'), icon: '📝', group: 'Notes' });
-        }
+        var sc = fuzzyScore(query, n.title + ' ' + (n.subject || ''));
+        if (sc !== null) out.push({ kind: 'note', id: n.id, label: n.title, hint: 'Note · ' + (n.subject || 'General'), icon: '📝', group: 'Notes', score: sc });
       });
       (state.flashcards || []).forEach(function(f) {
-        if ((f.question + ' ' + (f.deck || '')).toLowerCase().indexOf(query) >= 0) {
-          out.push({ kind: 'flashcard', deck: f.deck, label: f.question, hint: 'Card · ' + (f.deck || 'Deck'), icon: '🗂️', group: 'Flashcards' });
-        }
+        var sc = fuzzyScore(query, f.question + ' ' + (f.deck || ''));
+        if (sc !== null) out.push({ kind: 'flashcard', deck: f.deck, label: f.question, hint: 'Card · ' + (f.deck || 'Deck'), icon: '🗂️', group: 'Flashcards', score: sc });
       });
       (state.tasks || []).forEach(function(t) {
-        if ((t.title || '').toLowerCase().indexOf(query) >= 0) {
-          out.push({ kind: 'task', id: t.id, label: t.title, hint: 'Task · ' + (t.subject || 'General'), icon: '✅', group: 'Tasks' });
-        }
+        var sc = fuzzyScore(query, t.title || '');
+        if (sc !== null) out.push({ kind: 'task', id: t.id, label: t.title, hint: 'Task · ' + (t.subject || 'General'), icon: '✅', group: 'Tasks', score: sc });
       });
       (state.goals || []).forEach(function(g) {
-        if ((g.title || '').toLowerCase().indexOf(query) >= 0) {
-          out.push({ kind: 'goal', id: g.id, label: g.title, hint: 'Goal · ' + (g.subject || 'General'), icon: '🎯', group: 'Goals' });
-        }
+        var sc = fuzzyScore(query, g.title || '');
+        if (sc !== null) out.push({ kind: 'goal', id: g.id, label: g.title, hint: 'Goal · ' + (g.subject || 'General'), icon: '🎯', group: 'Goals', score: sc });
       });
-      // 3) Quick actions — require ALL query words to appear in the action,
-      // so "newton" never matches "new task" (word-level match, not prefix).
-      var qWords = query.split(/\s+/).filter(Boolean);
+      // 3) Quick actions — fuzzy match against the action label so typos
+      // like "new tsk" or "star focos" still land; exact words rank first.
       ['new task', 'add task', 'create task', 'new note', 'add note', 'new flashcard', 'new card', 'start focus', 'start timer', 'export data', 'dark mode', 'load demo data', 'generate study guide', 'generate plan'].forEach(function(a) {
-        if (qWords.every(function(w) { return a.indexOf(w) >= 0; })) {
+        if (fuzzyMatch(query, a)) {
           var act = {
             'new task': { kind: 'action', act: 'task', label: 'Create a new task', icon: '➕' },
             'add task': { kind: 'action', act: 'task', label: 'Create a new task', icon: '➕' },
@@ -9100,16 +9139,19 @@ function openCommandPalette() {
             'generate study guide': { kind: 'action', act: 'guide', label: 'Generate a study guide', icon: '📖' },
             'generate plan': { kind: 'action', act: 'plan', label: 'Generate a study plan', icon: '📋' }
           }[a];
-          if (act && !out.some(function(o) { return o.kind === 'action' && o.act === act.act; })) { act.group = 'Actions'; out.push(act); }
+          if (act && !out.some(function(o) { return o.kind === 'action' && o.act === act.act; })) { act.group = 'Actions'; act.score = fuzzyScore(query, a); out.push(act); }
         }
       });
     }
+    // Rank best matches first (score: lower = better); keep stable for ties.
+    out.sort(function(a, b) { return (a.score || 0) - (b.score || 0); });
     return out.slice(0, 40);
   }
 
   function run(item) {
     overlay.remove();
     if (!item) return;
+    rememberRecent(item);
     if (item.kind === 'tab') { showTab(item.tab); }
     else if (item.kind === 'note') {
       showTab('notes');

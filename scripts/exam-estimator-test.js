@@ -29,7 +29,7 @@ const kbRe = /const TOPIC_KB = \{[\s\S]*?\n\};/;
 const kbM = appJs.match(kbRe);
 assert.ok(kbM && kbM[0], 'found TOPIC_KB const');
 vm.runInContext(kbM[0], sandbox);
-const fns = ['estLetter', 'estRecencyWeight', 'computeExamEstimate', 'computePredictionStats', 'computeAtRiskAdditions', 'estimateCalibration', 'kbMindMap'];
+const fns = ['estLetter', 'estRecencyWeight', 'computeExamEstimate', 'computePredictionStats', 'computeAtRiskAdditions', 'estimateCalibration', 'kbMindMap', 'fuzzyScore', 'fuzzyMatch'];
 for (const fn of fns) {
   const re = new RegExp('function ' + fn + '\\b[\\s\\S]*?\\n\\}', 'm');
   const m = appJs.match(re);
@@ -242,5 +242,13 @@ const kbWw = sandbox.kbMindMap('World War II');
 ok(kbWw && kbWw.indexOf('Pearl Harbor') >= 0, 'KB ww2 → Pearl Harbor content');
 const kbN = sandbox.kbMindMap('completely made up topic xyz');
 ok(kbN === null, 'KB unknown topic → null (falls back to template)');
+
+// Command-palette fuzzy matching.
+assert.ok(typeof sandbox.fuzzyScore === 'function', 'fuzzyScore loaded');
+ok(sandbox.fuzzyMatch('newt', "What is Newton's First Law?"), 'fuzzy typo "newt" matches Newton card');
+ok(sandbox.fuzzyMatch('new tsk', 'new task'), 'fuzzy typo "new tsk" matches new task');
+ok(!sandbox.fuzzyMatch('xyzq', 'Photosynthesis'), 'non-subsequence query does not match');
+ok(sandbox.fuzzyMatch('phsyn', 'photosynthesis'), 'fuzzy "phsyn" matches photosynthesis (subsequence)');
+ok(sandbox.fuzzyScore('pho', 'photosynthesis') < sandbox.fuzzyScore('pho', 'microphotography'), 'earlier exact match ranks better');
 
 console.log(`\nexam grade estimator: ${passed} assertions passed`);
