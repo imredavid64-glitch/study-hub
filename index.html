@@ -2351,6 +2351,7 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
                   </select>
                 </div>
                 <label class="top-gap" style="display:flex;align-items:center;gap:8px;font-weight:600"><input type="checkbox" id="powerModeToggle" /> ⚡ Compact power mode — collapse cards into dense lists</label>
+                <label class="top-gap" style="display:flex;align-items:center;gap:8px;font-weight:600" title="Desktop app only: reopen your windows, positions and tabs from the last session"><input type="checkbox" id="sessionMemoryToggle" /> 🧠 Session memory — remember windows, tabs &amp; layout (desktop)</label>
               </div>
             </article>
             <article class="card">
@@ -2423,6 +2424,11 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
         <section id="downloads" class="tab">
           <h2 class="tab-title">⬇ Download Study Hub</h2>
           <p class="subtle">Get the full app on any device. Desktop apps are self-contained installers. On Android and iOS you install the app straight from this site — no App Store or Google Play required.</p>
+          <div id="liveReleaseBox" class="card top-gap" aria-live="polite">
+            <h3>🛠 Latest release</h3>
+            <p class="subtle">Live from the installers repo — file sizes, checksums and download links refresh automatically.</p>
+            <div id="liveReleaseList"><p class="subtle">Loading latest release…</p></div>
+          </div>
           <div class="split-grid">
             <article class="card">
               <h3>🍎 macOS</h3>

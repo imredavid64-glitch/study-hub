@@ -81,6 +81,18 @@ if (!/tab-changed/.test(mainJs) || !/get-window-tab/.test(mainJs)) fails.push('e
 if (!/Restore Window Arrangement/.test(mainJs)) fails.push('electron-main.js Window menu has no Restore Window Arrangement item');
 if (!/restoreInitialTab/.test(js)) fails.push('app.js has no restoreInitialTab boot hook');
 
+// 10. Session-memory opt-in must be wired end to end (setting, menu, IPC).
+if (!/session-memory/.test(menuJs)) fails.push('electron-menu.js Layout menu has no session-memory item');
+if (!/session-memory-changed/.test(mainJs)) fails.push('electron-main.js has no session-memory-changed IPC handler');
+if (!/notifySessionMemory/.test(preloadJs)) fails.push('electron-preload.js does not expose notifySessionMemory');
+if (!/notifySessionMemory/.test(js)) fails.push('app.js has no notifySessionMemory helper');
+if (!/id="sessionMemoryToggle"/.test(html)) fails.push('Settings has no sessionMemoryToggle checkbox');
+
+// 11. The Downloads tab must have the live-release panel wired up.
+if (!/id="liveReleaseBox"/.test(html)) fails.push('Downloads tab has no liveReleaseBox container');
+if (!/loadLiveDownloads/.test(js) || !/DL_RELEASE_URL/.test(js)) fails.push('app.js is missing the live downloads loader');
+if (!/dl-copy/.test(js)) fails.push('app.js is missing the checksum copy button');
+
 // 9. Window-position memory must be wired into the main process and be
 //    unit-tested (electron-window-state.js is loaded by npm test).
 const winStateJs = fs.readFileSync(path.join(ROOT, 'electron-window-state.js'), 'utf8');

@@ -33,6 +33,8 @@ function syncMenuState(s) {
   if (!menu || !s || typeof s !== 'object') return;
   const power = menu.getMenuItemById('power-mode');
   if (power && typeof s.powerMode === 'boolean') power.checked = s.powerMode;
+  const memory = menu.getMenuItemById('session-memory');
+  if (memory && typeof s.sessionMemory === 'boolean') memory.checked = s.sessionMemory;
   const density = s.density || 'comfortable';
   // Electron's radio group rejects checking an item while a sibling is still
   // checked — uncheck the others first, then check the target so the sync
@@ -54,10 +56,15 @@ function applyLayout(kind, value, checked) {
        if (typeof syncPowerQuick === 'function') syncPowerQuick();
        var t = document.getElementById('powerModeToggle'); if (t) t.checked = ${!!checked};
        showToast(${checked} ? '⚡ Compact power mode on' : 'Compact power mode off');`
-    : `state.settings.density = '${value}'; saveState(); applyAppearance();
-       var q = document.getElementById('densityQuickSelect'); if (q) q.value = '${value}';
-       var s = document.getElementById('densitySelect'); if (s) s.value = '${value}';
-       showToast('Layout density: ${value}');`;
+    : kind === 'memory'
+      ? `state.settings.sessionMemory = ${!!checked}; saveState();
+         if (typeof notifySessionMemory === 'function') notifySessionMemory(${!!checked});
+         var t = document.getElementById('sessionMemoryToggle'); if (t) t.checked = ${!!checked};
+         showToast(${checked} ? 'Remembering windows, tabs & layout' : 'Session memory off — fresh windows each launch');`
+      : `state.settings.density = '${value}'; saveState(); applyAppearance();
+         var q = document.getElementById('densityQuickSelect'); if (q) q.value = '${value}';
+         var s = document.getElementById('densitySelect'); if (s) s.value = '${value}';
+         showToast('Layout density: ${value}');`;
   wc.executeJavaScript(expr).catch(() => {});
 }
 
@@ -73,7 +80,9 @@ const LAYOUT_SUBMENU = {
       ]
     },
     { type: 'separator' },
-    { id: 'power-mode', label: 'Compact power mode', type: 'checkbox', click: (item) => applyLayout('power', null, item.checked) }
+    { id: 'power-mode', label: 'Compact power mode', type: 'checkbox', click: (item) => applyLayout('power', null, item.checked) },
+    { type: 'separator' },
+    { id: 'session-memory', label: 'Remember windows, tabs & layout', type: 'checkbox', click: (item) => applyLayout('memory', null, item.checked) }
   ]
 };
 

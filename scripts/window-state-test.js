@@ -10,7 +10,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const {
-  defaultBounds, sanitizeBounds, loadWindowState, saveWindowState, recordWindow, MAX_WINDOWS,
+  defaultBounds, sanitizeBounds, loadSessionState, loadWindowState, saveWindowState, recordWindow, MAX_WINDOWS,
 } = require('../electron-window-state');
 
 let passed = 0;
@@ -73,5 +73,16 @@ const corrupt = path.join(os.tmpdir(), 'window-state-corrupt-' + process.pid + '
 fs.writeFileSync(corrupt, '{not json');
 ok(loadWindowState(corrupt).length === 0, 'corrupt file loads as empty queue');
 fs.unlinkSync(corrupt);
+
+// 10. Session memory flag round-trips and defaults ON
+const memFile = path.join(os.tmpdir(), 'window-state-mem-' + process.pid + '.json');
+ok(saveWindowState(memFile, q, false) === true, 'save writes the memory flag');
+const memOff = loadSessionState(memFile);
+ok(memOff.memory === false && memOff.windows.length === MAX_WINDOWS, 'memory flag loads as off with the queue');
+ok(saveWindowState(memFile, [], true) === true, 'save writes memory back on');
+ok(loadSessionState(memFile).memory === true, 'memory flag loads as on');
+ok(loadSessionState('/nonexistent/nope.json').memory === true, 'missing file defaults memory ON');
+ok(loadSessionState(corrupt || '/nonexistent/x.json').memory === true, 'corrupt file defaults memory ON');
+fs.unlinkSync(memFile);
 
 console.log('window-state unit test passed (' + passed + ' assertions)');

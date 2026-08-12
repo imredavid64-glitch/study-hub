@@ -98,6 +98,13 @@ app.whenReady().then(() => {
   const testTabs = new Map();
   ipcMain.on('tab-changed', (event, tab) => { if (typeof tab === 'string') testTabs.set(event.sender.id, tab); });
   ipcMain.handle('get-window-tab', (event) => testTabs.get(event.sender.id) || 'dashboard');
+  // Session-memory opt-in: mirror the real handler (menu + per-window flag).
+  const testMemory = new Map();
+  ipcMain.on('session-memory-changed', (event, enabled) => {
+    testMemory.set(event.sender.id, enabled !== false);
+    const item = Menu.getApplicationMenu() && Menu.getApplicationMenu().getMenuItemById('session-memory');
+    if (item) item.checked = enabled !== false;
+  });
 
   // Capture console messages (Electron API changed across versions)
   const webContents = win.webContents;
@@ -376,6 +383,16 @@ app.whenReady().then(() => {
       if (testTabs.get(webContents.id) !== w1TabBefore) failures.push('Multi-window test: win1 tab changed with win2\'s (was ' + w1TabBefore + ', now ' + testTabs.get(webContents.id) + ')');
       const roundTrip = await wc2.executeJavaScript(`window.electronAPI && window.electronAPI.getWindowTab ? window.electronAPI.getWindowTab().then(t => t) : 'no-api'`);
       if (roundTrip !== 'planner') failures.push('Multi-window test: get-window-tab did not round-trip (got ' + roundTrip + ')');
+      // Session-memory opt-in: toggling the setting must report to main and
+      // update the native menu checkbox.
+      await wc2.executeJavaScript(`state.settings.sessionMemory=false; saveState(); notifySessionMemory(false); 'mem-off'`);
+      await new Promise(r => setTimeout(r, 150));
+      const memItem = Menu.getApplicationMenu().getMenuItemById('session-memory');
+      if (testMemory.get(wc2.id) !== false) failures.push('Multi-window test: session-memory off was not reported to main');
+      if (!memItem || memItem.checked !== false) failures.push('Multi-window test: session-memory menu item did not uncheck');
+      await wc2.executeJavaScript(`state.settings.sessionMemory=true; saveState(); notifySessionMemory(true); 'mem-on'`);
+      await new Promise(r => setTimeout(r, 150));
+      if (testMemory.get(wc2.id) !== true || !memItem || memItem.checked !== true) failures.push('Multi-window test: session-memory re-enable did not sync');
 
       // Clean up: reset win2, close it, hand focus back to win1, re-sync menu.
       await wc2.executeJavaScript(`state.settings.density='compact'; state.settings.powerMode=false; saveState(); applyAppearance(); 'cleaned'`);

@@ -1,15 +1,25 @@
 const { app, BrowserWindow, Menu, shell, dialog, ipcMain, nativeTheme, screen } = require('electron');
 const path = require('path');
 const { LAYOUT_SUBMENU, setWindowAccessor, syncMenuState, layoutTitleSuffix } = require('./electron-menu');
-const { defaultBounds, sanitizeBounds, loadWindowState, saveWindowState, recordWindow } = require('./electron-window-state');
+const { defaultBounds, sanitizeBounds, loadSessionState, loadWindowState, saveWindowState, recordWindow } = require('./electron-window-state');
 
 let mainWindow;
 const windows = new Set();
 
 // ---- Window-position memory ----
-let savedWindowQueue = null; // lazy: loaded on first window creation
-let cascadeStep = 0;         // offsets for windows opened when no saved slot remains
-let windowCounter = 0;       // unique id per window, so titles/menu apply per window
+let savedWindowQueue = null;         // lazy: loaded on first window creation
+let sessionMemoryEnabled = true;     // opt-in flag from window-state.json
+let cascadeStep = 0;                 // offsets for windows opened when no saved slot remains
+let windowCounter = 0;               // unique id per window, so titles/menu apply per window
+
+// Load the saved session (memory flag + window queue) once, lazily.
+function ensureSessionLoaded() {
+  if (savedWindowQueue === null) {
+    const state = loadSessionState(windowStateFile());
+    savedWindowQueue = state.windows;
+    sessionMemoryEnabled = state.memory !== false;
+  }
+}
 
 function windowStateFile() {
   return path.join(app.getPath('userData'), 'window-state.json');
@@ -32,7 +42,7 @@ function resolveBounds(b) {
 }
 
 function restoreBoundsForWindow() {
-  if (savedWindowQueue === null) savedWindowQueue = loadWindowState(windowStateFile());
+  ensureSessionLoaded();
   const saved = savedWindowQueue.shift();
   if (saved) return resolveBounds(saved);
   // No saved slot: cascade a default-size window from the primary display's center.
@@ -50,7 +60,8 @@ function restoreBoundsForWindow() {
 // per remaining saved slot. New windows created here each consume a slot, so
 // the arrangement is reproduced and then re-saved as it closes.
 function restoreArrangement() {
-  if (savedWindowQueue === null) savedWindowQueue = loadWindowState(windowStateFile());
+  ensureSessionLoaded();
+  if (!sessionMemoryEnabled) return; // session memory is opted out
   let created = 0;
   while (windows.size < 6 && savedWindowQueue.length > 0 && created < 8) {
     createWindow();
@@ -66,7 +77,9 @@ function applyLayoutTitle(win, s) {
 }
 
 function createWindow() {
-  const bounds = restoreBoundsForWindow();
+  ensureSessionLoaded();
+  // With session memory opted out, always open fresh default windows.
+  const bounds = sessionMemoryEnabled ? restoreBoundsForWindow() : resolveBounds(defaultBounds());
   const win = new BrowserWindow({
     width: bounds.width,
     height: bounds.height,
@@ -87,7 +100,8 @@ function createWindow() {
   });
   win.__studyHubId = ++windowCounter;
   // Restore the tab this window had open when it was last closed.
-  win.__studyHubTab = typeof bounds.tab === 'string' ? bounds.tab : 'dashboard';
+  win.__studyHubTab = sessionMemoryEnabled && typeof bounds.tab === 'string' ? bounds.tab : 'dashboard';
+  win.__sessionMemory = sessionMemoryEnabled;
   windows.add(win);
   if (!mainWindow || mainWindow.isDestroyed()) mainWindow = win;
   if (bounds.maximized) win.maximize();
@@ -95,13 +109,15 @@ function createWindow() {
   win.loadFile('index.html');
   // Remember this window's position/size for the next launch.
   win.on('close', () => {
+    if (win.__sessionMemory === false) return; // session memory opted out — leave state untouched
     try {
       const b = Object.assign(win.getBounds(), {
         maximized: win.isMaximized(),
         tab: win.__studyHubTab || 'dashboard',
       });
+      ensureSessionLoaded();
       savedWindowQueue = recordWindow(savedWindowQueue || [], b);
-      saveWindowState(windowStateFile(), savedWindowQueue);
+      saveWindowState(windowStateFile(), savedWindowQueue, sessionMemoryEnabled);
     } catch (e) { /* bounds may be unavailable during teardown */ }
   });
   win.on('closed', () => {
@@ -206,6 +222,15 @@ ipcMain.on('tab-changed', (event, tab) => {
 ipcMain.handle('get-window-tab', (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   return (win && win.__studyHubTab) || 'dashboard';
+});
+
+// Session-memory opt-in: persisted in window-state.json so the NEXT launch
+// knows before the first window is created, and applied live to this session.
+ipcMain.on('session-memory-changed', (_event, enabled) => {
+  ensureSessionLoaded();
+  sessionMemoryEnabled = enabled !== false;
+  saveWindowState(windowStateFile(), savedWindowQueue || [], sessionMemoryEnabled);
+  windows.forEach(win => { if (!win.isDestroyed()) win.__sessionMemory = sessionMemoryEnabled; });
 });
 
 // Route the shared Layout menu handlers to the focused window (or the primary

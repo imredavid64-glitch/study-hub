@@ -4644,6 +4644,13 @@ canvas {
 #downloads .split-grid { margin-top: 14px; }
 #downloads .card { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
 #downloads .card .btn { margin-top: auto; }
+.dl-list { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.dl-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--item-bg, var(--surface)); }
+.dl-platform { font-weight: 600; min-width: 92px; }
+.dl-name { flex: 1; min-width: 160px; font-size: 0.82rem; overflow-wrap: anywhere; }
+.dl-size { min-width: 64px; color: var(--muted); font-size: 0.85rem; }
+.dl-sha { font-size: 0.76rem; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+@media (max-width: 640px) { .dl-platform { min-width: 70px; } .dl-sha { width: 100%; } }
 
 /* ===== PHONE ADAPTATION (browser/PWA on phones) ===== */
 body.is-mobile .mobile-nav { display: flex; }

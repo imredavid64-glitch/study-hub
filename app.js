@@ -176,7 +176,7 @@ function __(key) { const l = _lang(); return LOCALES[l]?.[key] || LOCALES.en[key
 
 const DEFAULT_STATE = {
   profile: { name: 'Scholar', major: 'General Studies', weeklyTargetHours: 20, targetGpa: 3.8, setupComplete: false, subjects: [], interests: '', learningStyle: '', difficulties: '', goals: '', xp: 0, currentStreak: 0 },
-    settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', font: 'default', density: 'comfortable', radius: 'soft', layout: 'balanced', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', stickyNotes: [], warmupStats: { bestStreak: 0, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, explainVerify: true, powerMode: false, _ach: { goalsCompleted: 0, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
+    settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', font: 'default', density: 'comfortable', radius: 'soft', layout: 'balanced', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', stickyNotes: [], warmupStats: { bestStreak: 0, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, explainVerify: true, powerMode: false, sessionMemory: true, _ach: { goalsCompleted: 0, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
   goals: [], tasks: [], sessions: [], flashcards: [], notes: [], assignments: [],
   reflections: [], quizAttempts: [], mockTestHistory: [], recallHistory: [],
   confusionLog: [],
@@ -193,7 +193,7 @@ const DEFAULT_STATE = {
 // ===== DEMO DATA FOR JUDGE MODE =====
 const DEMO_DATA = {
   profile: { name: 'Judge', major: 'All Subjects', weeklyTargetHours: 25, targetGpa: 4.0, setupComplete: true, subjects: ['AP Physics', 'SAT Prep', 'Organic Chemistry'], interests: 'Competitive academics, Test preparation', learningStyle: 'visual', difficulties: 'None', goals: 'Ace all exams, Get into top college', xp: 450, currentStreak: 7 },
-  settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', font: 'default', density: 'comfortable', radius: 'soft', layout: 'balanced', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', stickyNotes: [], warmupStats: { bestStreak: 7, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, explainVerify: true, powerMode: false, _ach: { goalsCompleted: 1, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
+  settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', font: 'default', density: 'comfortable', radius: 'soft', layout: 'balanced', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', stickyNotes: [], warmupStats: { bestStreak: 7, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, explainVerify: true, powerMode: false, sessionMemory: true, _ach: { goalsCompleted: 1, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
   goals: [
     { id: 'demo_goal_1', title: 'Ace AP Physics Exam', subject: 'AP Physics', deadline: '2026-12-15', priority: 'high', hours: 20, createdAt: '2026-08-01' },
     { id: 'demo_goal_2', title: 'SAT Score 1500+', subject: 'SAT Prep', deadline: '2026-11-01', priority: 'high', hours: 30, createdAt: '2026-08-01' },
@@ -808,9 +808,12 @@ function showTab(tabId) {
   updateWelcomeTitle();
   if (typeof Mobile !== 'undefined' && Mobile.syncMobileNav) Mobile.syncMobileNav(tabId);
   // Tell the Electron main process which tab this window is on so relaunching
-  // restores the same workspace (browser/preview: no-op).
+  // restores the same workspace (browser/preview: no-op). Gated by the session
+  // memory setting — when opted out, every launch starts on the dashboard.
   try {
-    if (window.electronAPI && typeof window.electronAPI.notifyTab === 'function') window.electronAPI.notifyTab(tabId);
+    if (state.settings.sessionMemory !== false && window.electronAPI && typeof window.electronAPI.notifyTab === 'function') {
+      window.electronAPI.notifyTab(tabId);
+    }
   } catch (e) { /* non-Electron — nothing to notify */ }
 }
 function updateWelcomeTitle() {
@@ -4298,6 +4301,17 @@ function setupSettings() {
       showToast(this.checked ? '⚡ Compact power mode on — cards collapsed to dense lists' : 'Compact power mode off');
     });
   }
+  var sessionMemoryToggle = $('sessionMemoryToggle');
+  if (sessionMemoryToggle) {
+    sessionMemoryToggle.checked = state.settings.sessionMemory !== false;
+    sessionMemoryToggle.addEventListener('change', function() {
+      state.settings.sessionMemory = this.checked;
+      saveState();
+      notifySessionMemory(this.checked);
+      if (typeof syncNativeMenu === 'function') syncNativeMenu(); // keep the native menu checkbox in sync
+      showToast(this.checked ? 'Session memory on — windows, tabs & layout are remembered' : 'Session memory off — fresh windows each launch');
+    });
+  }
   // Topbar quick layout switch: syncs with the Settings select/toggle.
   function syncPowerQuick() {
     const p = $('powerModeQuickBtn');
@@ -4493,7 +4507,7 @@ function applyAppearance() {
 function syncNativeMenu() {
   try {
     if (window.electronAPI && typeof window.electronAPI.notifyLayout === 'function') {
-      window.electronAPI.notifyLayout({ powerMode: !!state.settings.powerMode, density: state.settings.density || 'comfortable' });
+      window.electronAPI.notifyLayout({ powerMode: !!state.settings.powerMode, density: state.settings.density || 'comfortable', sessionMemory: state.settings.sessionMemory !== false });
     }
   } catch (e) { /* non-Electron or preload unavailable — nothing to sync */ }
 }
@@ -4528,6 +4542,89 @@ async function runHealthCheck() {
   if (grokStatusEl) grokStatusEl.textContent = results[1].status === 'OK' ? 'Connected' : 'Error';
   const supabaseStatusEl = document.getElementById('supabaseStatus');
   if (supabaseStatusEl) supabaseStatusEl.textContent = results[2].status;
+}
+
+// ===== LIVE DOWNLOADS =====
+// Reads the latest release from the public installers repo and renders live
+// file sizes, sha256 checksums and download links. Caches the last-known list
+// so the tab still works offline; the static cards below remain the fallback.
+const DL_RELEASE_URL = 'https://api.github.com/repos/imredavid64-glitch/study-hub-installers/releases/latest';
+const DL_CACHE_KEY = 'dlLatestRelease';
+
+function setupDownloads() {
+  loadLiveDownloads();
+}
+
+function dlHumanSize(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '—';
+  const mb = bytes / 1024 / 1024;
+  return mb >= 1024 ? (mb / 1024).toFixed(2) + ' GB' : Math.round(mb) + ' MB';
+}
+
+function dlPlatform(name) {
+  const n = name.toLowerCase();
+  if (n.includes('mac')) return '🍎 macOS';
+  if (n.includes('windows') || n.includes('-win')) return '🪟 Windows';
+  if (n.includes('appimage') || n.includes('deb')) return '🐧 Linux';
+  return '📦 ' + name.split('-').pop().split('.').pop().toUpperCase();
+}
+
+function dlRenderAssets(release) {
+  const el = $('liveReleaseList');
+  if (!el) return;
+  if (!release || !Array.isArray(release.assets) || !release.assets.length) {
+    el.innerHTML = '<p class="subtle">No published installers yet — check back after the next release tag.</p>';
+    return;
+  }
+  const date = (release.published_at || '').slice(0, 10);
+  const rows = release.assets.map(a => {
+    const digest = (a.digest || '').replace(/^sha256:/, '');
+    const short = digest ? digest.slice(0, 12) + '…' : '—';
+    const copyBtn = digest
+      ? `<button class="ghost dl-copy" data-sha="${digest}" title="Copy full sha256 checksum" style="padding:2px 8px;font-size:0.78rem">⧉ copy</button>`
+      : '';
+    return `<div class="dl-row">
+      <span class="dl-platform">${dlPlatform(a.name)}</span>
+      <code class="dl-name">${escapeHtml(a.name)}</code>
+      <span class="dl-size">${dlHumanSize(a.size)}</span>
+      <span class="dl-sha" title="sha256 checksum">sha256: ${escapeHtml(short)} ${copyBtn}</span>
+      <a class="btn btn-sm" href="${a.browser_download_url}" download>⬇ Download</a>
+    </div>`;
+  }).join('');
+  el.innerHTML = `<p class="subtle">Version <strong>${escapeHtml(release.tag_name || 'latest')}</strong> · published ${escapeHtml(date)}</p><div class="dl-list">${rows}</div>`;
+  el.querySelectorAll('.dl-copy').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText('sha256:' + btn.dataset.sha);
+        showToast('Checksum copied to clipboard');
+      } catch (e) {
+        showToast('Checksum: sha256:' + btn.dataset.sha, 'error');
+      }
+    });
+  });
+}
+
+function loadLiveDownloads() {
+  // Render the cached list immediately so the panel is never empty, then refresh.
+  try {
+    const cached = JSON.parse(localStorage.getItem(DL_CACHE_KEY) || 'null');
+    if (cached && cached.assets) dlRenderAssets(cached);
+  } catch (e) { /* cache corrupt — ignore */ }
+  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), 8000) : null;
+  fetch(DL_RELEASE_URL, ctrl ? { signal: ctrl.signal } : undefined)
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(release => {
+      try { localStorage.setItem(DL_CACHE_KEY, JSON.stringify(release)); } catch (e) { /* storage full — skip */ }
+      dlRenderAssets(release);
+    })
+    .catch(() => {
+      const el = $('liveReleaseList');
+      if (el && el.textContent.indexOf('Loading') >= 0) {
+        el.innerHTML = '<p class="subtle">Could not reach the installers repo — showing the offline fallback links below.</p>';
+      }
+    })
+    .finally(() => { if (timer) clearTimeout(timer); });
 }
 
 // ===== MUSIC PLAYER =====
@@ -7208,6 +7305,7 @@ function init() {
   safeCall(setupCalculator);
   safeCall(setupTutorial);
   safeCall(setupAutismSupport);
+  safeCall(setupDownloads);
   safeCall(setupPeerTutoring);
   safeCall(setupGenerators);
   safeCall(setupLearningStyle);
@@ -7265,11 +7363,22 @@ function init() {
     if (typeof console !== 'undefined') console.error('init() error:', e);
   }
 }
+// Report the session-memory opt-in to the Electron main process so window
+// arrangement and per-window tabs are remembered (or not) from this point on.
+function notifySessionMemory(enabled) {
+  try {
+    if (window.electronAPI && typeof window.electronAPI.notifySessionMemory === 'function') {
+      window.electronAPI.notifySessionMemory(enabled !== false);
+    }
+  } catch (e) { /* non-Electron — nothing to notify */ }
+}
+
 // Boot on the tab this window had open last time (Electron), else dashboard.
 // Dashboard renders immediately so there is no blank flash; the saved tab
 // (if any) replaces it as soon as the main process answers.
 function restoreInitialTab() {
   showTab('dashboard');
+  if (state.settings.sessionMemory === false) return; // opted out — stay on dashboard
   try {
     if (window.electronAPI && typeof window.electronAPI.getWindowTab === 'function') {
       window.electronAPI.getWindowTab().then((tab) => {

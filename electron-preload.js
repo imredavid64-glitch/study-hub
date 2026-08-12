@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Per-window tab memory: report tab switches and fetch the saved tab on boot.
   notifyTab: (tab) => ipcRenderer.send('tab-changed', tab),
   getWindowTab: () => ipcRenderer.invoke('get-window-tab'),
+  // Session-memory opt-in (window arrangement + per-window tabs).
+  notifySessionMemory: (enabled) => ipcRenderer.send('session-memory-changed', enabled),
   platform: process.platform,
   isElectron: true
 });

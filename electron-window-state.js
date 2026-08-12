@@ -4,10 +4,11 @@
  * so the QA suite and `npm test` can unit-test the logic in plain Node.
  *
  * State shape on disk (userData/window-state.json):
- *   { "windows": [ { width, height, x, y, maximized, tab }, ... ] }
- * The queue is capped at 8; the first entry is used for the primary window,
- * later entries feed windows opened via Window → New Window. `tab` is the last
- * tab that window had open (restored on launch via get-window-tab).
+ *   { "memory": true|false, "windows": [ { width, height, x, y, maximized, tab }, ... ] }
+ * `memory` is the opt-in flag for session memory (window arrangement + per-window
+ * tab). The queue is capped at 8; the first entry is used for the primary
+ * window, later entries feed windows opened via Window → New Window. `tab` is
+ * the last tab that window had open (restored on launch via get-window-tab).
  */
 'use strict';
 
@@ -53,21 +54,30 @@ function sanitizeBounds(b, displayArea) {
   };
 }
 
-/** Read the saved window queue; returns [] on missing/corrupt files. */
-function loadWindowState(file) {
+/** Read the whole saved session state (memory flag + window queue). */
+function loadSessionState(file) {
+  const empty = { memory: true, windows: [] };
   try {
     const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
-    return Array.isArray(parsed.windows) ? parsed.windows : [];
+    return {
+      memory: parsed.memory !== false, // default: session memory ON
+      windows: Array.isArray(parsed.windows) ? parsed.windows : [],
+    };
   } catch (e) {
-    return [];
+    return empty;
   }
 }
 
-/** Persist the queue (most recent first, capped). Returns true on success. */
-function saveWindowState(file, windows) {
+/** Read the saved window queue; returns [] on missing/corrupt files. */
+function loadWindowState(file) {
+  return loadSessionState(file).windows;
+}
+
+/** Persist the queue + memory flag (most recent first, capped). Returns true on success. */
+function saveWindowState(file, windows, memory) {
   try {
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, JSON.stringify({ windows: windows.slice(0, MAX_WINDOWS) }));
+    fs.writeFileSync(file, JSON.stringify({ memory: memory !== false, windows: windows.slice(0, MAX_WINDOWS) }));
     return true;
   } catch (e) {
     return false;
@@ -79,4 +89,4 @@ function recordWindow(windows, bounds) {
   return [bounds].concat(Array.isArray(windows) ? windows : []).slice(0, MAX_WINDOWS);
 }
 
-module.exports = { defaultBounds, sanitizeBounds, loadWindowState, saveWindowState, recordWindow, MAX_WINDOWS };
+module.exports = { defaultBounds, sanitizeBounds, loadSessionState, loadWindowState, saveWindowState, recordWindow, MAX_WINDOWS };
