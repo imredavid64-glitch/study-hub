@@ -5579,6 +5579,22 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   text-overflow: ellipsis;
 }
 
+.cmd-palette-group {
+  padding: 8px 12px 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.cmd-palette-foot {
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-align: center;
+}
+
 /* Undo toast action button */
 .undo-toast-btn {
   margin-left: 10px;

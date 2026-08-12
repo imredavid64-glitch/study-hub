@@ -9052,7 +9052,7 @@ function openCommandPalette() {
       ['warmup', '🧠', 'Warmup'], ['music', '🎵', 'Music'], ['settings', '⚙️', 'Settings'], ['downloads', '📥', 'Downloads']
     ].forEach(function(t) {
       if (!query || (t[1] + ' ' + t[2]).toLowerCase().indexOf(query) >= 0) {
-        out.push({ kind: 'tab', tab: t[0], label: t[2], hint: 'Go to tab', icon: t[1] });
+        out.push({ kind: 'tab', tab: t[0], label: t[2], hint: 'Go to tab', icon: t[1], group: 'Tabs' });
       }
     });
     // 2) Content: notes, flashcards, tasks, goals — only when searching.
@@ -9061,22 +9061,22 @@ function openCommandPalette() {
     if (query) {
       (state.notes || []).forEach(function(n) {
         if ((n.title + ' ' + (n.subject || '')).toLowerCase().indexOf(query) >= 0) {
-          out.push({ kind: 'note', id: n.id, label: n.title, hint: 'Note · ' + (n.subject || 'General'), icon: '📝' });
+          out.push({ kind: 'note', id: n.id, label: n.title, hint: 'Note · ' + (n.subject || 'General'), icon: '📝', group: 'Notes' });
         }
       });
       (state.flashcards || []).forEach(function(f) {
         if ((f.question + ' ' + (f.deck || '')).toLowerCase().indexOf(query) >= 0) {
-          out.push({ kind: 'flashcard', deck: f.deck, label: f.question, hint: 'Card · ' + (f.deck || 'Deck'), icon: '🗂️' });
+          out.push({ kind: 'flashcard', deck: f.deck, label: f.question, hint: 'Card · ' + (f.deck || 'Deck'), icon: '🗂️', group: 'Flashcards' });
         }
       });
       (state.tasks || []).forEach(function(t) {
         if ((t.title || '').toLowerCase().indexOf(query) >= 0) {
-          out.push({ kind: 'task', id: t.id, label: t.title, hint: 'Task · ' + (t.subject || 'General'), icon: '✅' });
+          out.push({ kind: 'task', id: t.id, label: t.title, hint: 'Task · ' + (t.subject || 'General'), icon: '✅', group: 'Tasks' });
         }
       });
       (state.goals || []).forEach(function(g) {
         if ((g.title || '').toLowerCase().indexOf(query) >= 0) {
-          out.push({ kind: 'goal', id: g.id, label: g.title, hint: 'Goal · ' + (g.subject || 'General'), icon: '🎯' });
+          out.push({ kind: 'goal', id: g.id, label: g.title, hint: 'Goal · ' + (g.subject || 'General'), icon: '🎯', group: 'Goals' });
         }
       });
       // 3) Quick actions — require ALL query words to appear in the action,
@@ -9100,7 +9100,7 @@ function openCommandPalette() {
             'generate study guide': { kind: 'action', act: 'guide', label: 'Generate a study guide', icon: '📖' },
             'generate plan': { kind: 'action', act: 'plan', label: 'Generate a study plan', icon: '📋' }
           }[a];
-          if (act && !out.some(function(o) { return o.kind === 'action' && o.act === act.act; })) out.push(act);
+          if (act && !out.some(function(o) { return o.kind === 'action' && o.act === act.act; })) { act.group = 'Actions'; out.push(act); }
         }
       });
     }
@@ -9151,7 +9151,16 @@ function openCommandPalette() {
       return;
     }
     var sel = 0;
+    var lastGroup = null;
     items.forEach(function(it, i) {
+      // Group header: one per section (Tabs / Notes / Cards / Tasks / Goals / Actions).
+      if (it.group && it.group !== lastGroup) {
+        lastGroup = it.group;
+        var head = document.createElement('div');
+        head.className = 'cmd-palette-group';
+        head.textContent = it.group;
+        list.appendChild(head);
+      }
       var row = document.createElement('button');
       row.type = 'button';
       row.className = 'cmd-palette-row' + (i === sel ? ' selected' : '');
@@ -9165,6 +9174,11 @@ function openCommandPalette() {
       row.appendChild(hint);
       list.appendChild(row);
     });
+    // Footer hint bar.
+    var foot = document.createElement('div');
+    foot.className = 'cmd-palette-foot';
+    foot.textContent = '↑↓ navigate · Enter open · Esc close';
+    list.appendChild(foot);
     function setSel(i) {
       sel = Math.max(0, Math.min(items.length - 1, i));
       qsa('.cmd-palette-row').forEach(function(r, j) { r.classList.toggle('selected', j === sel); });
