@@ -176,7 +176,7 @@ function __(key) { const l = _lang(); return LOCALES[l]?.[key] || LOCALES.en[key
 
 const DEFAULT_STATE = {
   profile: { name: 'Scholar', major: 'General Studies', weeklyTargetHours: 20, targetGpa: 3.8, setupComplete: false, subjects: [], interests: '', learningStyle: '', difficulties: '', goals: '', xp: 0, currentStreak: 0 },
-    settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', font: 'default', density: 'comfortable', radius: 'soft', layout: 'balanced', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', stickyNotes: [], warmupStats: { bestStreak: 0, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, _ach: { goalsCompleted: 0, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
+    settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', font: 'default', density: 'comfortable', radius: 'soft', layout: 'balanced', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', stickyNotes: [], warmupStats: { bestStreak: 0, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, explainVerify: true, _ach: { goalsCompleted: 0, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
   goals: [], tasks: [], sessions: [], flashcards: [], notes: [], assignments: [],
   reflections: [], quizAttempts: [], mockTestHistory: [], recallHistory: [],
   confusionLog: [],
@@ -193,7 +193,7 @@ const DEFAULT_STATE = {
 // ===== DEMO DATA FOR JUDGE MODE =====
 const DEMO_DATA = {
   profile: { name: 'Judge', major: 'All Subjects', weeklyTargetHours: 25, targetGpa: 4.0, setupComplete: true, subjects: ['AP Physics', 'SAT Prep', 'Organic Chemistry'], interests: 'Competitive academics, Test preparation', learningStyle: 'visual', difficulties: 'None', goals: 'Ace all exams, Get into top college', xp: 450, currentStreak: 7 },
-  settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', font: 'default', density: 'comfortable', radius: 'soft', layout: 'balanced', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', stickyNotes: [], warmupStats: { bestStreak: 7, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, _ach: { goalsCompleted: 1, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
+  settings: { darkMode: false, theme: 'teal', customColor: '#0f766e', font: 'default', density: 'comfortable', radius: 'soft', layout: 'balanced', responseStyle: 'detailed', studyMode: 'balanced', focusMinutes: 25, breakMinutes: 5, timerNotify: true, appLanguage: 'en', googleClientId: '', adhdMode: false, hideMusic: false, shortcuts: {}, peerMethod: 'same-age', stickyNotes: [], warmupStats: { bestStreak: 7, totalGames: 0, totalCorrect: 0 }, autismClearLang: true, autismStepByStep: true, autismVisual: true, autismPredictable: true, autismSpeechRate: 'moderate', autismLevel: 2, explainVerify: true, _ach: { goalsCompleted: 1, earlyTasks: 0, studyPlansGenerated: 0, reflectionsCount: 0 } },
   goals: [
     { id: 'demo_goal_1', title: 'Ace AP Physics Exam', subject: 'AP Physics', deadline: '2026-12-15', priority: 'high', hours: 20, createdAt: '2026-08-01' },
     { id: 'demo_goal_2', title: 'SAT Score 1500+', subject: 'SAT Prep', deadline: '2026-11-01', priority: 'high', hours: 30, createdAt: '2026-08-01' },
@@ -1012,6 +1012,8 @@ function renderDashboard() {
   if (typeof renderBehindNudge === 'function') renderBehindNudge();
   if (typeof renderExamLockBanner === 'function') renderExamLockBanner();
   if (typeof renderGoalWalkthroughs === 'function') renderGoalWalkthroughs();
+  if (typeof renderNextFifteen === 'function') renderNextFifteen();
+  if (typeof renderExamSurvivalKit === 'function') renderExamSurvivalKit();
   } catch(e) { if (typeof console !== 'undefined') console.warn('renderDashboard:', e); }
 }
 
@@ -1587,7 +1589,7 @@ function renderSessionHistory() {
 }
 
 // ===== FLASHCARDS (SM-2) =====
-let fcState = { deck: 'all', cards: [], index: 0, flipped: false };
+let fcState = { deck: 'all', cards: [], index: 0, flipped: false, verified: {} };
 function setupFlashcards() {
   $('flashcardForm').addEventListener('submit', e => {
     e.preventDefault();
@@ -1706,6 +1708,11 @@ function rateCurrentFlashcard(rating) {
   const c = fcState.cards[fcState.index];
   const card = state.flashcards.find(x => x.id === c.id);
   if (!card) return;
+  // Explain-then-verify: prove you understand the "why" before rating (once per card per session).
+  if (state.settings.explainVerify !== false && !(fcState.verified || {})[card.id]) {
+    openExplainVerify(rating, card);
+    return;
+  }
   if (rating === 1) { card.ease = Math.max(1.3, card.ease - 0.2); card.repetitions = 0; card.interval = 0; logConfusion(card.deck, card.question, 'flashcard'); }
   else if (rating === 3) { card.ease = Math.max(1.3, card.ease - 0.15); card.interval = Math.max(1, card.interval * card.ease); card.repetitions++; logConfusion(card.deck, card.question, 'flashcard'); }
   else if (rating === 3) { card.ease = Math.max(1.3, card.ease - 0.15); card.interval = Math.max(1, card.interval * card.ease); card.repetitions++; }
@@ -1727,6 +1734,64 @@ function rateCurrentFlashcard(rating) {
   }
   if (deckFinished && fcState.cards.length > 0 && typeof autoCompleteWtStep === 'function') autoCompleteWtStep('cards', fcState.deck === 'all' ? card.deck : fcState.deck);
   showToast('Rated!');
+}
+
+// ===== EXPLAIN-THEN-VERIFY FLASHCARDS =====
+function openExplainVerify(rating, card) {
+  if (!fcState.verified) fcState.verified = {};
+  const panel = document.createElement('div');
+  panel.className = 'modal-backdrop';
+  panel.innerHTML = `<div class="modal-card ev-modal">
+    <div class="row-between"><h3>🤔 Explain-then-verify</h3><button class="ghost modal-close">&times;</button></div>
+    <p class="subtle">Before you rate this card, explain <em>why</em> the answer is right — in your own words, like you're teaching it to a friend.</p>
+    <div class="ev-card-q"><strong>Q:</strong> ${escapeHtml(card.question)}</div>
+    <div class="ev-card-a"><strong>A:</strong> ${escapeHtml(card.answer)}</div>
+    <textarea id="evExplainBox" rows="4" placeholder="Why is this the correct answer? What's the key idea or reasoning behind it?" style="width:100%;margin-top:10px"></textarea>
+    <div class="inline wrap top-gap">
+      <button class="btn" id="evVerifyBtn">✅ Verify my explanation</button>
+      <button class="btn btn-ghost" id="evSkipBtn">Skip (rate anyway)</button>
+    </div>
+    <p id="evResult" class="small" style="margin-top:10px;min-height:1.2em"></p>
+  </div>`;
+  document.body.appendChild(panel);
+  const close = () => panel.remove();
+  panel.querySelector('.modal-close').addEventListener('click', close);
+  panel.addEventListener('click', e => { if (e.target === panel) close(); });
+  const box = panel.querySelector('#evExplainBox');
+  setTimeout(() => { try { box.focus(); } catch (e) {} }, 50);
+  const applyChosen = () => { close(); rateCurrentFlashcard(rating); };
+  panel.querySelector('#evSkipBtn').addEventListener('click', () => { fcState.verified[card.id] = true; applyChosen(); });
+  panel.querySelector('#evVerifyBtn').addEventListener('click', async () => {
+    const explain = box.value.trim();
+    if (!explain) { showToast('Type an explanation first'); box.focus(); return; }
+    const btn = panel.querySelector('#evVerifyBtn');
+    btn.disabled = true; btn.textContent = 'Grading…';
+    const res = await gradeFlashcardExplanation(card, explain);
+    const resultEl = panel.querySelector('#evResult');
+    if (res.ok) {
+      fcState.verified[card.id] = true;
+      resultEl.innerHTML = `<span style="color:var(--success,#16a34a)">✅ ${escapeHtml(res.feedback)}</span>`;
+      setTimeout(applyChosen, 900);
+    } else {
+      resultEl.innerHTML = `<span style="color:var(--danger,#dc2626)">❌ ${escapeHtml(res.feedback)}</span>`;
+      btn.disabled = false; btn.textContent = 'Try again';
+    }
+  });
+}
+
+async function gradeFlashcardExplanation(card, explain) {
+  const prompt = `Grade this student's explanation. Card question: "${card.question}"\nCorrect answer: "${card.answer}"\nStudent's explanation of WHY that answer is right: "${explain}"\nIs the reasoning correct? Reply as JSON ONLY: {"correct": true/false, "feedback": "one short sentence — a kind hint if wrong, brief praise if right"}`;
+  try {
+    const txt = await groqChat([{ role: 'system', content: 'You are a strict but kind study coach. Grade reasoning, not wording. Reply ONLY with JSON.' }, { role: 'user', content: prompt }], { maxTokens: 200, temperature: 0.2 });
+    const j = JSON.parse(txt.replace(/```json|```/g, '').trim());
+    return { ok: !!j.correct, feedback: j.feedback || (j.correct ? 'Good reasoning!' : 'Re-check the key idea behind the answer.') };
+  } catch (e) {
+    const words = s => String(s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 3);
+    const a = new Set(words(card.answer));
+    const overlap = words(explain).filter(w => a.has(w));
+    const ok = overlap.length >= 1 && explain.length >= 15;
+    return { ok, feedback: ok ? 'Solid explanation — reasoning checks out.' : 'Hint: the answer hinges on “' + String(card.answer).split(' ').slice(0, 8).join(' ') + '…” — say why that matters, then try again.' };
+  }
 }
 function generateAiFlashcards(deckName) {
   const topic = $('flashcardAiInput').value || deckName;
@@ -3658,6 +3723,194 @@ function renderExamLockBanner() {
   if (btn) btn.addEventListener('click', () => { state.settings.examLock.active = false; saveState(); applyExamLockNav(); renderExamLockBanner(); renderDashboard(); showToast('Exam lock disabled'); });
 }
 
+// ===== NEXT 15 MINUTES =====
+let next15Idx = 0;
+function next15Candidates() {
+  const out = [];
+  const today = todayStr();
+  const goals = (state.goals || []).slice().sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+  // 1. Exam today or tomorrow → next walkthrough step or a retrieval blitz
+  const urgent = goals.find(g => { const d = daysUntil(g.deadline); return d >= 0 && d <= 1; });
+  if (urgent) {
+    const undone = WT_STEP_KEYS.find(k => !wtProgress(urgent.id).steps[k]);
+    if (undone) out.push({ emoji: '🚨', title: WT_STEP_LABELS[undone] + ' — ' + urgent.title, reason: 'Exam ' + (daysUntil(urgent.deadline) === 0 ? 'today' : 'tomorrow') + '. Your next walkthrough step is “' + WT_STEP_LABELS[undone] + '” — nothing has higher impact right now.', action: 'walkthrough', arg: urgent.id, mins: 15 });
+    out.push({ emoji: '🚨', title: 'Final retrieval blitz — ' + urgent.title, reason: 'Exam ' + (daysUntil(urgent.deadline) === 0 ? 'today' : 'tomorrow') + '. Quiz yourself on the topics you have missed to lock them in.', action: 'quiz', arg: urgent.subject || urgent.title, mins: 15 });
+  }
+  // 2. Hottest confusion reviews due right now
+  if (typeof seedReviewQueueFromLog === 'function') seedReviewQueueFromLog();
+  (state.reviewQueue || []).filter(i => i.due <= today).sort((a, b) => (b.count || 1) - (a.count || 1) || String(b.lastConfused).localeCompare(String(a.lastConfused))).slice(0, 3).forEach(top => {
+    out.push({ emoji: '🔁', title: 'Review: ' + top.topic + (top.concept && top.concept !== top.topic ? ' — ' + top.concept : ''), reason: 'You have missed this ' + (top.count || 1) + '× (' + (CONFUSION_SOURCE_LABELS[top.source] || top.source) + '). Fixing it is the highest-impact thing you can do in 15 minutes.', action: 'quiz', arg: top.topic, mins: 10 });
+  });
+  // 3. Flashcards due
+  const dueCards = state.flashcards.filter(c => c.dueDate <= today);
+  if (dueCards.length) out.push({ emoji: '🃏', title: 'Flashcard session (' + dueCards.length + ' due)', reason: dueCards.length + ' cards are due today — a 15-minute active-recall pass keeps them fresh.', action: 'flashcards', arg: null, mins: 15 });
+  // 4. Next walkthrough step on the closest goal
+  const nextGoal = goals.find(g => WT_STEP_KEYS.some(k => !wtProgress(g.id).steps[k]));
+  if (nextGoal) {
+    const undone = WT_STEP_KEYS.find(k => !wtProgress(nextGoal.id).steps[k]);
+    out.push({ emoji: '🎯', title: WT_STEP_LABELS[undone] + ' — ' + nextGoal.title, reason: 'Next step of your “' + nextGoal.title + '” walkthrough (' + wtDoneCount(nextGoal.id) + '/6 done).', action: 'walkthrough', arg: nextGoal.id, mins: 15 });
+  }
+  // 5. Fallback: short focus session on the closest goal
+  if (goals.length) {
+    const g = goals[0];
+    out.push({ emoji: '🧠', title: '15-min focus on ' + (g.subject || g.title), reason: 'Nothing urgent is due — build momentum with a short focus session on your next goal.', action: 'session', arg: g.subject || g.title, mins: 15 });
+  }
+  // 6. Ultimate fallback
+  out.push({ emoji: '✨', title: 'Set your first goal', reason: 'Create a goal in the Planner and this button will always find your highest-impact next step.', action: 'planner', arg: null, mins: 0 });
+  return out;
+}
+function computeNextFifteen() {
+  const c = next15Candidates();
+  if (next15Idx >= c.length) next15Idx = 0;
+  return c[next15Idx];
+}
+function repickNextFifteen() {
+  const c = next15Candidates();
+  next15Idx = (next15Idx + 1) % Math.max(c.length, 1);
+  renderNextFifteen();
+}
+function renderNextFifteen() {
+  const el = $('nextFifteen');
+  if (!el) return;
+  const pick = computeNextFifteen();
+  el.innerHTML = `<div class="next15-pick">
+    <div class="next15-icon">${pick.emoji}</div>
+    <div class="next15-body">
+      <strong>${escapeHtml(pick.title)}</strong>
+      <p class="small" style="opacity:0.8;margin:2px 0 0">${escapeHtml(pick.reason)}${pick.mins ? ` <span class="badge">~${pick.mins} min</span>` : ''}</p>
+    </div>
+    <button class="btn" id="next15Go">Go →</button>
+  </div>`;
+  const go = el.querySelector('#next15Go');
+  if (go) go.addEventListener('click', () => runNextFifteen(pick));
+  const repick = $('next15Repick');
+  if (repick) repick.addEventListener('click', repickNextFifteen);
+}
+function runNextFifteen(pick) {
+  switch (pick.action) {
+    case 'walkthrough': generateGoalWalkthrough(pick.arg); break;
+    case 'quiz': {
+      showTab('quizzes');
+      const q = $('quizTopic'); if (q) q.value = pick.arg;
+      showToast('Practice pre-filled — go!');
+      break;
+    }
+    case 'flashcards': showTab('flashcards'); showToast('Due cards ready — study on!'); break;
+    case 'session': {
+      showTab('sessions');
+      const s = $('sessionSubject'); if (s) s.value = pick.arg;
+      const m = $('sessionMinutes'); if (m) m.value = 15;
+      showToast('Session pre-filled for 15 minutes');
+      break;
+    }
+    case 'planner': showTab('planner'); break;
+  }
+}
+
+// ===== EXAM-DAY SURVIVAL KIT =====
+function renderExamSurvivalKit() {
+  const el = $('examSurvivalKit');
+  if (!el) return;
+  const today = todayStr();
+  const dueToday = (state.goals || []).filter(g => g.deadline === today);
+  const lock = state.settings && state.settings.examLock;
+  let kitGoal = dueToday[0] || null;
+  if (!kitGoal && lock && lock.active && lock.endsAt === today) {
+    kitGoal = (state.goals || []).find(g => String(g.subject || '').toLowerCase() === String(lock.subject || '').toLowerCase()) || null;
+  }
+  if (!kitGoal) { el.innerHTML = ''; return; }
+  const d = walkthroughTopics(kitGoal);
+  const skim = [];
+  (d.confusion || []).slice(0, 3).forEach(c => { const t = c.concept || c.topic; if (skim.indexOf(t) < 0) skim.push(t); });
+  (d.topics || []).slice(0, 4).forEach(t => { if (skim.indexOf(t) < 0) skim.push(t); });
+  while (skim.length < 3) skim.push(kitGoal.title);
+  const skip = [];
+  state.flashcards.filter(c => String(c.deck || '').toLowerCase() === String(kitGoal.subject || '').toLowerCase() && (c.interval || 0) >= 7).slice(0, 3).forEach(c => { if (skip.indexOf(c.question) < 0) skip.push(c.question); });
+  skip.push('Brand-new material — retrieval only today');
+  skip.push('Deep re-reading of chapters you already passed');
+  el.innerHTML = `<article class="card survival-kit">
+    <div class="row-between">
+      <h3>🧰 Exam-Day Survival Kit — ${escapeHtml(kitGoal.title)}</h3>
+      <span class="badge">TODAY</span>
+    </div>
+    <p class="subtle">Your exam is today. Everything here is built for the last few hours — skim high-yield items, skip low-yield ones, and stay calm.</p>
+    <div class="survival-grid">
+      <div class="survival-col">
+        <h4>✅ Skim this <span class="small" style="opacity:0.7">(highest yield)</span></h4>
+        <ul class="list">${skim.slice(0, 5).map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
+      </div>
+      <div class="survival-col">
+        <h4>🚫 Skip this <span class="small" style="opacity:0.7">(low yield now)</span></h4>
+        <ul class="list">${skip.slice(0, 5).map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
+      </div>
+      <div class="survival-col">
+        <h4>🧘 10-min calm-down</h4>
+        <div class="breathe-widget">
+          <div class="breathe-circle" id="breatheCircle"><span id="breatheText">Breathe in</span></div>
+          <button class="btn btn-sm" id="breatheStart">▶ Start breathing exercise</button>
+          <p class="small" style="opacity:0.75">4s in · 4s hold · 6s out — about 6 rounds in 10 minutes.</p>
+        </div>
+      </div>
+      <div class="survival-col">
+        <h4>📋 Pre-exam checklist</h4>
+        <ul class="list">
+          <li>☐ ID / student card ready</li>
+          <li>☐ Water bottle + light snack</li>
+          <li>☐ Calculator, pens, pencils</li>
+          <li>☐ Formula sheet / allowed notes</li>
+          <li>☐ Phone on silent, put away</li>
+          <li>☐ Arrive 10 minutes early</li>
+        </ul>
+      </div>
+    </div>
+    <div class="inline wrap top-gap">
+      <button class="btn btn-sm" id="kitReviewBtn">🔁 Last review pass (quiz)</button>
+      <button class="btn btn-sm btn-ghost" id="kitExplainBtn">🎤 Explain it back</button>
+    </div>
+  </article>`;
+  const circle = el.querySelector('#breatheCircle');
+  const text = el.querySelector('#breatheText');
+  const startBtn = el.querySelector('#breatheStart');
+  let raf = null, running = false;
+  // Phases chain: each phase's `from` matches the previous phase's `to` so the circle moves continuously.
+  const PHASES = [
+    { label: 'Breathe in…', from: 0.72, to: 1.35, dur: 4000 },
+    { label: 'Hold…', from: 1.35, to: 1.35, dur: 4000 },
+    { label: 'Breathe out…', from: 1.35, to: 0.72, dur: 6000 }
+  ];
+  function stopBreathing() {
+    running = false;
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+    if (startBtn) startBtn.textContent = '▶ Start breathing exercise';
+    if (circle) { circle.style.transition = 'none'; circle.style.transform = 'scale(1)'; }
+    if (text) text.textContent = 'Breathe in';
+  }
+  function startBreathing() {
+    if (running) { stopBreathing(); return; }
+    running = true;
+    if (startBtn) startBtn.textContent = '⏹ Stop';
+    let phase = 0, t0 = performance.now();
+    function frame(now) {
+      if (!running) return;
+      const ph = PHASES[phase];
+      if (now - t0 >= ph.dur) { phase = (phase + 1) % PHASES.length; t0 = now; }
+      const cur = PHASES[phase];
+      const p = Math.min(1, (now - t0) / cur.dur);
+      const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2; // ease in-out
+      const scale = cur.from + (cur.to - cur.from) * e;
+      if (circle) { circle.style.transition = 'none'; circle.style.transform = 'scale(' + scale.toFixed(3) + ')'; }
+      if (text) text.textContent = cur.label;
+      raf = requestAnimationFrame(frame);
+    }
+    raf = requestAnimationFrame(frame);
+  }
+  if (startBtn) startBtn.addEventListener('click', startBreathing);
+  const reviewBtn = el.querySelector('#kitReviewBtn');
+  if (reviewBtn) reviewBtn.addEventListener('click', () => { showTab('quizzes'); const q = $('quizTopic'); if (q) q.value = kitGoal.subject || kitGoal.title; });
+  const explainBtn = el.querySelector('#kitExplainBtn');
+  if (explainBtn) explainBtn.addEventListener('click', () => { showTab('ai-tutor'); setTimeout(() => startExplainItBack(kitGoal.subject || kitGoal.title), 150); });
+}
+
 // ===== EXAM RADAR =====
 function upcomingDeadlines() {
   const out = [];
@@ -3976,6 +4229,15 @@ function setupSettings() {
       state.settings.confetti = this.checked;
       saveState();
       showToast(this.checked ? 'Confetti enabled 🎉' : 'Confetti disabled');
+    });
+  }
+  var explainVerifyToggle = $('explainVerifyToggle');
+  if (explainVerifyToggle) {
+    explainVerifyToggle.checked = state.settings.explainVerify !== false;
+    explainVerifyToggle.addEventListener('change', function() {
+      state.settings.explainVerify = this.checked;
+      saveState();
+      showToast(this.checked ? 'Explain-then-verify on — explain the “why” before rating cards' : 'Explain-then-verify off — rate cards directly');
     });
   }
   function applyMusicVisibility() {
