@@ -5528,7 +5528,7 @@ function renderResourceLibrary() {
         ${r.url ? '<a class="ghost" href="' + escapeHtml(r.url) + '" target="_blank" rel="noopener">Open ↗</a>' : ''}
         ${hasData ? '<button class="ghost resource-preview" data-id="' + r.id + '">Preview</button>' : ''}
         ${r.content ? '<button class="ghost resource-view" data-id="' + r.id + '">View</button>' : ''}
-        <button class="ghost danger-text resource-delete" data-id="' + r.id + '">Delete</button>
+        <button class="ghost danger-text resource-delete" data-id="${r.id}">Delete</button>
       </div>
     `;
     el.appendChild(row);
