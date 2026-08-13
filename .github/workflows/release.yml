@@ -26,6 +26,18 @@ on:
         description: 'Version tag to build and publish (e.g. v1.1.4)'
         required: false
         type: string
+      # TEST-ONLY QA aid: corrupts the verify job's downloaded copy of one
+      # installer to prove the checksum check fails the workflow on tampering.
+      # Only affects the verify job's local download — the release is never
+      # touched. Removed after the QA run.
+      tamper:
+        description: 'TEST-ONLY: corrupt the downloaded installer copy so checksum verification must fail'
+        required: false
+        type: choice
+        options:
+          - mac
+          - win
+          - linux
 
 jobs:
   build:
@@ -263,6 +275,20 @@ jobs:
           mkdir -p verify && cd verify
           gh release download "$TAG" --repo "$INSTALLERS_REPO" --pattern 'Study-Hub-*'
           ls -la
+          # TEST-ONLY QA aid (removed after the run): overwrite 64 KB in the
+          # middle of the downloaded copy so sha256sum -c must fail. The
+          # release itself is untouched — only this local download is changed.
+          if [ -n "${{ github.event.inputs.tamper }}" ]; then
+            case "${{ github.event.inputs.tamper }}" in
+              mac)   F="Study-Hub-mac.dmg" ;;
+              win)   F="Study-Hub-Windows.zip" ;;
+              linux) F="Study-Hub-Linux.deb" ;;
+              *) echo "unknown tamper target: ${{ github.event.inputs.tamper }}"; exit 2 ;;
+            esac
+            SIZE="$(wc -c < "$F")"
+            echo "TEST-ONLY: overwriting 64 KB in the middle of $F (downloaded copy)"
+            dd if=/dev/urandom of="$F" bs=65536 count=1 seek=$((SIZE/2/65536)) conv=notrunc status=none
+          fi
           cat Study-Hub-checksums-*.txt > SHA256SUMS
           echo "=== expected checksums (recorded at build time) ==="
           cat SHA256SUMS
