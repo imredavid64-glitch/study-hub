@@ -176,10 +176,14 @@ jobs:
             EXPECTED="$(node -p "require('./package.json').version")"
           fi
           echo "expecting app version: ${EXPECTED}"
-          # Tee the output to a report file so the release notes can document
-          # exactly what was verified per platform. pipefail keeps a failed
-          # check failing the step (and therefore blocking publish).
-          { ${{ matrix.smoke }} ; } 2>&1 | tee "Study-Hub-report-${{ matrix.id }}.txt"
+          export EXPECTED
+          # Run the smoke checks from a script file so its output can be teed to
+          # a report for the release notes. pipefail keeps a failed check
+          # failing the step (and therefore blocking publish).
+          cat > smoke-run.sh <<'SMOKE_EOF'
+          ${{ matrix.smoke }}
+          SMOKE_EOF
+          ./smoke-run.sh 2>&1 | tee "Study-Hub-report-${{ matrix.id }}.txt"
         shell: bash
 
       - name: Publish to installers repo
