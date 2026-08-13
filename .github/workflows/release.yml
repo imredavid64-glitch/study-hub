@@ -176,7 +176,10 @@ jobs:
             EXPECTED="$(node -p "require('./package.json').version")"
           fi
           echo "expecting app version: ${EXPECTED}"
-          ${{ matrix.smoke }}
+          # Tee the output to a report file so the release notes can document
+          # exactly what was verified per platform. pipefail keeps a failed
+          # check failing the step (and therefore blocking publish).
+          { ${{ matrix.smoke }} ; } 2>&1 | tee "Study-Hub-report-${{ matrix.id }}.txt"
         shell: bash
 
       - name: Publish to installers repo
@@ -211,6 +214,13 @@ jobs:
           echo "Uploading release/Study-Hub-checksums-${{ matrix.id }}.txt"
           gh release upload "$TAG" "release/Study-Hub-checksums-${{ matrix.id }}.txt" \
             --repo "imredavid64-glitch/study-hub-installers" --clobber
+          # Upload the smoke report so the verify job can fold it into the
+          # release notes. It only exists when the smoke test ran and passed.
+          if [ -f "Study-Hub-report-${{ matrix.id }}.txt" ]; then
+            echo "Uploading Study-Hub-report-${{ matrix.id }}.txt"
+            gh release upload "$TAG" "Study-Hub-report-${{ matrix.id }}.txt" \
+              --repo "imredavid64-glitch/study-hub-installers" --clobber
+          fi
 
       - name: Publish skipped notice
         if: ${{ env.GH_TOKEN == '' }}
@@ -258,6 +268,38 @@ jobs:
             [ -s "$f" ] || { echo "MISSING OR EMPTY: $f"; exit 1; }
           done
           echo "ALL INSTALLERS PRESENT AND CHECKSUMS VERIFIED"
+          # Compose the release notes from the per-platform smoke reports and
+          # the measured asset sizes. Only reached when verification passed, so
+          # the notes always document verified bytes. The verify job is the
+          # only writer of the notes, so there is no race between jobs.
+          {
+            echo "## Study Hub ${TAG} - desktop installers"
+            echo
+            echo "Built automatically by GitHub Actions. Every installer passed a platform smoke test before publishing, and its sha256 checksum was re-verified against the published bytes after upload."
+            echo
+            for entry in "mac:macOS" "win:Windows" "linux:Linux"; do
+              id="${entry%%:*}"
+              label="${entry##*:}"
+              echo "### Smoke test - ${label}"
+              echo
+              echo '```'
+              cat "Study-Hub-report-$id.txt"
+              echo '```'
+              echo
+            done
+            echo "## Published assets (sha256 verified)"
+            echo
+            echo "| Asset | Size |"
+            echo "|---|---|"
+            for f in Study-Hub-mac.dmg Study-Hub-mac.zip Study-Hub-Windows.zip Study-Hub-Linux.AppImage Study-Hub-Linux.deb; do
+              SIZE="$(ls -lh "$f" | awk '{print $5}')"
+              echo "| \`$f\` | ${SIZE} |"
+            done
+            echo
+            echo "_Checksums are recorded in the \`Study-Hub-checksums-*.txt\` assets of this release._"
+          } > notes.md
+          gh release edit "$TAG" --repo "$INSTALLERS_REPO" --notes-file notes.md
+          echo "Release notes updated from smoke reports and verification results"
 
   summary:
     name: Summary
