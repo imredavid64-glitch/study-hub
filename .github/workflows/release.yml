@@ -78,6 +78,7 @@ jobs:
         # The release is created by whichever job gets there first; the others
         # upload their own assets to it. No GitHub artifact storage involved.
         if: ${{ env.GH_TOKEN != '' && github.event_name == 'push' }}
+        shell: bash
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
