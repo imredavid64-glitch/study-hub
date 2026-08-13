@@ -37,6 +37,8 @@ jobs:
           - name: macOS
             os: macos-latest
             args: --mac dmg zip --universal
+            id: mac
+            checksum_files: 'Study-Hub-mac.dmg Study-Hub-mac.zip'
             rename: |
               find release -maxdepth 1 -name '*.dmg' -exec mv {} release/Study-Hub-mac.dmg \; || true
               find release -maxdepth 1 -name '*universal-mac.zip' -exec mv {} release/Study-Hub-mac.zip \; || true
@@ -72,6 +74,8 @@ jobs:
           - name: Windows
             os: windows-latest
             args: --win zip
+            id: win
+            checksum_files: 'Study-Hub-Windows.zip'
             rename: |
               find release -maxdepth 1 -name '*-win.zip' -exec mv {} release/Study-Hub-Windows.zip \; || true
             # Verify the zip (CRC check + .exe presence) and a minimum size so a
@@ -92,6 +96,8 @@ jobs:
           - name: Linux
             os: ubuntu-latest
             args: --linux AppImage deb
+            id: linux
+            checksum_files: 'Study-Hub-Linux.AppImage Study-Hub-Linux.deb'
             rename: |
               find release -maxdepth 1 -name '*.AppImage' -exec mv {} release/Study-Hub-Linux.AppImage \; || true
               find release -maxdepth 1 -name '*.deb' -exec mv {} release/Study-Hub-Linux.deb \; || true
@@ -195,9 +201,16 @@ jobs:
             --latest 2>/dev/null || true
           for f in release/Study-Hub-*; do
             [ -f "$f" ] || continue
+            case "$f" in *.txt) continue ;; esac
             echo "Uploading $f"
             gh release upload "$TAG" "$f" --repo "imredavid64-glitch/study-hub-installers" --clobber
           done
+          # Record sha256 of the exact built files so the verify job (and any
+          # user) can prove the published bytes match what was built.
+          (cd release && sha256sum ${{ matrix.checksum_files }}) > "release/Study-Hub-checksums-${{ matrix.id }}.txt"
+          echo "Uploading release/Study-Hub-checksums-${{ matrix.id }}.txt"
+          gh release upload "$TAG" "release/Study-Hub-checksums-${{ matrix.id }}.txt" \
+            --repo "imredavid64-glitch/study-hub-installers" --clobber
 
       - name: Publish skipped notice
         if: ${{ env.GH_TOKEN == '' }}
@@ -207,9 +220,51 @@ jobs:
         shell: bash
         run: ls -la release/
 
+  verify:
+    name: Verify published installers
+    needs: build
+    # Runs whenever a publish happened (tag push or tag dispatch) and the PAT is
+    # configured. Downloads the published bytes and checks them against the
+    # sha256 checksums recorded from the exact built files at publish time.
+    if: ${{ env.GH_TOKEN != '' && (github.event_name == 'push' || github.event.inputs.tag != '') }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.INSTALLERS_PAT }}
+      INSTALLERS_REPO: imredavid64-glitch/study-hub-installers
+    steps:
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download every published asset
+        run: |
+          mkdir -p verify && cd verify
+          gh release download "${{ steps.tag.outputs.tag }}" \
+            --repo "$INSTALLERS_REPO" --pattern 'Study-Hub-*'
+          ls -la
+
+      - name: Check checksums and require all five installers
+        run: |
+          set -euo pipefail
+          cd verify
+          cat Study-Hub-checksums-*.txt > SHA256SUMS
+          echo "=== expected checksums (recorded at build time) ==="
+          cat SHA256SUMS
+          echo "=== verifying downloaded bytes ==="
+          sha256sum -c SHA256SUMS
+          for f in Study-Hub-mac.dmg Study-Hub-mac.zip Study-Hub-Windows.zip Study-Hub-Linux.AppImage Study-Hub-Linux.deb; do
+            [ -s "$f" ] || { echo "MISSING OR EMPTY: $f"; exit 1; }
+          done
+          echo "ALL INSTALLERS PRESENT AND CHECKSUMS VERIFIED"
+
   summary:
     name: Summary
-    needs: build
+    needs: [build, verify]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     env:

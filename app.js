@@ -5206,7 +5206,10 @@ function dlRenderAssets(release) {
     return;
   }
   const date = (release.published_at || '').slice(0, 10);
-  const rows = release.assets.map(a => {
+  // Skip the SHA256SUMS sidecar files the release workflow publishes alongside
+  // the installers — they are for verification, not downloads.
+  const assets = release.assets.filter(a => !/\.txt$/i.test(a.name || ''));
+  const rows = assets.map(a => {
     const digest = (a.digest || '').replace(/^sha256:/, '');
     const short = digest ? digest.slice(0, 12) + '…' : '—';
     const copyBtn = digest
