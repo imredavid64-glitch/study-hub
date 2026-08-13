@@ -1,6 +1,7 @@
 name: Build desktop installers
 
-# Builds the macOS, Windows and Linux desktop apps on every v* release tag and
+# Builds the macOS, Windows and Linux desktop apps on every v* release tag,
+# smoke-tests each installer (integrity, contents, version, size) and only then
 # publishes them directly to the public installers repo (no GitHub Actions
 # artifact storage involved — it hit the account quota) so the Downloads tab
 # keeps working.
@@ -39,17 +40,79 @@ jobs:
             rename: |
               find release -maxdepth 1 -name '*.dmg' -exec mv {} release/Study-Hub-mac.dmg \; || true
               find release -maxdepth 1 -name '*universal-mac.zip' -exec mv {} release/Study-Hub-mac.zip \; || true
+            # Verify the dmg (integrity + mount + app bundle + version) and the
+            # zip (CRC check + .app presence). Failing here blocks publishing.
+            smoke: |
+              set -euo pipefail
+              cd release
+              echo "== dmg integrity =="
+              hdiutil verify Study-Hub-mac.dmg
+              SIZE="$(wc -c < Study-Hub-mac.dmg)"
+              echo "dmg size: $SIZE bytes"
+              [ "$SIZE" -gt 50000000 ] || { echo "dmg too small ($SIZE)"; exit 1; }
+              echo "== dmg contents =="
+              MOUNT="$(hdiutil attach -readonly -nobrowse -noautoopen Study-Hub-mac.dmg | awk -F'\t' '/\/Volumes\// {print $NF; exit}')"
+              echo "mounted at: $MOUNT"
+              APP="$(find "$MOUNT" -maxdepth 2 -name '*.app' | head -1)"
+              if [ -z "$APP" ]; then echo "no .app bundle in dmg"; hdiutil detach "$MOUNT" || true; exit 1; fi
+              echo "app bundle: $APP"
+              VER="$(plutil -extract CFBundleShortVersionString raw "$APP/Contents/Info.plist")"
+              echo "app version: $VER"
+              if [ "$VER" != "$EXPECTED" ]; then
+                echo "version mismatch ($VER != $EXPECTED)"; hdiutil detach "$MOUNT" || true; exit 1
+              fi
+              hdiutil detach "$MOUNT" || true
+              echo "== mac zip integrity =="
+              unzip -t Study-Hub-mac.zip | tail -1
+              unzip -l Study-Hub-mac.zip | grep -q '\.app/' && echo "zip contains the .app" || { echo "no .app in zip"; exit 1; }
+              echo "SMOKE TEST PASSED"
           - name: Windows
             os: windows-latest
             args: --win zip
             rename: |
               find release -maxdepth 1 -name '*-win.zip' -exec mv {} release/Study-Hub-Windows.zip \; || true
+            # Verify the zip (CRC check + .exe presence) and a minimum size so a
+            # truncated build can never be published. Failing here blocks publish.
+            smoke: |
+              set -euo pipefail
+              cd release
+              SIZE="$(wc -c < Study-Hub-Windows.zip)"
+              echo "zip size: $SIZE bytes"
+              [ "$SIZE" -gt 50000000 ] || { echo "zip too small ($SIZE)"; exit 1; }
+              echo "== windows zip integrity =="
+              unzip -t Study-Hub-Windows.zip | tail -1
+              unzip -l Study-Hub-Windows.zip | grep -qi '\.exe' && echo "exe present in zip" || { echo "no .exe in zip"; exit 1; }
+              echo "SMOKE TEST PASSED"
           - name: Linux
             os: ubuntu-latest
             args: --linux AppImage deb
             rename: |
               find release -maxdepth 1 -name '*.AppImage' -exec mv {} release/Study-Hub-Linux.AppImage \; || true
               find release -maxdepth 1 -name '*.deb' -exec mv {} release/Study-Hub-Linux.deb \; || true
+            # Verify the deb (control metadata + payload) and the AppImage
+            # (ELF header + extract + AppRun/desktop presence). Failing here
+            # blocks publishing.
+            smoke: |
+              set -euo pipefail
+              cd release
+              echo "== deb metadata =="
+              dpkg-deb --info Study-Hub-Linux.deb | head -8
+              dpkg-deb --contents Study-Hub-Linux.deb | grep -q 'usr/lib/\|opt/' || { echo "no app payload in deb"; exit 1; }
+              SIZE="$(wc -c < Study-Hub-Linux.deb)"
+              echo "deb size: $SIZE bytes"
+              [ "$SIZE" -gt 50000000 ] || { echo "deb too small ($SIZE)"; exit 1; }
+              echo "== appimage =="
+              file Study-Hub-Linux.AppImage | grep -q 'ELF' || { echo "AppImage is not an ELF binary"; exit 1; }
+              chmod +x Study-Hub-Linux.AppImage
+              APPIMAGE="$(pwd)/Study-Hub-Linux.AppImage"
+              mkdir -p /tmp/appimg-check
+              cd /tmp/appimg-check
+              rm -rf squashfs-root
+              "$APPIMAGE" --appimage-extract >/dev/null 2>&1
+              ls squashfs-root | head -5
+              [ -x squashfs-root/AppRun ] || { echo "no AppRun in AppImage"; exit 1; }
+              find squashfs-root -maxdepth 1 -name '*.desktop' | grep -q . || { echo "no .desktop in AppImage"; exit 1; }
+              echo "SMOKE TEST PASSED"
     runs-on: ${{ matrix.os }}
     env:
       GH_TOKEN: ${{ secrets.INSTALLERS_PAT }}
@@ -86,11 +149,27 @@ jobs:
         run: ${{ matrix.rename }}
         shell: bash
 
+      - name: Smoke-test installer (${{ matrix.name }})
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "push" ]; then
+            EXPECTED="${GITHUB_REF_NAME#v}"
+          elif [ -n "${{ github.event.inputs.tag }}" ]; then
+            EXPECTED="${{ github.event.inputs.tag }}"
+            EXPECTED="${EXPECTED#v}"
+          else
+            EXPECTED="$(node -p "require('./package.json').version")"
+          fi
+          echo "expecting app version: ${EXPECTED}"
+          ${{ matrix.smoke }}
+        shell: bash
+
       - name: Publish to installers repo
         # Publish on tag pushes and on dispatches that name a tag (the scheduled
-        # retry workflow), only when the PAT is configured. The release is
-        # created by whichever job gets there first; the others upload their own
-        # assets to it. No GitHub artifact storage involved.
+        # retry workflow), only when the PAT is configured and the smoke test
+        # passed (a failing step stops the job before this one runs). The
+        # release is created by whichever job gets there first; the others
+        # upload their own assets to it. No GitHub artifact storage involved.
         if: ${{ env.GH_TOKEN != '' && (github.event_name == 'push' || github.event.inputs.tag != '') }}
         shell: bash
         run: |
