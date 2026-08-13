@@ -98,6 +98,7 @@ jobs:
         run: echo "::warning::INSTALLERS_PAT secret is not set — installers were not published."
 
       - name: List built installers
+        shell: bash
         run: ls -la release/
 
   summary:
