@@ -183,7 +183,7 @@ jobs:
           cat > smoke-run.sh <<'SMOKE_EOF'
           ${{ matrix.smoke }}
           SMOKE_EOF
-          ./smoke-run.sh 2>&1 | tee "Study-Hub-report-${{ matrix.id }}.txt"
+          bash smoke-run.sh 2>&1 | tee "Study-Hub-report-${{ matrix.id }}.txt"
         shell: bash
 
       - name: Publish to installers repo
