@@ -38,7 +38,9 @@ module.exports = async function checksumsEndpoint(req, res) {
         if (!ar.ok) return;
         const text = await ar.text();
         for (const line of text.split('\n')) {
-          const m = line.trim().match(/^([0-9a-f]{64})\s+(.+)$/i);
+          const m = line.trim().match(/^([0-9a-f]{64})\s+\*?(.+)$/i);
+          // sha256sum writes '<hash> *<name>' for binary files — strip the '*'
+          // so the key matches the release asset name exactly.
           if (m) checksums[m[2].trim()] = m[1].toLowerCase();
         }
       } catch (e) { /* one sidecar failing must not fail the whole request */ }
