@@ -1,17 +1,19 @@
 name: Build desktop installers
 
 # Builds the macOS, Windows and Linux desktop apps on every v* release tag and
-# publishes them to the public installers repo so the Downloads tab keeps working.
+# publishes them directly to the public installers repo (no GitHub Actions
+# artifact storage involved — it hit the account quota) so the Downloads tab
+# keeps working.
 #
 # Publishing needs a PAT with "Contents: write" on imredavid64-glitch/study-hub-installers
-# stored as the INSTALLERS_PAT repository secret. Without it, the build still runs
-# and the installers are saved as workflow artifacts, but the publish step is skipped.
+# stored as the INSTALLERS_PAT repository secret. Without it, the build still
+# runs, but the publish step is skipped.
 
 on:
   push:
     tags:
       - 'v*'
-  # Manual runs build the installers and save them as artifacts but never publish.
+  # Manual runs build the installers but never publish.
   workflow_dispatch:
 
 jobs:
@@ -24,13 +26,23 @@ jobs:
           - name: macOS
             os: macos-latest
             args: --mac dmg zip --universal
+            rename: |
+              find release -maxdepth 1 -name '*.dmg' -exec mv {} release/Study-Hub-mac.dmg \; || true
+              find release -maxdepth 1 -name '*universal-mac.zip' -exec mv {} release/Study-Hub-mac.zip \; || true
           - name: Windows
             os: windows-latest
             args: --win zip
+            rename: |
+              find release -maxdepth 1 -name '*-win.zip' -exec mv {} release/Study-Hub-Windows.zip \; || true
           - name: Linux
             os: ubuntu-latest
             args: --linux AppImage deb
+            rename: |
+              find release -maxdepth 1 -name '*.AppImage' -exec mv {} release/Study-Hub-Linux.AppImage \; || true
+              find release -maxdepth 1 -name '*.deb' -exec mv {} release/Study-Hub-Linux.deb \; || true
     runs-on: ${{ matrix.os }}
+    env:
+      GH_TOKEN: ${{ secrets.INSTALLERS_PAT }}
     steps:
       - uses: actions/checkout@v4
 
@@ -57,68 +69,35 @@ jobs:
           # No code-signing certificates on CI; macOS gets ad-hoc signing only.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: installers-${{ matrix.name }}
-          # Installers are published to the installers repo immediately after
-          # this run, so the artifacts are disposable. Short retention stops the
-          # ~1.2 GB/run uploads from exhausting the account artifact quota.
-          retention-days: 3
-          path: |
-            release/*.dmg
-            release/*.zip
-            release/*.AppImage
-            release/*.deb
-          if-no-files-found: error
+      - name: Rename to stable download names
+        run: ${{ matrix.rename }}
+        shell: bash
 
-  publish:
-    name: Publish to installers repo
-    needs: build
-    runs-on: ubuntu-latest
-    env:
-      # The PAT must have "Contents: write" on imredavid64-glitch/study-hub-installers.
-      # Without it the build still runs and artifacts stay on the workflow run.
-      GH_TOKEN: ${{ secrets.INSTALLERS_PAT }}
-      INSTALLERS_REPO: imredavid64-glitch/study-hub-installers
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: installers-*
-          merge-multiple: true
-          path: dist-assets
-
-      - name: Rename artifacts to stable download names
-        run: |
-          set -euo pipefail
-          cd dist-assets
-          # Order matters: the mac universal zip is '<name>-<version>-universal-mac.zip' and
-          # the Windows zip is '<name>-<version>-win.zip' — patterns must not overlap or one
-          # would overwrite the other.
-          find . -maxdepth 1 -name '*universal-mac.zip' -exec mv {} Study-Hub-mac.zip \;   || true
-          find . -maxdepth 1 -name '*.dmg'              -exec mv {} Study-Hub-mac.dmg \;    || true
-          find . -maxdepth 1 -name '*-win.zip'          -exec mv {} Study-Hub-Windows.zip \; || true
-          find . -maxdepth 1 -name '*.AppImage'         -exec mv {} Study-Hub-Linux.AppImage \; || true
-          find . -maxdepth 1 -name '*.deb'              -exec mv {} Study-Hub-Linux.deb \;   || true
-          ls -la
-
-      - name: Create or refresh release
-        # Only publish on real tag pushes; manual runs just keep the artifacts.
+      - name: Publish to installers repo
+        # Only publish on real tag pushes, and only when the PAT is configured.
+        # The release is created by whichever job gets there first; the others
+        # upload their own assets to it. No GitHub artifact storage involved.
         if: ${{ env.GH_TOKEN != '' && github.event_name == 'push' }}
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
-          # Refresh in place so the "latest" links always point at the newest tag.
-          gh release delete "$TAG" --repo "$INSTALLERS_REPO" --yes 2>/dev/null || true
-          gh release create "$TAG" dist-assets/* \
-            --repo "$INSTALLERS_REPO" \
+          gh release create "$TAG" \
+            --repo "imredavid64-glitch/study-hub-installers" \
             --title "Study Hub $TAG" \
             --notes "Desktop installers for Study Hub $TAG, built automatically by GitHub Actions." \
-            --latest
+            --latest 2>/dev/null || true
+          for f in release/Study-Hub-*; do
+            [ -f "$f" ] || continue
+            echo "Uploading $f"
+            gh release upload "$TAG" "$f" --repo "imredavid64-glitch/study-hub-installers" --clobber
+          done
 
-      - name: Skip notice
+      - name: Publish skipped notice
         if: ${{ env.GH_TOKEN == '' }}
-        run: echo "::warning::INSTALLERS_PAT secret is not set — installers were not published. Download them from the build job artifacts."
+        run: echo "::warning::INSTALLERS_PAT secret is not set — installers were not published."
+
+      - name: List built installers
+        run: ls -la release/
 
   summary:
     name: Summary
@@ -134,5 +113,5 @@ jobs:
           if [ -n "$GH_TOKEN" ]; then
             echo "Published to https://github.com/imredavid64-glitch/study-hub-installers/releases/latest"
           else
-            echo "Publish skipped (no INSTALLERS_PAT secret). Download the installers from the build job artifacts above."
+            echo "Publish skipped (no INSTALLERS_PAT secret)."
           fi
