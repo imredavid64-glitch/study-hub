@@ -26,6 +26,18 @@ on:
         description: 'Version tag to build and publish (e.g. v1.1.4)'
         required: false
         type: string
+      # TEST-ONLY QA aid: corrupts one platform's built installer to prove the
+      # smoke test blocks publishing. Safe because a dispatch without a tag
+      # never publishes. Removed after the QA run.
+      corrupt:
+        description: 'TEST-ONLY: corrupt this platform installer to prove smoke blocks publishing'
+        required: false
+        type: choice
+        options:
+          - ''
+          - macOS
+          - Windows
+          - Linux
 
 jobs:
   build:
@@ -37,6 +49,7 @@ jobs:
           - name: macOS
             os: macos-latest
             args: --mac dmg zip --universal
+            corrupt_target: release/Study-Hub-mac.dmg
             rename: |
               find release -maxdepth 1 -name '*.dmg' -exec mv {} release/Study-Hub-mac.dmg \; || true
               find release -maxdepth 1 -name '*universal-mac.zip' -exec mv {} release/Study-Hub-mac.zip \; || true
@@ -72,6 +85,7 @@ jobs:
           - name: Windows
             os: windows-latest
             args: --win zip
+            corrupt_target: release/Study-Hub-Windows.zip
             rename: |
               find release -maxdepth 1 -name '*-win.zip' -exec mv {} release/Study-Hub-Windows.zip \; || true
             # Verify the zip (CRC check + .exe presence) and a minimum size so a
@@ -92,6 +106,7 @@ jobs:
           - name: Linux
             os: ubuntu-latest
             args: --linux AppImage deb
+            corrupt_target: release/Study-Hub-Linux.deb
             rename: |
               find release -maxdepth 1 -name '*.AppImage' -exec mv {} release/Study-Hub-Linux.AppImage \; || true
               find release -maxdepth 1 -name '*.deb' -exec mv {} release/Study-Hub-Linux.deb \; || true
@@ -157,6 +172,21 @@ jobs:
       - name: Rename to stable download names
         run: ${{ matrix.rename }}
         shell: bash
+
+      # TEST-ONLY QA aid (removed after the run): overwrite 64 KB in the middle
+      # of the built installer so the smoke test must catch it. Only runs when
+      # dispatched with corrupt=<platform>; a dispatch with no tag never
+      # publishes, so this cannot affect the real release.
+      - name: TEST-ONLY corrupt installer (${{ matrix.name }})
+        if: ${{ github.event.inputs.corrupt == matrix.name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          F="${{ matrix.corrupt_target }}"
+          echo "TEST-ONLY: overwriting 64 KB in the middle of $F"
+          SIZE="$(wc -c < "$F")"
+          dd if=/dev/urandom of="$F" bs=65536 count=1 seek=$((SIZE/2/65536)) conv=notrunc status=none
+          ls -la release/
 
       - name: Smoke-test installer (${{ matrix.name }})
         run: |
