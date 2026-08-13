@@ -34,23 +34,28 @@ forces RLS on every table, and replaces them with `auth.uid()`-scoped
 ownership policies plus the opt-in `mate_profiles` table.
 
 1. Go to **SQL Editor**
-2. Open `supabase/migrations/20260810000000_auth_rls_hardening.sql` from this
-   repo — or use the combined `supabase-migration.sql` (full schema, safe to
-   run from scratch)
+2. Open **`supabase/apply-missing-migrations.sql`** from this repo and paste it.
+   This is the consolidated, ordered script (leaderboard table + RLS hardening)
+   that the live project is missing. Do **not** run the hardening migration
+   alone — it references `leaderboard_entries`, which does not exist yet.
 3. Paste and **Run**
 
 Expected: no errors. The output lists the new policies
 (`own_users`, `own_snapshots`, `own_events`, `read_leaderboard`,
 `insert_own_leaderboard`, …, `own_mate_profile`, `read_mate_profiles`).
 
-## 3. Add the service key (Vercel)
+## 3. Add the Supabase secrets (Vercel)
 
 `/api/mates` (study-mate matching) reads opt-in profiles server-side with the
-service key, which must never ship to the client.
+service key, which must never ship to the client. `api/config.js` also reports
+cloud status from `SUPABASE_URL`.
 
-1. In Supabase: **Settings → API** → copy the `service_role` key
-2. In Vercel: **Project → Settings → Environment Variables** → add
-   `SUPABASE_SERVICE_KEY` (production + preview)
+1. In Supabase: **Settings → API** → copy the project **URL** and the
+   `service_role` key
+2. In Vercel: **Project → Settings → Environment Variables** → add both
+   (production + preview):
+   - `SUPABASE_URL` = `https://nnrdkdisjfudibvrggxb.supabase.co`
+   - `SUPABASE_SERVICE_KEY` = the `service_role` key
 3. Redeploy
 
 Verify with:
@@ -111,22 +116,22 @@ removed from the code, but it is visible in git history. Rotate it in the
 Groq dashboard (https://console.groq.com → API Keys) so the exposed copy stops
 working.
 
-## Current state (live-verified 2026-08-11)
+## Current state (live-verified 2026-08-14)
 
-Automated probes confirmed the following — each item is still pending and needs
-one of the click-throughs above:
+Automated probes against the live project (`nnrdkdisjfudibvrggxb`) confirmed:
 
 | Check | Result | Evidence |
 |---|---|---|
-| **B. RLS migration** | ❌ **NOT applied — data is exposed** | anon key read of `users` returns real rows (`user_9xov6qxr6ce8h`, …). The old permissive policies are still live, so anyone can read every user's profile/snapshots |
-| **A. Anonymous sign-ins** | ❌ Disabled | `POST /auth/v1/signup {}` → `anonymous_provider_disabled` |
-| **C. `SUPABASE_SERVICE_KEY`** | ❌ Not set | `vercel env ls` shows only `GROQ_API_KEY` |
-| **D. `INSTALLERS_PAT`** | ❌ Not set | `gh secret list` empty; release Publish job skips |
+| **Base migration** | ✅ Applied | `users`, `user_state_snapshots`, `analytics_events` all return 200 |
+| **B. Leaderboard + RLS migration** | ❌ **NOT applied** | `leaderboard_entries` and `mate_profiles` → `PGRST205: Could not find the table` (404). The leaderboard and study-mate features silently no-op until `supabase/apply-missing-migrations.sql` is run |
+| **A. Anonymous sign-ins** | ❌ Disabled | App console: “Anonymous sign-ins are disabled… running in local-only mode” |
+| **C. `SUPABASE_URL` / `SUPABASE_SERVICE_KEY`** | ❌ Not set | `vercel env ls` shows only `GROQ_API_KEY`; `/api/mates` returns “SUPABASE_SERVICE_KEY not configured” |
+| **D. `INSTALLERS_PAT`** | ✅ Set | `gh secret list` shows it; v1.1.4 installers published to the installers repo |
 | **E. Upstash vars** | ❌ Not set | `vercel env ls` |
-| **mate_profiles table** | ❌ Missing | `PGRST205: Could not find the table` |
 
-Run steps **B then A then C** — in that order — to close the exposure. Until
-B runs, assume every user's cloud data is publicly readable.
+Apply **B, then A, then C** — in that order — to activate the cloud features.
+The base tables are currently still readable by anyone with the (public) anon
+key; the hardening in B closes that.
 
 ## Rollback
 

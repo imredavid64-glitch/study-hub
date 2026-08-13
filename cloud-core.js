@@ -785,8 +785,7 @@ async function initializeCloudSystem() {
             if (snaps.error) throw snaps.error;
             const users = await supabase.from('users').delete().eq('id', myId);
             if (users.error) throw users.error;
-            const feed = await supabase.from('peer_activity').delete().eq('user_id', myId);
-            if (feed.error) throw feed.error;
+            // mate_profiles rows cascade-delete via the users FK (ON DELETE CASCADE).
           }
           try { localStorage.removeItem('studyhub_user_id'); } catch (e) {}
           try { localStorage.removeItem('studyhub_sync_queue'); } catch (e) {}
