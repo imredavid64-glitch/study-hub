@@ -12,6 +12,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Lint GitHub Actions workflows
+        # Catches YAML / expression errors in .github/workflows before they can
+        # break a release. This guard caught a job-level env context error that
+        # GitHub's parser had silently rejected the whole workflow for.
+        uses: rhysd/actionlint@v1
+
       - name: Syntax-check all JavaScript
         run: |
           for f in app.js cloud-core.js mobile.js studymap-data.js subject-labs.js build.js; do
