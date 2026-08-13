@@ -124,7 +124,7 @@ jobs:
               cd /tmp/appimg-check
               rm -rf squashfs-root
               "$APPIMAGE" --appimage-extract >/dev/null 2>&1
-              ls squashfs-root | head -5
+              find squashfs-root -maxdepth 1 | sort | head -5
               [ -x squashfs-root/AppRun ] || { echo "no AppRun in AppImage"; exit 1; }
               find squashfs-root -maxdepth 1 -name '*.desktop' | grep -q . || { echo "no .desktop in AppImage"; exit 1; }
               echo "SMOKE TEST PASSED"
@@ -301,7 +301,7 @@ jobs:
             echo "| Asset | Size |"
             echo "|---|---|"
             for f in Study-Hub-mac.dmg Study-Hub-mac.zip Study-Hub-Windows.zip Study-Hub-Linux.AppImage Study-Hub-Linux.deb; do
-              SIZE="$(ls -lh "$f" | awk '{print $5}')"
+              SIZE="$(awk -v b="$(wc -c < "$f")" 'BEGIN {printf "%.0fM", b/1048576}')"
               echo "| \`$f\` | ${SIZE} |"
             done
             echo
