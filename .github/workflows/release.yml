@@ -223,35 +223,32 @@ jobs:
   verify:
     name: Verify published installers
     needs: build
-    # Runs whenever a publish happened (tag push or tag dispatch) and the PAT is
-    # configured. Downloads the published bytes and checks them against the
-    # sha256 checksums recorded from the exact built files at publish time.
-    if: ${{ env.GH_TOKEN != '' && (github.event_name == 'push' || github.event.inputs.tag != '') }}
+    # Runs whenever a publish happened (tag push or tag dispatch). Downloads the
+    # published bytes and checks them against the sha256 checksums recorded from
+    # the exact built files at publish time. If no PAT is configured nothing was
+    # published, so the step reports that and exits cleanly.
+    if: ${{ github.event_name == 'push' || github.event.inputs.tag != '' }}
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.INSTALLERS_PAT }}
       INSTALLERS_REPO: imredavid64-glitch/study-hub-installers
     steps:
-      - name: Resolve release tag
-        id: tag
-        run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
-            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Download every published asset
-        run: |
-          mkdir -p verify && cd verify
-          gh release download "${{ steps.tag.outputs.tag }}" \
-            --repo "$INSTALLERS_REPO" --pattern 'Study-Hub-*'
-          ls -la
-
-      - name: Check checksums and require all five installers
+      - name: Verify published installers
         run: |
           set -euo pipefail
-          cd verify
+          if [ -z "$GH_TOKEN" ]; then
+            echo "No INSTALLERS_PAT secret — nothing was published, skipping verification."
+            exit 0
+          fi
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="${{ github.event.inputs.tag }}"
+          fi
+          echo "Verifying release ${TAG}"
+          mkdir -p verify && cd verify
+          gh release download "$TAG" --repo "$INSTALLERS_REPO" --pattern 'Study-Hub-*'
+          ls -la
           cat Study-Hub-checksums-*.txt > SHA256SUMS
           echo "=== expected checksums (recorded at build time) ==="
           cat SHA256SUMS
