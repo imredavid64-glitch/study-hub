@@ -8,13 +8,23 @@ name: Build desktop installers
 # Publishing needs a PAT with "Contents: write" on imredavid64-glitch/study-hub-installers
 # stored as the INSTALLERS_PAT repository secret. Without it, the build still
 # runs, but the publish step is skipped.
+#
+# The scheduled "Retry installer publish" workflow dispatches this with a `tag`
+# input to re-run the build+publish for a release whose installers are missing.
 
 on:
   push:
     tags:
       - 'v*'
-  # Manual runs build the installers but never publish.
   workflow_dispatch:
+    inputs:
+      # Re-build and publish this tag's installers. Only used by the scheduled
+      # retry workflow and manual re-runs; a plain dispatch with no tag just
+      # builds the current package.json version without publishing.
+      tag:
+        description: 'Version tag to build and publish (e.g. v1.1.4)'
+        required: false
+        type: string
 
 jobs:
   build:
@@ -59,6 +69,9 @@ jobs:
           set -euo pipefail
           if [ "${{ github.event_name }}" = "push" ]; then
             VERSION="${GITHUB_REF_NAME#v}"
+          elif [ -n "${{ github.event.inputs.tag }}" ]; then
+            VERSION="${{ github.event.inputs.tag }}"
+            VERSION="${VERSION#v}"
           else
             VERSION="$(node -p "require('./package.json').version")"
           fi
@@ -74,14 +87,19 @@ jobs:
         shell: bash
 
       - name: Publish to installers repo
-        # Only publish on real tag pushes, and only when the PAT is configured.
-        # The release is created by whichever job gets there first; the others
-        # upload their own assets to it. No GitHub artifact storage involved.
-        if: ${{ env.GH_TOKEN != '' && github.event_name == 'push' }}
+        # Publish on tag pushes and on dispatches that name a tag (the scheduled
+        # retry workflow), only when the PAT is configured. The release is
+        # created by whichever job gets there first; the others upload their own
+        # assets to it. No GitHub artifact storage involved.
+        if: ${{ env.GH_TOKEN != '' && (github.event_name == 'push' || github.event.inputs.tag != '') }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${GITHUB_REF_NAME}"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="${{ github.event.inputs.tag }}"
+          fi
           gh release create "$TAG" \
             --repo "imredavid64-glitch/study-hub-installers" \
             --title "Study Hub $TAG" \

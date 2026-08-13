@@ -1,0 +1,88 @@
+name: Retry installer publish
+
+# Safety net for the "Build desktop installers" workflow. Publishing can fail
+# on transient issues (auth hiccups, runner shell quirks, GitHub's artifact
+# quota counter lagging up to 12h behind deletions). Every 6 hours this checks
+# the latest v* tag's release in the installers repo and, if any expected
+# installer is missing, re-dispatches the build+publish workflow for that tag.
+# When everything is present it does nothing, so the scheduled run costs
+# nothing.
+
+on:
+  schedule:
+    # Every 6 hours, matching GitHub's quota-recalculation window.
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  heal:
+    name: Ensure the latest tag installers are published
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      INSTALLERS_REPO: imredavid64-glitch/study-hub-installers
+    steps:
+      - name: Find the latest version tag
+        id: latest
+        run: |
+          TAG="$(gh api --paginate "repos/$GITHUB_REPOSITORY/tags" \
+            --jq '[.[].name | select(startswith("v"))] | join("\n")' \
+            | sort -V | tail -1)"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Latest version tag: $TAG"
+
+      - name: Check which installers are missing for that tag
+        id: check
+        run: |
+          TAG="${{ steps.latest.outputs.tag }}"
+          EXPECTED="Study-Hub-mac.dmg Study-Hub-mac.zip Study-Hub-Windows.zip Study-Hub-Linux.AppImage Study-Hub-Linux.deb"
+          RELEASE_JSON="$(gh api "repos/$INSTALLERS_REPO/releases/tags/$TAG" 2>/dev/null || echo '')"
+          if [ -z "$RELEASE_JSON" ]; then
+            echo "Release $TAG does not exist yet — all installers missing."
+            echo "missing=all five installers" >> "$GITHUB_OUTPUT"
+            echo "need_dispatch=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          MISSING=""
+          for name in $EXPECTED; do
+            if ! echo "$RELEASE_JSON" | jq -e --arg n "$name" \
+              'any(.assets[]; .name == $n)' >/dev/null 2>&1; then
+              MISSING="$MISSING $name"
+            fi
+          done
+          if [ -n "$MISSING" ]; then
+            echo "Missing:$MISSING"
+            echo "missing=$MISSING" >> "$GITHUB_OUTPUT"
+            echo "need_dispatch=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "All installers are present for $TAG — nothing to do."
+            echo "need_dispatch=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Re-dispatch the installer build for the tag
+        if: ${{ steps.check.outputs.need_dispatch == 'true' }}
+        run: |
+          TAG="${{ steps.latest.outputs.tag }}"
+          # Don't stack a rebuild on top of one that is already running.
+          RUNNING="$(gh run list --workflow "Build desktop installers" \
+            --status in_progress --limit 1 --json databaseId --jq 'length')"
+          if [ "$RUNNING" != "0" ]; then
+            echo "A build run is already in progress — skipping dispatch."
+            exit 0
+          fi
+          echo "Missing:${{ steps.check.outputs.missing }} — dispatching build+publish for $TAG"
+          gh workflow run "Build desktop installers" \
+            --ref "${{ github.event.repository.default_branch }}" \
+            -f tag="$TAG"
+
+      - name: Log the heal result
+        run: |
+          if [ "${{ steps.check.outputs.need_dispatch }}" = "true" ]; then
+            echo "Dispatched a rebuild for ${{ steps.latest.outputs.tag }} (missing:${{ steps.check.outputs.missing }})."
+          else
+            echo "Release ${{ steps.latest.outputs.tag }} is complete — no rebuild needed."
+          fi
