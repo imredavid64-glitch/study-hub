@@ -16,7 +16,7 @@ jobs:
         # Catches YAML / expression errors in .github/workflows before they can
         # break a release. This guard caught a job-level env context error that
         # GitHub's parser had silently rejected the whole workflow for.
-        uses: rhysd/actionlint@v1
+        uses: rhysd/actionlint@v1.7.12
 
       - name: Syntax-check all JavaScript
         run: |
