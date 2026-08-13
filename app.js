@@ -5198,7 +5198,75 @@ function dlPlatform(name) {
   return '📦 ' + name.split('-').pop().split('.').pop().toUpperCase();
 }
 
-function dlRenderAssets(release) {
+// ---- Installer verification in-app ----
+// The release workflow publishes per-platform sha256 sidecars
+// (Study-Hub-checksums-*.txt). GitHub serves them without CORS headers, so we
+// read them through the /api/checksums proxy (which fetches them server-side);
+// each installer row then shows its official checksum and can verify the
+// user's own downloaded file against it.
+const DL_CHECKSUMS_URL = 'https://study-hub-plum-omega.vercel.app/api/checksums';
+
+async function fetchReleaseChecksums(release) {
+  const out = {};
+  if (!release || !Array.isArray(release.assets)) return out;
+  try {
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), 8000) : null;
+    const r = await fetch(DL_CHECKSUMS_URL, ctrl ? { signal: ctrl.signal } : undefined);
+    if (timer) clearTimeout(timer);
+    if (!r.ok) return out;
+    const data = await r.json();
+    if (data && data.checksums) Object.assign(out, data.checksums);
+  } catch (e) { /* proxy unreachable — rows fall back to the API digest */ }
+  return out;
+}
+
+function dlPickInstallerFile() {
+  return new Promise(resolve => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.dmg,.zip,.deb,.AppImage,.pkg,.exe';
+    input.addEventListener('change', () => resolve(input.files && input.files[0] || null));
+    input.addEventListener('cancel', () => resolve(null));
+    input.click();
+  });
+}
+
+async function dlVerifyInstaller(row, name, expectedHex) {
+  const statusEl = row.querySelector('.dl-verify-status');
+  let file = null;
+  // Chromium / Electron: native picker that returns a File directly. A real
+  // user cancel (AbortError) stops here; any other failure falls back to the
+  // plain file input below.
+  if (window.showOpenFilePicker) {
+    try {
+      const [handle] = await window.showOpenFilePicker();
+      file = handle ? await handle.getFile() : null;
+    } catch (e) {
+      if (e && (e.name === 'AbortError' || /abort|cancel/i.test(String(e.message || e)))) return;
+    }
+  }
+  if (!file) file = await dlPickInstallerFile();
+  if (!file) return;
+  statusEl.textContent = 'Hashing ' + file.name + '…';
+  statusEl.className = 'dl-verify-status';
+  try {
+    if (!(window.crypto && crypto.subtle)) throw new Error('sha256 unavailable in this browser');
+    const hex = await sha256Hex(await file.arrayBuffer());
+    const ok = hex === expectedHex.toLowerCase();
+    statusEl.textContent = ok
+      ? '✅ verified — matches the published build'
+      : '❌ does NOT match the published build';
+    statusEl.className = 'dl-verify-status ' + (ok ? 'ok' : 'bad');
+    showToast(ok ? '✓ Installer verified — checksum matches' : '✗ Checksum mismatch — re-download and try again', ok ? 'success' : 'error');
+  } catch (e) {
+    statusEl.textContent = 'Could not hash the file: ' + e.message;
+    statusEl.className = 'dl-verify-status bad';
+    showToast('Could not verify: ' + e.message, 'error');
+  }
+}
+
+function dlRenderAssets(release, checksums) {
   const el = $('liveReleaseList');
   if (!el) return;
   if (!release || !Array.isArray(release.assets) || !release.assets.length) {
@@ -5206,20 +5274,26 @@ function dlRenderAssets(release) {
     return;
   }
   const date = (release.published_at || '').slice(0, 10);
-  // Skip the SHA256SUMS sidecar files the release workflow publishes alongside
-  // the installers — they are for verification, not downloads.
+  // Skip the checksum / smoke-report sidecar files the release workflow
+  // publishes alongside the installers — they are for verification, not downloads.
   const assets = release.assets.filter(a => !/\.txt$/i.test(a.name || ''));
   const rows = assets.map(a => {
-    const digest = (a.digest || '').replace(/^sha256:/, '');
+    // Prefer the checksum published from the exact built file; fall back to the
+    // GitHub API digest field.
+    const digest = (checksums && checksums[a.name]) || (a.digest || '').replace(/^sha256:/, '');
     const short = digest ? digest.slice(0, 12) + '…' : '—';
     const copyBtn = digest
       ? `<button class="ghost dl-copy" data-sha="${digest}" title="Copy full sha256 checksum" style="padding:2px 8px;font-size:0.78rem">⧉ copy</button>`
+      : '';
+    const verifyBtn = digest
+      ? `<button class="ghost dl-verify" data-name="${escapeHtml(a.name)}" data-sha="${digest}" title="Pick your downloaded file and verify it matches this checksum" style="padding:2px 8px;font-size:0.78rem">🔍 Verify</button>`
       : '';
     return `<div class="dl-row">
       <span class="dl-platform">${dlPlatform(a.name)}</span>
       <code class="dl-name">${escapeHtml(a.name)}</code>
       <span class="dl-size">${dlHumanSize(a.size)}</span>
       <span class="dl-sha" title="sha256 checksum">sha256: ${escapeHtml(short)} ${copyBtn}</span>
+      ${verifyBtn}<span class="dl-verify-status"></span>
       <a class="btn btn-sm" href="${a.browser_download_url}" download>⬇ Download</a>
     </div>`;
   }).join('');
@@ -5234,21 +5308,30 @@ function dlRenderAssets(release) {
       }
     });
   });
+  el.querySelectorAll('.dl-verify').forEach(btn => {
+    btn.addEventListener('click', () => dlVerifyInstaller(btn.closest('.dl-row'), btn.dataset.name, btn.dataset.sha));
+  });
 }
 
 function loadLiveDownloads() {
   // Render the cached list immediately so the panel is never empty, then refresh.
   try {
     const cached = JSON.parse(localStorage.getItem(DL_CACHE_KEY) || 'null');
-    if (cached && cached.assets) dlRenderAssets(cached);
+    if (cached) {
+      const rel = cached.release || cached;
+      if (rel && rel.assets) dlRenderAssets(rel, cached.checksums || null);
+    }
   } catch (e) { /* cache corrupt — ignore */ }
   const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
   const timer = ctrl ? setTimeout(() => ctrl.abort(), 8000) : null;
   fetch(DL_RELEASE_URL, ctrl ? { signal: ctrl.signal } : undefined)
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-    .then(release => {
-      try { localStorage.setItem(DL_CACHE_KEY, JSON.stringify(release)); } catch (e) { /* storage full — skip */ }
-      dlRenderAssets(release);
+    .then(async release => {
+      // Fetch the per-platform checksum sidecars so each row can show the
+      // official sha256 and offer in-app verification.
+      const checksums = await fetchReleaseChecksums(release);
+      try { localStorage.setItem(DL_CACHE_KEY, JSON.stringify({ release, checksums })); } catch (e) { /* storage full — skip */ }
+      dlRenderAssets(release, checksums);
     })
     .catch(() => {
       const el = $('liveReleaseList');

@@ -4799,6 +4799,9 @@ canvas {
 .dl-name { flex: 1; min-width: 160px; font-size: 0.82rem; overflow-wrap: anywhere; }
 .dl-size { min-width: 64px; color: var(--muted); font-size: 0.85rem; }
 .dl-sha { font-size: 0.76rem; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.dl-verify-status { flex-basis: 100%; font-size: 0.78rem; color: var(--muted); min-height: 1em; }
+.dl-verify-status.ok { color: var(--success); font-weight: 600; }
+.dl-verify-status.bad { color: var(--danger); font-weight: 600; }
 @media (max-width: 640px) { .dl-platform { min-width: 70px; } .dl-sha { width: 100%; } }
 
 /* ===== PHONE ADAPTATION (browser/PWA on phones) ===== */
