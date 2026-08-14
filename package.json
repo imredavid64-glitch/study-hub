@@ -1,6 +1,6 @@
 {
   "name": "study-hub",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "Study Hub - Plan smarter. Practice deeper. Improve daily.",
   "main": "electron-main.js",
   "scripts": {
