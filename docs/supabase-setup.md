@@ -137,12 +137,57 @@ against the live project (`nnrdkdisjfudibvrggxb`) and the production deploy.
 - **Leaderboard**: anonymous sign-in → `leaderboard_entries` read returns 200
   with real rows.
 - **Study-mates**: exercised the exact app flow — anon sign-in → own `users`
-  row (RLS `own_users`, 201) → own `mate_profiles` row with
-  `["physics","math"]` (RLS `own_mate_profile`, 201) → `POST /api/mates` with
-  `["physics","biology"]` returned the profile with `overlap: ["Physics"]`;
-  a no-overlap query returned `[]`. The response exposes only
-  name/major/subjects/target — never `user_id` or email. Test rows were
-  deleted afterward (204).
+  row (RLS `own_users`, 201) → own `mate_profiles` row (RLS
+  `own_mate_profile`, 201) → `POST /api/mates`. Overlapping subjects
+  returned the profile with its `overlap` list; a no-overlap query returned
+  `[]`. The response exposes only name/major/subjects/target — never
+  `user_id` or email. Two demo profiles are left in place ("Demo Scholar —
+  Physics", "Demo Scholar — CS") so the in-app Study Mates tab and
+  leaderboard show live rows; delete their `mate_profiles` rows to purge.
+
+## Verification checklist
+
+Re-run these commands to confirm the cloud backend is healthy. Each maps to a
+checklist item above (A–C).
+
+```bash
+# A. Anonymous sign-ins work (should return a JSON with "access_token" and
+#    a UUID user whose role is "authenticated")
+curl -s -X POST https://nnrdkdisjfudibvrggxb.supabase.co/auth/v1/signup \
+  -H "apikey: $ANON_KEY" -H "Content-Type: application/json" -d '{}' \
+  | python3 -m json.tool
+
+# B. Tables exist + RLS is enabled (all six rows must show rowsecurity=true)
+supabase db query --linked \
+  "SELECT tablename, rowsecurity FROM pg_tables \
+   WHERE tablename IN ('users','user_state_snapshots','analytics_events',\
+                       'leaderboard_entries','mate_profiles') ORDER BY tablename;"
+
+# B. Ownership policies are present
+supabase db query --linked \
+  "SELECT policyname, tablename FROM pg_policies \
+   WHERE tablename IN ('users','leaderboard_entries','mate_profiles') \
+   ORDER BY tablename, policyname;"
+
+# C. Vercel reports the cloud as configured (expect \"configured\":true)
+curl -s https://study-hub-plum-omega.vercel.app/api/config
+
+# C. Study-mate matching answers ([] means configured + working, just no
+#    overlapping profiles yet)
+curl -s -X POST https://study-hub-plum-omega.vercel.app/api/mates \
+  -H "Content-Type: application/json" \
+  -d '{"subjects":["math"]}'
+
+# Leaderboard is readable by the anon role (expect 200, not 404)
+curl -s -o /dev/null -w "%{http_code}\n" \
+  "https://nnrdkdisjfudibvrggxb.supabase.co/rest/v1/leaderboard_entries?select=*&limit=1" \
+  -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY"
+```
+
+A clean run of every command above (auth JSON returned, six tables with RLS,
+policy list non-empty, `configured: true`, mates answering, leaderboard 200)
+means the full cloud path is live: **auth → RLS → sync/leaderboard →
+opt-in study-mate matching**.
 
 ### How the steps were applied (no dashboard needed)
 
