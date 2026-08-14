@@ -752,6 +752,10 @@ async function initializeCloudSystem() {
     await leaderboardManager.submitStats();
     if (typeof window.onLeaderboardUpdate === 'function') {
       leaderboardManager.subscribe(rows => window.onLeaderboardUpdate(rows));
+      // Initial fetch: the realtime subscription only fires on future changes,
+      // so without this the leaderboard stays empty until a peer updates.
+      const initial = await leaderboardManager.fetchLeaderboard();
+      window.onLeaderboardUpdate(initial);
     }
 
     // Replace original saveState to enable cloud sync
