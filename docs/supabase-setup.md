@@ -6,10 +6,10 @@ required — two in the Supabase dashboard and one in Vercel.
 
 > **Quick checklist** — each item below has a full click-path walkthrough.
 >
-> - [ ] **A. Enable anonymous sign-ins** (Supabase → Authentication → Providers)
-> - [ ] **B. Run the RLS migration** (Supabase → SQL Editor → run the migration file)
-> - [ ] **C. Add `SUPABASE_SERVICE_KEY`** (Supabase → Settings → API → copy `service_role` → Vercel env)
-> - [ ] **D. Add `INSTALLERS_PAT`** (GitHub → Settings → Developer settings → PAT → repo secret) — enables the release workflow to publish installers automatically
+> - [x] **A. Enable anonymous sign-ins** (Supabase → Authentication → Providers) — ✅ enabled 2026-08-14
+> - [x] **B. Run the RLS migration** (Supabase → SQL Editor → run the migration file) — ✅ applied 2026-08-14
+> - [x] **C. Add `SUPABASE_URL` / `SUPABASE_SERVICE_KEY`** (Supabase → Settings → API → copy `service_role` → Vercel env) — ✅ set (Production + Preview) 2026-08-14
+> - [x] **D. Add `INSTALLERS_PAT`** (GitHub → Settings → Developer settings → PAT → repo secret) — enables the release workflow to publish installers automatically
 > - [ ] **E. (Optional) Add `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`** (Vercel env) — durable cross-instance rate limiting
 > - [ ] **F. Rotate the old Groq key** (console.groq.com → API Keys → revoke the leaked key)
 
@@ -35,9 +35,10 @@ ownership policies plus the opt-in `mate_profiles` table.
 
 1. Go to **SQL Editor**
 2. Open **`supabase/apply-missing-migrations.sql`** from this repo and paste it.
-   This is the consolidated, ordered script (leaderboard table + RLS hardening)
-   that the live project is missing. Do **not** run the hardening migration
-   alone — it references `leaderboard_entries`, which does not exist yet.
+   This is the consolidated, ordered script (leaderboard table + RLS hardening).
+   Do **not** run the hardening migration alone — it references
+   `leaderboard_entries`, which must be created first. (Already applied to the
+   live project on 2026-08-14; re-running is safe — it is idempotent.)
 3. Paste and **Run**
 
 Expected: no errors. The output lists the new policies
@@ -118,20 +119,44 @@ working.
 
 ## Current state (live-verified 2026-08-14)
 
-Automated probes against the live project (`nnrdkdisjfudibvrggxb`) confirmed:
+All three cloud-backend steps are now **applied and verified end-to-end**
+against the live project (`nnrdkdisjfudibvrggxb`) and the production deploy.
 
 | Check | Result | Evidence |
 |---|---|---|
-| **Base migration** | ✅ Applied | `users`, `user_state_snapshots`, `analytics_events` all return 200 |
-| **B. Leaderboard + RLS migration** | ❌ **NOT applied** | `leaderboard_entries` and `mate_profiles` → `PGRST205: Could not find the table` (404). The leaderboard and study-mate features silently no-op until `supabase/apply-missing-migrations.sql` is run |
-| **A. Anonymous sign-ins** | ❌ Disabled | App console: “Anonymous sign-ins are disabled… running in local-only mode” |
-| **C. `SUPABASE_URL` / `SUPABASE_SERVICE_KEY`** | ❌ Not set | `vercel env ls` shows only `GROQ_API_KEY`; `/api/mates` returns “SUPABASE_SERVICE_KEY not configured” |
-| **D. `INSTALLERS_PAT`** | ✅ Set | `gh secret list` shows it; v1.1.4 installers published to the installers repo |
-| **E. Upstash vars** | ❌ Not set | `vercel env ls` |
+| **Base migration** | ✅ Applied | `users`, `user_state_snapshots`, `analytics_events` return 200 |
+| **B. Leaderboard + RLS migration** | ✅ **Applied** | `leaderboard_entries` and `mate_profiles` exist, RLS enabled on all five tables, ownership policies (`own_users`, `own_snapshots`, `own_events`, `read_leaderboard`, `insert/update/delete_own_leaderboard`, `own_mate_profile`, `read_mate_profiles`) present |
+| **A. Anonymous sign-ins** | ✅ **Enabled** | `signInAnonymously` returns a UUID user with role `authenticated` |
+| **C. `SUPABASE_URL` / `SUPABASE_SERVICE_KEY`** | ✅ **Set** | `vercel env ls` shows both (Production + Preview, `sensitive`); `/api/config` reports `supabase.configured: true`; `/api/mates` returns `[]` instead of “not configured” |
+| **D. `INSTALLERS_PAT`** | ✅ Set | v1.1.5 installers published to the installers repo |
+| **E. Upstash vars** | ❌ Not set | `vercel env ls` — optional, see §5 |
+| **F. Groq key rotation** | ❌ Not confirmed | see “Rotate the old Groq key” below |
 
-Apply **B, then A, then C** — in that order — to activate the cloud features.
-The base tables are currently still readable by anyone with the (public) anon
-key; the hardening in B closes that.
+### End-to-end verification (2026-08-14)
+
+- **Leaderboard**: anonymous sign-in → `leaderboard_entries` read returns 200
+  with real rows.
+- **Study-mates**: exercised the exact app flow — anon sign-in → own `users`
+  row (RLS `own_users`, 201) → own `mate_profiles` row with
+  `["physics","math"]` (RLS `own_mate_profile`, 201) → `POST /api/mates` with
+  `["physics","biology"]` returned the profile with `overlap: ["Physics"]`;
+  a no-overlap query returned `[]`. The response exposes only
+  name/major/subjects/target — never `user_id` or email. Test rows were
+  deleted afterward (204).
+
+### How the steps were applied (no dashboard needed)
+
+A and B were applied programmatically rather than via the dashboard UI:
+
+- **A** — `PATCH /v1/projects/{ref}/config/auth` on the Supabase Management
+  API with `{"external_anonymous_users_enabled": true}` (authenticated via the
+  `supabase` CLI access token).
+- **B** — `supabase db query --linked -f <migration>.sql`, running
+  `20260809000000_add_leaderboard.sql` then
+  `20260810000000_auth_rls_hardening.sql` in order.
+- **C** — fetched `service_role` from the Management API `api-keys` endpoint
+  and set it in Vercel (CLI for Production, REST API for Preview, then
+  `PATCH`ed Preview vars to `sensitive` type).
 
 ## Rollback
 
