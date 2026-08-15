@@ -15,7 +15,8 @@
     "cap:ios": "npm run build:mobile && npx cap sync ios && npx cap open ios",
     "cap:android": "npm run build:mobile && npx cap sync android && npx cap open android",
     "test": "node --check app.js && node --check cloud-core.js && node --check electron-main.js && node --check electron-menu.js && node --check electron-window-state.js && node --check electron-updater-core.js && node scripts/window-state-test.js && node scripts/updater-test.js && node scripts/exam-estimator-test.js",
-    "test:qa": "electron scripts/qa-smoke.js"
+    "test:qa": "electron scripts/qa-smoke.js",
+    "cleanup:demo": "node scripts/cleanup-demo-data.js"
   },
   "keywords": [
     "study",
