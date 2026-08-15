@@ -479,17 +479,34 @@ function renderWeeklyLeaderboard() {
   
   // Fresh installs show no fabricated competitors — only real cloud rows
   // (or the demo roster in judge mode). Otherwise an inviting empty state.
-  const base = liveLeaderboardRows && liveLeaderboardRows.length
-    ? liveLeaderboardRows.map((r, i) => ({ rank: i + 1, name: r.name || 'Scholar', streak: r.streak || 0, xp: r.xp || 0 }))
-    : (isJudgeMode() ? LEADERBOARD_DATA.slice() : null);
+  const myId = typeof getStudyHubUserId === 'function' ? getStudyHubUserId() : null;
+  const live = Array.isArray(liveLeaderboardRows) && liveLeaderboardRows.length ? liveLeaderboardRows : null;
+  // The current user's own cloud row is rendered once below as "You", so
+  // exclude it from the peer list to avoid showing the user twice.
+  const myCloudRow = (live && myId) ? live.find(r => r.user_id === myId) : null;
+  const others = live ? live.filter(r => !myId || r.user_id !== myId) : [];
+  
+  let base = null;
+  if (others.length) {
+    base = others.map((r, i) => ({ rank: i + 1, name: r.name || 'Scholar', streak: r.streak || 0, xp: r.xp || 0 }));
+  } else if (live) {
+    base = []; // only the user is on the board — render just "You"
+  } else if (isJudgeMode()) {
+    base = LEADERBOARD_DATA.slice();
+  }
   if (!base) {
     el.innerHTML = '<p class="subtle">The weekly leaderboard fills as study mates join. Your own streak and XP appear here automatically.</p>';
     return;
   }
   const rows = base;
   
-  const me = state ? { rank: rows.length + 1, name: 'You', streak: state.profile.currentStreak || 0, xp: state.profile.xp || 0 } : null;
-  const data = me ? rows.concat([me]) : rows;
+  const me = {
+    rank: rows.length + 1,
+    name: 'You',
+    streak: (myCloudRow && myCloudRow.streak) || (state && state.profile.currentStreak) || 0,
+    xp: (myCloudRow && myCloudRow.xp) || (state && state.profile.xp) || 0
+  };
+  const data = rows.concat([me]);
   
   el.innerHTML = `
     <div class="leaderboard-header">
