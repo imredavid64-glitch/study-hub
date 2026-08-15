@@ -10,7 +10,7 @@ jobs:
     name: Syntax, tests and build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Lint GitHub Actions workflows
         # Catches YAML / expression errors in .github/workflows before they can
@@ -53,10 +53,10 @@ jobs:
     name: Headless app smoke test (all tabs render)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
