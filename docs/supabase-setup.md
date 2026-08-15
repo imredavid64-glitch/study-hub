@@ -95,14 +95,30 @@ Verify with:
 gh secret list   # INSTALLERS_PAT should appear
 ```
 
-## 5. (Optional) Durable rate limiting
+## 5. Durable rate limiting
 
-Rate limiting works out of the box per function instance. To make limits
-shared across all instances (and to enforce the daily quota reliably), add an
-Upstash Redis REST database and set in Vercel env:
+Rate limiting is DURABLE (shared across all serverless instances) when these
+Vercel env vars are set — otherwise it falls back to a per-instance in-memory
+window:
 
 - `UPSTASH_REDIS_REST_URL`
 - `UPSTASH_REDIS_REST_TOKEN`
+
+Both are set in Production + Preview (`sensitive`). `lib/guard.js` reads them
+and uses the Upstash REST `/pipeline` endpoint (INCR + EXPIRE … NX). Verify
+with `scripts/upstash-ratelimit-test.js`:
+
+```bash
+node scripts/upstash-ratelimit-test.js --reset   # clear the test key
+node scripts/upstash-ratelimit-test.js           # run twice → durable count 1 → 2
+```
+
+> **Note:** the wired database is a temporary Upstash scratch instance that
+> expires 2026-08-18 unless claimed. To make it permanent, open the console
+> and click **Claim**:
+> https://upstash.com/start-redis/console/2a04a36d-9d0a-45e3-8e08-7884ccd23bbd
+> (or create your own Redis DB at https://console.upstash.io and re-set the two
+> vars). If it expires unclaimed, rate limiting silently degrades to in-memory.
 
 ## Optional: origin allowlist
 
@@ -129,7 +145,7 @@ against the live project (`nnrdkdisjfudibvrggxb`) and the production deploy.
 | **A. Anonymous sign-ins** | ✅ **Enabled** | `signInAnonymously` returns a UUID user with role `authenticated` |
 | **C. `SUPABASE_URL` / `SUPABASE_SERVICE_KEY`** | ✅ **Set** | `vercel env ls` shows both (Production + Preview, `sensitive`); `/api/config` reports `supabase.configured: true`; `/api/mates` returns `[]` instead of “not configured” |
 | **D. `INSTALLERS_PAT`** | ✅ Set | v1.1.5 installers published to the installers repo |
-| **E. Upstash vars** | ❌ Not set | `vercel env ls` — optional, see §5 |
+| **E. Upstash vars** | ✅ Set (scratch DB — claim by 2026-08-18) | `vercel env ls`; `scripts/upstash-ratelimit-test.js` proves cross-process durability |
 | **F. Groq key rotation** | ❌ Not confirmed | see “Rotate the old Groq key” below |
 
 ### End-to-end verification (2026-08-14)
