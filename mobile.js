@@ -267,19 +267,41 @@ const Mobile = (() => {
   const TAB_ORDER = ['dashboard','planner','sessions','flashcards','recalls','quizzes','notes','assignments','coach','ai-content-generator','ai-tutor','ai-lessons','ai-voice','warmup','studyguide','studyroom','resources','studymap','generators','calculator','tutorial','autism','subjects','calendar','social','analytics','settings'];
 
   function setupSwipeNavigation() {
-    // Snapchat-style: swipe left/right across the app to move between tabs.
+    // Snapchat / Tinder-style mobile gesture support:
+    // 1. Swipe left/right on flashcard cards to rate them (Easy / Hard).
+    // 2. Swipe left/right on main app views to navigate tabs.
     let startX = null, startY = null, moved = false;
+    let cardEl = null, cardStartX = 0, cardStartY = 0;
+
+    // Flashcard Tinder-style touch listeners
     document.addEventListener('touchstart', (e) => {
-      // don't hijack swipes started inside scrollable/editable regions
       const t = e.target;
-      if (t && (t.closest('.fc-flip-card') || t.closest('.gen-map-canvas') || t.closest('.mobile-nav') || t.closest('.music-seek') || t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.tagName === 'SELECT')) {
+      const fcCard = t && t.closest && t.closest('#fcFlipCard');
+      if (fcCard) {
+        cardEl = fcCard;
+        cardStartX = e.touches[0].clientX;
+        cardStartY = e.touches[0].clientY;
+        cardEl.style.transition = 'none';
+        return;
+      }
+
+      if (t && (t.closest('.gen-map-canvas') || t.closest('.mobile-nav') || t.closest('.music-seek') || t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.tagName === 'SELECT')) {
         startX = null; return;
       }
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
       moved = false;
     }, { passive: true });
+
     document.addEventListener('touchmove', (e) => {
+      if (cardEl) {
+        const dx = e.touches[0].clientX - cardStartX;
+        const dy = e.touches[0].clientY - cardStartY;
+        const rot = dx * 0.08;
+        cardEl.style.transform = `translate3d(${dx}px, ${dy * 0.3}px, 0) rotate(${rot}deg)`;
+        return;
+      }
+
       if (startX === null) return;
       const dx = e.touches[0].clientX - startX;
       const dy = e.touches[0].clientY - startY;
@@ -288,11 +310,39 @@ const Mobile = (() => {
         moved = true;
       }
     }, { passive: false });
+
     document.addEventListener('touchend', (e) => {
+      if (cardEl) {
+        const dx = e.changedTouches[0].clientX - cardStartX;
+        cardEl.style.transition = 'transform 0.25s ease, opacity 0.25s ease';
+        if (dx > 90) {
+          // Swipe Right = Easy / Know
+          cardEl.style.transform = 'translate3d(400px, 0, 0) rotate(25deg)';
+          cardEl.style.opacity = '0';
+          setTimeout(() => {
+            if (typeof rateCurrentFlashcard === 'function') rateCurrentFlashcard(5);
+            if (cardEl) { cardEl.style.transform = ''; cardEl.style.opacity = '1'; cardEl = null; }
+          }, 200);
+          hapticFeedback('success');
+          return;
+        } else if (dx < -90) {
+          // Swipe Left = Hard / Review
+          cardEl.style.transform = 'translate3d(-400px, 0, 0) rotate(-25deg)';
+          cardEl.style.opacity = '0';
+          setTimeout(() => {
+            if (typeof rateCurrentFlashcard === 'function') rateCurrentFlashcard(1);
+            if (cardEl) { cardEl.style.transform = ''; cardEl.style.opacity = '1'; cardEl = null; }
+          }, 200);
+          hapticFeedback('warning');
+          return;
+        } else {
+          cardEl.style.transform = '';
+          cardEl = null;
+        }
+      }
+
       if (startX === null || !moved) { startX = null; return; }
       const dx = e.changedTouches[0].clientX - startX;
-      const startEl = e.target;
-      const card = startEl.closest && startEl.closest('.card');
       const current = document.querySelector('.tab.active');
       let idx = TAB_ORDER.indexOf(current && current.id ? current.id : 'dashboard');
       if (idx === -1) idx = 0;

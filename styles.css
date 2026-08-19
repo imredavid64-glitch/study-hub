@@ -5528,6 +5528,38 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .chip-ok { background: color-mix(in srgb, var(--success, #237a57) 14%, transparent); color: var(--success, #237a57); border-color: color-mix(in srgb, var(--success, #237a57) 40%, transparent); }
 .chip-warn { background: color-mix(in srgb, var(--warning, #e6a700) 14%, transparent); color: #8a6400; border-color: color-mix(in srgb, var(--warning, #e6a700) 40%, transparent); }
 
+/* Mobile-specific UI adaptations & gesture hints */
+@media (max-width: 900px), (pointer: coarse) {
+  .fc-flip-card {
+    touch-action: pan-y;
+    position: relative;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .fc-card-area {
+    position: relative;
+  }
+  .fc-card-area::before, .fc-card-area::after {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    position: absolute;
+    top: -20px;
+    opacity: 0.7;
+    font-weight: 600;
+  }
+  .fc-card-area::before {
+    content: "← Swipe Left (Hard)";
+    left: 8px;
+  }
+  .fc-card-area::after {
+    content: "Swipe Right (Easy) →";
+    right: 8px;
+  }
+  .mobile-nav-item {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
 /* ===== Exam-aware task board ===== */
 .task-card.task-hot {
   border-color: color-mix(in srgb, var(--warning, #e6a700) 55%, var(--border, rgba(0,0,0,0.08)));

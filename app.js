@@ -692,7 +692,20 @@ function exportData() {
   const blob = new Blob([JSON.stringify(exportState, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = `studyhub-backup-${todayStr()}.json`; a.click();
-  URL.revokeObjectURL(url); showToast('Data exported to JSON');
+  URL.revokeObjectURL(url);
+  showToast('Data exported to JSON');
+}
+
+function exportStudyGuideMarkdown() {
+  const guide = state.goals && state.goals.length > 0 && state.goals[0].guide ? state.goals[0].guide : null;
+  const title = guide && guide.title ? guide.title : 'Study Guide & Roadmap';
+  const content = guide && guide.content ? guide.content : '# Study Roadmap\n\nNo roadmap generated yet. Generate a study roadmap from the Planner tab.';
+  const markdown = `# ${title}\n\n*Exported from Study Hub on ${new Date().toLocaleDateString()}*\n\n---\n\n${content}`;
+  const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `study-hub-guide-${todayStr()}.md`; a.click();
+  URL.revokeObjectURL(url);
+  showToast('Study guide exported as Markdown (.md)');
 }
 function showConfirm(msg) {
   return new Promise(resolve => {
@@ -2190,16 +2203,54 @@ function submitMockTest() {
   clearInterval(mockState.timer);
   let correct = 0;
   const subject = $('mockTestSubject').value || 'General';
+  const missedList = [];
   mockState.questions.forEach((q, i) => {
-    if ((mockState.answers[i] || '').trim().toLowerCase() === (q.answer || '').trim().toLowerCase()) correct++;
-    else logConfusion(subject, (q.question || '').replace(/^Q\d+[:.]\s*/i, '').trim(), 'mock');
+    const userAns = (mockState.answers[i] || '').trim().toLowerCase();
+    const correctAns = (q.answer || '').trim().toLowerCase();
+    if (userAns === correctAns) {
+      correct++;
+    } else {
+      const qText = (q.question || '').replace(/^Q\d+[:.]\s*/i, '').trim();
+      logConfusion(subject, qText, 'mock');
+      missedList.push({ question: q.question, answer: q.answer, userAns: mockState.answers[i] || '(no answer)' });
+    }
   });
   const pct = Math.round(correct / mockState.questions.length * 100);
-  $('mockTestResult').innerHTML = `<strong>Mock Test Score: ${correct}/${mockState.questions.length} (${pct}%)</strong>`;
+  
+  // Auto-sync missed questions as review flashcards into deck
+  let addedFlashcardsCount = 0;
+  if (missedList.length > 0) {
+    const deckName = subject;
+    missedList.forEach(item => {
+      const exists = state.flashcards.some(f => f.deck.toLowerCase() === deckName.toLowerCase() && f.question.toLowerCase() === item.question.toLowerCase());
+      if (!exists) {
+        state.flashcards.push({
+          id: uid(),
+          deck: deckName,
+          question: item.question,
+          answer: item.answer,
+          dueDate: todayStr(),
+          interval: 0,
+          ease: 2.5,
+          repetitions: 0,
+          createdAt: new Date().toISOString()
+        });
+        addedFlashcardsCount++;
+      }
+    });
+  }
+
+  let resultMsg = `<strong>Mock Test Score: ${correct}/${mockState.questions.length} (${pct}%)</strong>`;
+  if (addedFlashcardsCount > 0) {
+    resultMsg += `<p style="margin-top:6px;font-size:0.9em;" class="subtle">⚡ ${addedFlashcardsCount} missed question${addedFlashcardsCount > 1 ? 's' : ''} auto-added to flashcards for review!</p>`;
+  }
+  $('mockTestResult').innerHTML = resultMsg;
   const mockId = uid();
   state.mockTestHistory.push({ id: mockId, date: todayStr(), subject, score: correct, total: mockState.questions.length, pct });
   if (typeof recordEstimatorPrediction === 'function') recordEstimatorPrediction(subject, pct, 'mock', mockId);
-  saveState(); renderMockTestHistory(); renderConfusionHeatmap(); if (pct >= 80) { clearReviewQueueForTopic(subject); if (typeof autoCompleteWtStep === 'function') autoCompleteWtStep('mock', subject); } else renderReviewQueue(); showToast('Mock test submitted');
+  saveState(); renderMockTestHistory(); renderConfusionHeatmap(); if (typeof renderFlashcardDecks === 'function') renderFlashcardDecks();
+  if (pct >= 80) { clearReviewQueueForTopic(subject); if (typeof autoCompleteWtStep === 'function') autoCompleteWtStep('mock', subject); } else renderReviewQueue();
+  showToast(addedFlashcardsCount > 0 ? `Submitted! ${addedFlashcardsCount} missed created as flashcards` : 'Mock test submitted');
 }
 function renderMockTestHistory() {
   const el = $('mockTestHistory');
@@ -4769,6 +4820,7 @@ function setupSettings() {
   }
   safeCall(function() { applyMusicVisibility(); });
   $('exportDataBtn').addEventListener('click', exportData);
+  if ($('exportMarkdownBtn')) $('exportMarkdownBtn').addEventListener('click', exportStudyGuideMarkdown);
   $('importDataInput').addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -10691,15 +10743,26 @@ function offlinePracticeFeedback(mode, text) {
   const words = (text || '').trim().split(/\s+/).filter(Boolean).length;
   const sentences = (text || '').split(/[.!?]+/).filter(s => s.trim().length > 1).length;
   const avg = sentences ? Math.round(words / sentences) : 0;
+  const estSpeakingTimeMin = (words / 130).toFixed(1); // 130 wpm typical speaking speed
+  
+  // Detect filler words locally
+  const fillerRegex = /\b(um|uh|like|you know|sort of|kind of|basically|actually|literally)\b/gi;
+  const fillersFound = (text || '').match(fillerRegex) || [];
+  
   const modeTxt = mode === 'speech' ? 'Speech Practice' : mode === 'presentation' ? 'Presentation Feedback' : 'AI Crowd (Audience Reactions)';
-  let out = '**' + modeTxt + ' — offline feedback**\n\n';
-  out += '**At a glance** — ' + words + ' words, ' + sentences + ' sentences (avg ' + avg + ' words/sentence).\n\n';
+  let out = '**' + modeTxt + ' — offline speech analysis**\n\n';
+  out += '**Stats & Pacing**\n';
+  out += '- **Word Count:** ' + words + ' words\n';
+  out += '- **Estimated Speaking Duration:** ~' + estSpeakingTimeMin + ' min (at 130 WPM)\n';
+  out += '- **Sentence Length:** ' + sentences + ' sentences (avg ' + avg + ' words/sentence)\n';
+  out += '- **Filler Word Count:** ' + fillersFound.length + (fillersFound.length > 0 ? ' (' + [...new Set(fillersFound.map(f => f.toLowerCase()))].join(', ') + ')' : '') + '\n\n';
+
   if (mode === 'speech' || mode === 'presentation') {
-    out += '**Pacing** — ' + (avg > 22 ? 'Sentences run long; add pauses after key points so listeners can follow.' : 'Pacing looks natural; keep a deliberate pause after every main point.') + '\n\n' +
-      '**Clarity** — Replace jargon with plain words; define anything technical the first time you say it.\n\n' +
-      '**Filler words** — Listen for "um", "like", "you know". Pausing silently is calmer than filling with a filler word.\n\n' +
-      '**Confidence** — Stand tall, slow down by 10%, and make eye contact with different parts of the room.\n\n' +
-      '**Score estimate:** ' + Math.min(9, Math.max(6, 7 + (avg >= 10 && avg <= 20 ? 1 : 0))) + '/10 — practice once more, then it is exam-ready.';
+    out += '**Delivery & Structure**\n';
+    out += '- **Pacing:** ' + (avg > 22 ? 'Sentences run long. Add short pauses after key assertions.' : 'Good cadence. Natural sentence length for speaking.') + '\n';
+    out += '- **Fillers:** ' + (fillersFound.length > 3 ? 'Noticeable filler words detected. Practice replacing fillers with a silent 1-second pause.' : 'Low filler density. Your speech flows cleanly.') + '\n';
+    out += '- **Structure:** ' + (words < 50 ? 'Short draft — add a clear introduction, 2-3 body points, and a strong summary conclusion.' : 'Well-formed content length. Ensure your key takeaway is stated in the first and last minute.') + '\n\n';
+    out += '**Score Estimate:** ' + Math.min(10, Math.max(5, 7 + (avg >= 10 && avg <= 20 ? 1 : 0) - (fillersFound.length > 4 ? 1 : 0))) + '/10';
   } else {
     out += '**Audience reactions**\n- 👏 Applause after the opening — strong hook.\n- 🤔 Murmurs at the complex part — slow down and give an example there.\n- 📝 People take notes at your statistics — keep those numbers concrete.\n- 🙋 Likely questions: "Can you repeat the main point?" and "How does this apply to me?"\n\n**Overall vibe:** engaged and interested. End with a clear takeaway line so they leave with one sentence to remember.';
   }
