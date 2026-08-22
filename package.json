@@ -10,7 +10,7 @@
     "desktop:build-win": "electron-packager . \"Study Hub\" --platform=win32 --arch=x64 --icon=assets/icon --overwrite --asar --out=release",
     "desktop:build-linux": "electron-packager . \"Study Hub\" --platform=linux --arch=x64 --overwrite --asar --out=release",
     "desktop:dmg": "electron-builder --mac dmg",
-    "build:mobile": "mkdir -p www && cp index.html styles.css app.js cloud-core.js mobile.js build.js studymap-data.js subject-labs.js www/ && cp -r assets www/ && cp -r music www/",
+    "build:mobile": "mkdir -p www && cp index.html styles.css app.js cloud-core.js mobile.js build.js studymap-data.js subject-labs.js sw.js manifest.webmanifest favicon.svg favicon-dark.svg www/ && cp -r assets www/ && cp -r music www/",
     "cap:sync": "npm run build:mobile && npx cap sync",
     "cap:ios": "npm run build:mobile && npx cap sync ios && npx cap open ios",
     "cap:android": "npm run build:mobile && npx cap sync android && npx cap open android",
