@@ -1,8 +1,10 @@
 /* Study Hub — Service Worker
  * Enables install-as-app (PWA) and offline access to the app shell.
  * API calls and cross-origin resources are never cached.
+ * Bump CACHE whenever a release changes app files — returning users get the
+ * new build on their next visit (stale-while-revalidate) and offline keeps working.
  */
-const CACHE = 'study-hub-v1';
+const CACHE = 'study-hub-v1.1.7';
 const SHELL = [
   './',
   './index.html',
@@ -51,17 +53,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: cache-first, then network with runtime caching
+  // Static assets: stale-while-revalidate — serve cached instantly, refresh in
+  // the background so users pick up new deploys on their next visit.
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((res) => {
+      const network = fetch(event.request).then((res) => {
         if (res && res.ok) {
           const copy = res.clone();
           caches.open(CACHE).then((cache) => cache.put(event.request, copy)).catch(() => {});
         }
         return res;
-      });
+      }).catch(() => cached);
+      return cached || network;
     })
   );
 });
