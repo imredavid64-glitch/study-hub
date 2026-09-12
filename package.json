@@ -1,6 +1,6 @@
 {
   "name": "study-hub",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "description": "Study Hub - Plan smarter. Practice deeper. Improve daily.",
   "main": "electron-main.js",
   "scripts": {
@@ -10,11 +10,11 @@
     "desktop:build-win": "electron-packager . \"Study Hub\" --platform=win32 --arch=x64 --icon=assets/icon --overwrite --asar --out=release",
     "desktop:build-linux": "electron-packager . \"Study Hub\" --platform=linux --arch=x64 --overwrite --asar --out=release",
     "desktop:dmg": "electron-builder --mac dmg",
-    "build:mobile": "mkdir -p www && cp index.html styles.css app.js cloud-core.js mobile.js build.js studymap-data.js subject-labs.js sw.js manifest.webmanifest favicon.svg favicon-dark.svg www/ && cp -r assets www/ && cp -r music www/",
+    "build:mobile": "mkdir -p www && cp index.html styles.css app.js cloud-core.js mobile.js build.js studymap-data.js subject-labs.js question-bank.js sw.js manifest.webmanifest favicon.svg favicon-dark.svg www/ && cp -r assets www/ && cp -r music www/",
     "cap:sync": "npm run build:mobile && npx cap sync",
     "cap:ios": "npm run build:mobile && npx cap sync ios && npx cap open ios",
     "cap:android": "npm run build:mobile && npx cap sync android && npx cap open android",
-    "test": "node --check app.js && node --check cloud-core.js && node --check electron-main.js && node --check electron-menu.js && node --check electron-window-state.js && node --check electron-updater-core.js && node scripts/window-state-test.js && node scripts/updater-test.js && node scripts/exam-estimator-test.js",
+    "test": "node --check app.js && node --check cloud-core.js && node --check electron-main.js && node --check electron-menu.js && node --check electron-window-state.js && node --check electron-updater-core.js && node --check question-bank.js && node scripts/window-state-test.js && node scripts/updater-test.js && node scripts/exam-estimator-test.js && node scripts/question-bank-test.js && node scripts/ai-helpers-test.js",
     "test:qa": "electron scripts/qa-smoke.js",
     "cleanup:demo": "node scripts/cleanup-demo-data.js"
   },
@@ -37,7 +37,8 @@
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/ios": "^8.4.2",
     "@capacitor/local-notifications": "^8.2.1",
-    "@vercel/analytics": "^2.0.1"
+    "@vercel/analytics": "^2.0.1",
+    "body-parser": "^2.3.0"
   },
   "devDependencies": {
     "electron": "^43.2.0",

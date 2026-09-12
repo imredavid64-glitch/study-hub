@@ -1,6 +1,16 @@
 // ===== STATE MANAGEMENT =====
 const STORAGE_KEY = 'studyhub_state';
 
+// ===== SCHEMA VERSIONING & MIGRATIONS =====
+const SCHEMA_VERSION = 2;
+// Each migration upgrades state from version N → N+1.  deepMerge already
+// fills missing keys from DEFAULT_STATE, so early migrations may be no-ops;
+// they exist to make future breaking schema changes explicit and safe.
+const MIGRATIONS = [
+  // 1 → 2: Question Banks feature — customBanks + bankStats fields added.
+  (s) => s,
+];
+
 // ===== I18N — UI Language System =====
 const LOCALES = {
   en: {
@@ -28,7 +38,7 @@ const LOCALES = {
     searchPlaceholder: 'Search...', noData: 'No data yet.', loading: 'Loading...',
     saveSuccess: 'Saved successfully', errorGeneric: 'Something went wrong',
     confirmReset: 'Are you sure you want to erase ALL your data? This cannot be undone.',
-    hungarian: 'Hungarian', english: 'English',
+    hungarian: 'Hungarian', english: 'English', spanish: 'Spanish',
     // Dashboard
     welcomeScholar: 'Welcome, Scholar',
     startSprint: 'Start 25m Sprint',
@@ -113,7 +123,7 @@ const LOCALES = {
     loading: 'Betöltés...', saveSuccess: 'Sikeresen mentve',
     errorGeneric: 'Valami hiba történt',
     confirmReset: 'Biztosan törölni szeretnéd az ÖSSZES adatot? Ez a művelet nem visszavonható.',
-    hungarian: 'Magyar', english: 'Angol',
+    hungarian: 'Magyar', english: 'Angol', spanish: 'Spanyol',
     // Dashboard
     welcomeScholar: 'Üdvözöllek, Tanuló',
     startSprint: '25 perces sprint',
@@ -169,6 +179,81 @@ const LOCALES = {
     // General
     search: 'Keresés', cancel: 'Mégse', confirm: 'Megerősítés', delete: 'Törlés',
     comingSoon: 'Hamarosan',
+    // Question Banks & new features
+    questionBanks: 'Kvíz bankok', importBank: 'Bank importálása', exportBank: 'Bank exportálása',
+    searchBanks: 'Bankok keresése...', noBanks: 'Még nincs bank. Hozzál létre egyet!',
+    streakCalendar: 'Streak naptár', currentStreak: 'Jelenlegi sorozat',
+    longestStreak: 'Leghosszabb sorozat', studyToday: 'Tanulj ma!',
+  },
+  es: {
+    appName: 'Centro de Estudio', tabDashboard: 'Panel', tabPlanner: 'Planificador',
+    tabSessions: 'Sesiones', tabFlashcards: 'Tarjetas', tabQuizzes: 'Cuestionarios',
+    tabNotes: 'Notas', tabAssignments: 'Tareas', tabCoach: 'Entrenador',
+    tabVoice: 'Voz', tabSubjects: 'Materias', tabAnalytics: 'Análisis',
+    tabSettings: 'Configuración', tabRecalls: 'Repaso', tabCalendar: 'Calendario',
+    tabSocial: 'Social', tabAI: 'Tutor IA', tabSmartAI: 'IA Inteligente', tabLessons: 'Lecciones IA',
+    settingsTitle: 'Configuración', profileLabel: 'Perfil', themeLabel: 'Tema',
+    langLabel: 'Idioma de la app',
+    darkMode: 'Modo oscuro', lightMode: 'Modo claro',
+    exportBtn: 'Exportar JSON', importBtn: 'Importar JSON',
+    resetBtn: 'Borrar todos los datos', healthCheck: 'Ejecutar verificación',
+    saveProfile: 'Guardar perfil', namePlaceholder: 'Nombre', majorPlaceholder: 'Programa / Carrera',
+    weeklyTarget: 'Meta semanal (horas)', targetGpa: 'GPA objetivo',
+    voiceTitle: 'Modo voz IA', voiceStart: 'Iniciar', voiceStop: 'Detener', voiceClear: 'Limpiar',
+    voiceTranscript: 'Transcripción', voiceLanguage: 'Idioma', voiceTopic: 'Tema',
+    voiceCallEnd: 'Terminar llamada', voiceAnalysis: 'Análisis de conversación',
+    lectureRecord: 'Grabar clase', lectureConsent: 'Consentimiento del profesor',
+    lectureStart: 'Iniciar grabación', lectureStop: 'Detener grabación',
+    lectureSaved: 'Clases guardadas', lectureGenerate: 'Generar ejercicios',
+    googleConnect: 'Conectar Google', googleClassroom: 'Google Classroom',
+    googleCalendar: 'Google Calendar', googleOAuth: 'Configurar OAuth',
+    googleConnected: 'Conectado', googleDisconnect: 'Desconectar',
+    recording: 'Grabando...', paused: 'Pausado',
+    searchPlaceholder: 'Buscar...', noData: 'Sin datos aún.',
+    loading: 'Cargando...', saveSuccess: 'Guardado correctamente',
+    errorGeneric: 'Algo salió mal',
+    confirmReset: '¿Seguro que quieres borrar TODOS tus datos? Esta acción no se puede deshacer.',
+    hungarian: 'Húngaro', english: 'Inglés', spanish: 'Español',
+    welcomeScholar: 'Bienvenido, Estudiante',
+    startSprint: 'Inicio rápido 25m', loadDemo: 'Cargar datos de demo',
+    studyHours7d: 'Horas de estudio (7d)', taskCompletion: 'Progreso de tareas',
+    studyStreak: 'Racha de estudio', academicMomentum: 'Impulso académico',
+    dailyMission: 'Misión diaria', todayAgenda: 'Agenda de hoy',
+    achievements: 'Logros', nothingScheduled: 'Nada programado para hoy.',
+    keepGoing: '¡Sigue adelante — los logros se desbloquean mientras estudias!',
+    addFirstGoal: 'Añade tu primer objetivo de estudio para comenzar.',
+    addGoal: 'Añadir objetivo', addTask: 'Añadir tarea', autoStudyPlan: 'Plan automático',
+    highPriority: 'Alta prioridad', mediumPriority: 'Prioridad media', lowPriority: 'Baja prioridad',
+    createGoal: 'Crear objetivo', goalTitle: 'Título', goalSubject: 'Materia', goalDeadline: 'Fecha límite',
+    goalPriority: 'Prioridad', goalHours: 'Horas planificadas',
+    taskTitle: 'Título de tarea', taskSubject: 'Materia', taskDue: 'Fecha límite', taskEffort: 'Esfuerzo (1-5)',
+    generate: 'Generar', studyPlan: 'Plan de estudio',
+    toDo: 'Pendiente', inProgress: 'En progreso', done: 'Hecho',
+    move: 'Mover →', reactivate: 'Reactivar',
+    logStudySession: 'Registrar sesión', subject: 'Materia', duration: 'Duración (min)',
+    sessionType: 'Tipo', deepWork: 'Trabajo profundo', saveSession: 'Guardar sesión',
+    sessionHistory: 'Historial de sesiones',
+    createFlashcard: 'Crear tarjeta', question: 'Pregunta', answer: 'Respuesta',
+    addFlashcard: 'Añadir tarjeta', generateAIFlashcards: 'Generar tarjetas con IA',
+    aiWordFinder: 'Buscador de palabras IA', askAI: 'Preguntar a IA', addAIWords: 'Añadir palabras como tarjetas',
+    studyMode: 'Modo estudio', due: 'Pendiente', new: 'Nueva', total: 'Total',
+    noCardsDue: 'No hay tarjetas pendientes. Añade o genera con IA.',
+    allFlashcards: 'Todas las tarjetas',
+    again: 'Otra vez', hard: 'Difícil', good: 'Bien', easy: 'Fácil',
+    aiQuizGenerator: 'Generador de cuestionarios IA', quizArena: 'Arena de cuestionarios', timedMockTest: 'Examen simulado cronometrado',
+    createQuiz: 'Crear cuestionario', next: 'Siguiente', submitQuiz: 'Enviar cuestionario',
+    previous: 'Anterior', markForReview: 'Marcar para revisar', submitMockTest: 'Enviar examen simulado',
+    quizAttempts: 'Intentos de cuestionario', mockTestHistory: 'Historial de exámenes',
+    topic: 'Tema', difficulty: 'Dificultad', type: 'Tipo',
+    subjects: 'Materias',
+    startCall: 'Iniciar llamada',
+    coach: 'Entrenador', performanceCoach: 'Entrenador de rendimiento',
+    search: 'Buscar', cancel: 'Cancelar', confirm: 'Confirmar', delete: 'Eliminar',
+    comingSoon: 'Próximamente',
+    questionBanks: 'Bancos de preguntas', importBank: 'Importar banco', exportBank: 'Exportar banco',
+    searchBanks: 'Buscar bancos...', noBanks: '¡Aún no hay bancos. ¡Crea uno!',
+    streakCalendar: 'Calendario de rachas', currentStreak: 'Racha actual',
+    longestStreak: 'Racha más larga', studyToday: '¡Estudia hoy!',
   }
 };
 const _lang = () => state?.settings?.appLanguage || 'en';
@@ -191,6 +276,9 @@ const DEFAULT_STATE = {
   calendarEvents: [],
   playlists: [],
   lectureRecordings: [],
+  customBanks: [],
+  bankStats: {},
+  schemaVersion: SCHEMA_VERSION
 };
 
 // ===== DEMO DATA FOR JUDGE MODE =====
@@ -621,6 +709,16 @@ function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       state = deepMerge(cloneObj(DEFAULT_STATE), JSON.parse(raw));
+      // Run pending migrations.  Missing schemaVersion = v1 (pre-versioning).
+      let v = state.schemaVersion || 1;
+      if (v < SCHEMA_VERSION) {
+        while (v < SCHEMA_VERSION && MIGRATIONS[v - 1]) {
+          state = MIGRATIONS[v - 1](state);
+          v++;
+          state.schemaVersion = v;
+        }
+        saveState(); // persist migrated state
+      }
     } else {
       state = cloneObj(DEFAULT_STATE);
     }
@@ -688,7 +786,7 @@ function attachUndoButton(el) {
 function exportData() {
   const exportState = cloneObj(state);
   exportState._exportedAt = new Date().toISOString();
-  exportState._version = '1.0';
+  exportState._version = 'v' + SCHEMA_VERSION;
   const blob = new Blob([JSON.stringify(exportState, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = `studyhub-backup-${todayStr()}.json`; a.click();
@@ -735,39 +833,213 @@ const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 // only, never uploaded) for when the proxy is unreachable.
 let studentLearningStyle = '';
 async function groqChat(messages, options = {}) {
-  const model = options.model || 'llama-3.1-8b-instant';
+  const model = options.model || 'groq/compound-mini';
   const maxTokens = options.maxTokens || 2048;
   const temperature = options.temperature ?? 0.7;
+  const retries = options.retries !== undefined ? options.retries : 2;
   const payload = { model, messages, max_tokens: maxTokens, temperature };
-  // Prefer the serverless proxy (keeps the API key out of the browser bundle).
-  try {
-    const proxied = await fetch('/api/groq', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (proxied.ok) {
-      const data = await proxied.json();
-      return data.choices?.[0]?.message?.content || '';
+  const signal = options.signal;
+  const isAbort = e => e && (e.name === 'AbortError' || e.code === 20);
+  const abortError = () => new DOMException('The operation was aborted.', 'AbortError');
+  const wait = ms => new Promise((resolve, reject) => {
+    if (!signal) { setTimeout(resolve, ms); return; }
+    const onAbort = () => { clearTimeout(t); reject(abortError()); };
+    const t = setTimeout(() => { signal.removeEventListener('abort', onAbort); resolve(); }, ms);
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+  const customKey = (state && state.settings && state.settings.customGroqKey) || '';
+
+  // Proxy leg — one network attempt through /api/groq (keeps the API key out of
+  // the browser bundle). Throws tagged errors: {retryable:true} for transient
+  // network/5xx/429, {rateLimited:true} for hard 403 quota/denial.
+  async function proxyAttempt() {
+    const throwHttp = err => { err.httpStatus = true; throw err; };
+    try {
+      const proxied = await fetch('/api/groq', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal
+      });
+      if (proxied.ok) {
+        const data = await proxied.json();
+        return data.choices?.[0]?.message?.content || '';
+      }
+      if (proxied.status === 403) {
+        // Proxy-level rate limit / origin denial — a hard stop: retrying now
+        // would only slam the rate limiter again. Handled friendly at the end.
+        let msg = 'Rate limit hit — try again in a minute.';
+        try { const body = await proxied.json(); if (body && body.error) msg = String(body.error); } catch (e) { /* default */ }
+        const err = new Error(msg);
+        err.rateLimited = true;
+        throwHttp(err);
+      }
+      const err = new Error(`AI proxy error ${proxied.status}`);
+      err.retryable = proxied.status >= 500 || proxied.status === 429;
+      throwHttp(err);
+    } catch (e) {
+      if (isAbort(e)) throw e;
+      if (e && e.httpStatus) throw e;
+      // fetch-level network failure (no response at all) → retryable.
+      e.retryable = true;
+      throw e;
     }
-  } catch (e) { /* fall through to local fallback */ }
-  // Local fallback for file:// or dev builds where the proxy is unavailable.
-  // Uses the user's OWN key from Settings — never a bundled, shared key.
-  const customKey = (state.settings && state.settings.customGroqKey) || '';
-  if (customKey) {
+  }
+
+  // User's own Groq key — used as a last resort for file:// or dev builds where
+  // the proxy is unavailable. Never a bundled/shared key.
+  async function customKeyAttempt() {
+    if (!customKey) return null;
     const res = await fetch(GROQ_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${customKey}` },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal
     });
+    if (res.status === 429) {
+      const err = new Error('Groq daily limit reached — the free tier allows 400/day. Try again tomorrow.');
+      err.rateLimited = true;
+      throw err;
+    }
     if (!res.ok) throw new Error(`Groq API error ${res.status}`);
     const data = await res.json();
     return data.choices?.[0]?.message?.content || '';
   }
-  throw new Error('AI proxy unreachable and no custom key set — add your own Groq key in Settings → Cloud Sync & Privacy for offline/desktop builds.');
+
+  // With a custom key set, don't burn retries on the proxy — desktop/file://
+  // builds have no proxy, so fall through to the user's own key immediately.
+  if (customKey) {
+    try {
+      return await proxyAttempt();
+    } catch (e) {
+      if (isAbort(e)) throw e;
+      try {
+        const custom = await customKeyAttempt();
+        if (custom !== null) return custom;
+      } catch (e2) {
+        if (isAbort(e2)) throw e2;
+        if (e2 && e2.rateLimited) { showToast('💡 ' + e2.message, 'info'); throw e2; }
+      }
+      if (e && e.rateLimited) showToast('💡 ' + e.message, 'info');
+      throw e;
+    }
+  }
+
+  // No custom key — retry the proxy on transient failures with exponential
+  // backoff, then a friendly message if it's still down.
+  let delay = 900;
+  let lastErr = null;
+  for (let n = 0; n <= retries; n++) {
+    try {
+      return await proxyAttempt();
+    } catch (e) {
+      if (isAbort(e)) throw e;
+      lastErr = e;
+      if (!e.retryable) break; // rate-limited or permanent: don't retry
+      if (n < retries) await wait(delay);
+      delay = Math.min(delay * 1.6, 4000);
+    }
+  }
+
+  // Friendly surface for quota exhaustion; otherwise a generic failure message.
+  if (lastErr && lastErr.rateLimited) { showToast('💡 ' + lastErr.message, 'info'); throw lastErr; }
+  throw lastErr || new Error('AI proxy unreachable — check your connection and try again.');
 }
 
 // ===== UTILITIES =====
+function debounce(fn, wait) {
+  let t;
+  return function () {
+    const ctx = this, args = arguments;
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(ctx, args), wait || 180);
+  };
+}
+// Robust JSON extraction from free-form AI output. Strips markdown fences,
+// finds the first '{' or '[', and extracts the matching balanced structure so
+// stray prose before/after the JSON never breaks parsing. Returns `null` on
+// failure (callers should surface a friendly error, not throw).
+function parseAIJson(txt) {
+  if (typeof txt !== 'string') return null;
+  let s = txt.replace(/```(?:json)?/gi, '').replace(/^\uFEFF/, '').trim();
+  const startArr = s.indexOf('[');
+  const startObj = s.indexOf('{');
+  let start, open, close;
+  if (startArr === -1 && startObj === -1) return null;
+  if (startObj === -1 || (startArr !== -1 && startArr < startObj)) { start = startArr; open = '['; close = ']'; }
+  else { start = startObj; open = '{'; close = '}'; }
+  s = s.slice(start);
+  let depth = 0, inStr = false, esc = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (esc) { esc = false; continue; }
+    if (c === '\\') { esc = true; continue; }
+    if (c === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (c === open) depth++;
+    else if (c === close) { depth--; if (depth === 0) { s = s.slice(0, i + 1); break; } }
+  }
+  if (depth !== 0) return null;
+  try { return JSON.parse(s); } catch (e) { return null; }
+}
+// ===== AI OUTPUT CACHE =====
+// Deterministic generations (quizzes, flashcards, etc.) are cached in
+// localStorage so an identical prompt can be served instantly and offline.
+// The cache is bounded (LRU-ish eviction) with a TTL so stale AI output rolls
+// off naturally. All access is defensive against a full/inaccessible store.
+const AICACHE_KEY = 'studyhub_ai_cache';
+const AICACHE_MAX = 40;
+const AICACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+function aiCacheRead() {
+  try { const raw = localStorage.getItem(AICACHE_KEY); return raw ? JSON.parse(raw) : {}; } catch (e) { return {}; }
+}
+function aiCacheWrite(map) {
+  try { localStorage.setItem(AICACHE_KEY, JSON.stringify(map)); } catch (e) { /* quota/full — cache is best-effort */ }
+}
+function aiCacheKey(messages, options, salt) {
+  const m = (messages || []).map(x => x.role + ':' + x.content).join('\n');
+  const opt = options ? (options.model || '') + '|' + (options.maxTokens || '') + '|' + (options.temperature || '') : '';
+  let s = salt || '';
+  let h = 0;
+  for (let i = 0; i < m.length; i++) h = ((h << 5) - h + m.charCodeAt(i)) | 0;
+  const h1 = (h >>> 0).toString(36);
+  h = 0;
+  for (let i = 0; i < opt.length; i++) h = ((h << 5) - h + opt.charCodeAt(i)) | 0;
+  const h2 = (h >>> 0).toString(36);
+  h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return 'v1_' + h1 + '_' + h2 + '_' + (h >>> 0).toString(36);
+}
+function aiCacheGet(key, ttl) {
+  const map = aiCacheRead();
+  const entry = map[key];
+  if (!entry) return null;
+  if (Date.now() - entry.ts > (ttl || AICACHE_TTL)) {
+    delete map[key]; aiCacheWrite(map);
+    return null;
+  }
+  return entry.text;
+}
+function aiCacheSet(key, text) {
+  const map = aiCacheRead();
+  map[key] = { text, ts: Date.now() };
+  const keys = Object.keys(map);
+  if (keys.length > AICACHE_MAX) {
+    const oldest = keys.slice().sort((a, b) => (map[a].ts || 0) - (map[b].ts || 0));
+    for (let i = 0; i < keys.length - AICACHE_MAX; i++) delete map[oldest[i]];
+  }
+  aiCacheWrite(map);
+}
+// Like groqChat, but returns cached output for identical input within the TTL.
+// Used for deterministic generators so offline/repeat runs stay instant.
+async function aiCachedChat(messages, options = {}, salt, ttl) {
+  const key = aiCacheKey(messages, options, salt);
+  const hit = aiCacheGet(key, ttl);
+  if (hit !== null) return hit;
+  const text = await groqChat(messages, options);
+  if (typeof text === 'string' && text.trim()) aiCacheSet(key, text);
+  return text;
+}
 function formatDate(d) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
@@ -1160,7 +1432,64 @@ function renderDashboard() {
   if (typeof renderGoalWalkthroughs === 'function') renderGoalWalkthroughs();
   if (typeof renderNextFifteen === 'function') renderNextFifteen();
   if (typeof renderExamSurvivalKit === 'function') renderExamSurvivalKit();
+  if (typeof renderStreakCalendar === 'function') renderStreakCalendar();
   } catch(e) { if (typeof console !== 'undefined') console.warn('renderDashboard:', e); }
+}
+
+// ===== STREAK CALENDAR =====
+// Renders a 4-week grid of study activity: a filled cell per day the user
+// logged a session (or completed a task/quiz).  Today is highlighted; the
+// current and longest streaks are shown alongside.
+function renderStreakCalendar() {
+  const el = $('streakCalendar');
+  if (!el) return;
+  const studyDays = new Set(state.sessions.map(s => s.date.split('T')[0]));
+  state.tasks.forEach(t => { if (t.status === 'done' && t.due) studyDays.add(t.due); });
+  state.quizAttempts.forEach(q => { if (q.date) studyDays.add(String(q.date).split('T')[0]); });
+
+  const today = new Date();
+  const cells = [];
+  const dayMs = 86400000;
+  for (let back = 27; back >= 0; back--) {
+    const d = new Date(today.getTime() - back * dayMs);
+    const iso = d.toISOString().split('T')[0];
+    const isToday = iso === today.toISOString().split('T')[0];
+    const active = studyDays.has(iso);
+    const dow = d.getDay();
+    cells.push(
+      `<div class="sc-cell${active ? ' sc-active' : ''}${isToday ? ' sc-today' : ''}" ` +
+        `title="${iso}${active ? ' · studied' : ''}">` +
+        (back % 7 === 0 ? `<span class="sc-dow">${['Su','Mo','Tu','We','Th','Fr','Sa'][dow]}</span>` : '') +
+      `</div>`
+    );
+  }
+
+  // Streak metrics (consecutive days ending today/yesterday).
+  let current = 0;
+  let cursor = today;
+  if (studyDays.has(cursor.toISOString().split('T')[0]) || studyDays.has(new Date(today.getTime() - dayMs).toISOString().split('T')[0])) {
+    if (!studyDays.has(today.toISOString().split('T')[0])) cursor = new Date(today.getTime() - dayMs);
+    while (studyDays.has(cursor.toISOString().split('T')[0])) {
+      current++;
+      cursor = new Date(cursor.getTime() - dayMs);
+    }
+  }
+  const sorted = [...studyDays].sort();
+  let longest = 0, run = 0, prev = null;
+  for (const iso of sorted) {
+    const d = new Date(iso + 'T00:00:00');
+    run = (prev && Math.round((d - prev) / dayMs) === 1) ? run + 1 : 1;
+    if (run > longest) longest = run;
+    prev = d;
+  }
+
+  el.innerHTML =
+    `<div class="sc-metrics">` +
+      `<span><strong>${current}</strong> ${__('currentStreak')}</span>` +
+      `<span><strong>${Math.max(longest, current)}</strong> ${__('longestStreak')}</span>` +
+      `<span class="sc-total">${studyDays.size} ${__('studyToday')}</span>` +
+    `</div>` +
+    `<div class="sc-grid">${cells.join('')}</div>`;
 }
 
 // ===== MODAL FOCUS MANAGEMENT (trap + restore) =====
@@ -1782,6 +2111,33 @@ function renderSessionHistory() {
 
 // ===== FLASHCARDS (SM-2) =====
 let fcState = { deck: 'all', cards: [], index: 0, flipped: false, verified: {} };
+// A card is flagged as a "leech" once it fails from scratch this many times
+// (repetitions reset to 0).  Leeches are surfaced so the user can re-learn them.
+const LEECH_THRESHOLD = 3;
+// Pure SM-2 + leech tracking.  Mutates `card` in place and returns a small
+// result object so callers can react to a card just becoming a leech.
+// Leech detection: a card that keeps failing from scratch (repetitions reset
+// to 0) is not being learned — after LEECH_THRESHOLD full resets it's flagged,
+// its easing capped, and its interval shortened so it returns soon.
+function applyFlashcardRating(card, rating) {
+  const out = { becameLeech: false, isLeech: false };
+  if (!card || typeof rating !== 'number') return out;
+  if (typeof card.lapses !== 'number') card.lapses = 0;
+  if (rating === 1) {
+    card.lapses++;
+    if (card.lapses >= LEECH_THRESHOLD && !card.leech) {
+      card.leech = true;
+      card.ease = Math.min(card.ease, 1.5);
+      card.interval = Math.min(card.interval || 1, 2);
+      out.becameLeech = true;
+    }
+  } else {
+    card.leech = false;
+    if (rating === 4 || rating === 5) card.lapses = 0;
+  }
+  out.isLeech = !!card.leech;
+  return out;
+}
 function setupFlashcards() {
   $('flashcardForm').addEventListener('submit', e => {
     e.preventDefault();
@@ -1853,7 +2209,7 @@ function renderAllFlashcards() {
   }
   state.flashcards.slice().reverse().forEach(c => {
     const d = document.createElement('div'); d.className = 'item';
-    d.innerHTML = `<span class="fc-deck-tag">${escapeHtml(c.deck)}</span><strong>Q:</strong> ${escapeHtml(c.question).substring(0, 80)}<br><strong>A:</strong> ${escapeHtml(c.answer).substring(0, 80)}`;
+    d.innerHTML = `<span class="fc-deck-tag">${escapeHtml(c.deck)}</span><strong>Q:</strong> ${escapeHtml(c.question).substring(0, 80)}<br><strong>A:</strong> ${escapeHtml(c.answer).substring(0, 80)}${c.leech ? ' <span class="badge" style="background:#dc2626;color:#fff">Leech</span>' : ''}`;
     el.appendChild(d);
   });
 }
@@ -1895,6 +2251,11 @@ function updateFcMastery() {
   fill.style.width = pct + '%';
   pctEl.textContent = pct + '%';
 }
+function renderLeechNotice(card) {
+  if (typeof showToast === 'function') {
+    showToast('⚠️ "' + (card.question || '').substring(0, 40) + '" is a leech card — re-learn it before moving on.', 'warn');
+  }
+}
 function rateCurrentFlashcard(rating) {
   if (fcState.cards.length === 0) return;
   const c = fcState.cards[fcState.index];
@@ -1907,9 +2268,10 @@ function rateCurrentFlashcard(rating) {
   }
   if (rating === 1) { card.ease = Math.max(1.3, card.ease - 0.2); card.repetitions = 0; card.interval = 0; logConfusion(card.deck, card.question, 'flashcard'); }
   else if (rating === 3) { card.ease = Math.max(1.3, card.ease - 0.15); card.interval = Math.max(1, card.interval * card.ease); card.repetitions++; logConfusion(card.deck, card.question, 'flashcard'); }
-  else if (rating === 3) { card.ease = Math.max(1.3, card.ease - 0.15); card.interval = Math.max(1, card.interval * card.ease); card.repetitions++; }
   else if (rating === 4) { card.ease += 0.0; card.interval = card.interval === 0 ? 1 : Math.round(card.interval * card.ease); card.repetitions++; }
   else if (rating === 5) { card.ease += 0.15; card.interval = card.interval === 0 ? 1 : Math.round(card.interval * card.ease); card.repetitions++; }
+  const e = applyFlashcardRating(card, rating);
+  if (e.becameLeech && typeof renderLeechNotice === 'function') renderLeechNotice(card);
   const d = new Date(); d.setDate(d.getDate() + Math.round(card.interval));
   card.dueDate = d.toISOString().split('T')[0];
   saveState();
@@ -1977,8 +2339,9 @@ async function gradeFlashcardExplanation(card, explain) {
   const prompt = `Grade this student's explanation. Card question: "${card.question}"\nCorrect answer: "${card.answer}"\nStudent's explanation of WHY that answer is right: "${explain}"\nIs the reasoning correct? Reply as JSON ONLY: {"correct": true/false, "feedback": "one short sentence — a kind hint if wrong, brief praise if right"}`;
   try {
     const txt = await groqChat([{ role: 'system', content: 'You are a strict but kind study coach. Grade reasoning, not wording. Reply ONLY with JSON.' }, { role: 'user', content: prompt }], { maxTokens: 200, temperature: 0.2 });
-    const j = JSON.parse(txt.replace(/```json|```/g, '').trim());
-    return { ok: !!j.correct, feedback: j.feedback || (j.correct ? 'Good reasoning!' : 'Re-check the key idea behind the answer.') };
+    const j = parseAIJson(txt);
+    if (!j || typeof j.correct !== 'boolean') throw new Error('Unparseable AI grading');
+    return { ok: j.correct, feedback: j.feedback || (j.correct ? 'Good reasoning!' : 'Re-check the key idea behind the answer.') };
   } catch (e) {
     const words = s => String(s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 3);
     const a = new Set(words(card.answer));
@@ -1991,9 +2354,9 @@ function generateAiFlashcards(deckName) {
   const topic = $('flashcardAiInput').value || deckName;
   if (!topic) { showToast('Enter a topic first'); return; }
   showToast('Generating AI flashcards...');
-  groqChat([{ role: 'system', content: 'Generate 8 flashcards as JSON array with "question" and "answer" fields. Return ONLY valid JSON.' }, { role: 'user', content: `Topic: ${topic}` }], { maxTokens: 2048, temperature: 0.5 }).then(txt => {
+  aiCachedChat([{ role: 'system', content: 'Generate 8 flashcards as JSON array with "question" and "answer" fields. Return ONLY valid JSON.' }, { role: 'user', content: `Topic: ${topic}` }], { maxTokens: 2048, temperature: 0.5 }, 'fc:' + topic).then(txt => {
     try {
-      const json = JSON.parse(txt.replace(/```json|```/g, '').trim());
+      const json = parseAIJson(txt);
       json.forEach(c => { state.flashcards.push({ id: uid(), deck: deckName, question: c.question, answer: c.answer, dueDate: todayStr(), interval: 0, ease: 2.5, repetitions: 0, createdAt: todayStr() }); });
       saveState(); renderAllFlashcards(); renderFlashcardStudy(); showToast(`${json.length} flashcards generated`);
     } catch (e) { showToast('Failed to parse AI response'); }
@@ -2009,7 +2372,7 @@ function sendFlashcardAiChat() {
   $('addAiWordsBtn').classList.add('hidden');
   groqChat([{ role: 'system', content: 'You are a flashcard vocabulary assistant. Return words as a JSON array with "word" and "definition" fields. Return ONLY valid JSON.' }, { role: 'user', content: topic }], { maxTokens: 1024 }).then(txt => {
     try {
-      window._aiWords = JSON.parse(txt.replace(/```json|```/g, '').trim());
+      window._aiWords = parseAIJson(txt);
       chat.innerHTML += `<div class="chat-bubble assistant">Found ${window._aiWords.length} terms.</div>`;
       if (window._aiWords.length > 0) $('addAiWordsBtn').classList.remove('hidden');
     } catch (e) { chat.innerHTML += `<div class="chat-bubble assistant">Response parsed with issues. Try again.</div>`; }
@@ -2023,7 +2386,7 @@ function addAiWordsAsFlashcards() {
 }
 
 // ===== QUIZZES =====
-let quizState = { questions: [], index: 0, answers: [], submitted: false, type: 'multiple' };
+let quizState = { questions: [], index: 0, answers: [], submitted: false, type: 'multiple', source: 'ai' };
 function setupQuizzes() {
   $('quizGeneratorForm').addEventListener('submit', e => { e.preventDefault(); generateQuiz(); });
   $('nextQuizQuestionBtn').addEventListener('click', () => {
@@ -2037,7 +2400,35 @@ function setupQuizzes() {
   $('mockNextBtn').addEventListener('click', () => { if (mockState.index < mockState.questions.length - 1) { mockState.index++; renderMockQuestion(); } });
   $('mockMarkBtn').addEventListener('click', () => { mockState.marked[mockState.index] = !mockState.marked[mockState.index]; $('mockMarkBtn').textContent = mockState.marked[mockState.index] ? 'Unmark' : 'Mark For Review'; });
   $('mockSubmitBtn').addEventListener('click', submitMockTest);
+  var srcSel = $('quizSource');
+  if (srcSel) {
+    srcSel.addEventListener('change', function () {
+      var wrap = $('quizBankWrap');
+      if (wrap) wrap.classList.toggle('hidden', this.value !== 'bank');
+      var topic = $('quizTopic'), bank = $('quizBank');
+      var meta = $('quizMeta');
+      if (this.value === 'bank') {
+        if (meta) meta.textContent = 'Choosing a bank means the "Topic, Subject, Level" fields are used to search the bank\'s questions. Check the Question Banks tab for the full set.';
+      } else if (this.value === 'trivia') {
+        if (meta) meta.textContent = 'Online questions are fetched from the free Open Trivia DB — level and count are used, topic is ignored.';
+      } else {
+        if (meta) meta.textContent = 'Generate a quiz to begin.';
+      }
+    });
+    populateBankSelect($('quizBank'));
+  }
   renderQuizHistory(); renderMockTestHistory();
+}
+function populateBankSelect(sel) {
+  if (!sel || typeof QuestionBank === 'undefined') return;
+  QuestionBank.setCustomBanks(state.customBanks || []);
+  sel.innerHTML = '';
+  QuestionBank.banks.forEach(function (b) {
+    var o = document.createElement('option');
+    o.value = b.id;
+    o.textContent = (b.custom ? '★ ' : '') + b.name + ' (' + b.count + ')';
+    sel.appendChild(o);
+  });
 }
 async function generateQuiz() {
   const topic = $('quizTopic').value || 'general';
@@ -2045,13 +2436,68 @@ async function generateQuiz() {
   const level = $('quizLevel').value;
   const type = $('quizType').value;
   const count = +$('quizCount').value || 8;
+  const source = $('quizSource') ? $('quizSource').value : 'ai';
   quizState.type = type;
+  quizState.source = source;
+
+  // Curated question-bank source (offline, instant, auto-grading).
+  if (source === 'bank') {
+    const bankId = $('quizBank') ? $('quizBank').value : null;
+    if (bankId && QuestionBank) {
+      const picked = QuestionBank.getBankQuestions(bankId, count, type === 'mixed' ? null : type);
+      if (picked.length) {
+        quizState.questions = picked;
+        quizState.index = 0;
+        quizState.answers = new Array(picked.length).fill('');
+        quizState.submitted = false;
+        $('quizMeta').textContent = `${picked.length} questions (${(QuestionBank.getBank(bankId) || {}).name || bankId})`;
+        $('nextQuizQuestionBtn').classList.remove('hidden');
+        $('submitQuizBtn').classList.add('hidden');
+        $('quizResult').textContent = '';
+        renderQuizQuestion();
+        showToast('Loaded questions from question bank');
+        return;
+      }
+    }
+  }
+
+  // Live online source (Open Trivia DB).
+  if (source === 'trivia') {
+    showToast('Fetching online questions...');
+    try {
+      const picked = await QuestionBank.fetchTrivia(count, null, level === 'easy' ? 'easy' : level === 'hard' ? 'hard' : 'medium');
+      quizState.questions = picked;
+      quizState.index = 0;
+      quizState.answers = new Array(picked.length).fill('');
+      quizState.submitted = false;
+      $('quizMeta').textContent = `${picked.length} questions (online)`;
+      $('nextQuizQuestionBtn').classList.remove('hidden');
+      $('submitQuizBtn').classList.add('hidden');
+      $('quizResult').textContent = '';
+      renderQuizQuestion();
+      showToast('Fetched questions from Open Trivia DB');
+      return;
+    } catch (err) {
+      $('quizMeta').textContent = 'Could not reach the online bank — using AI offline template.';
+      showToast('Online bank unavailable, switching to AI/offline');
+      quizState.questions = offlineQuiz(topic, subject, level, count, type);
+      quizState.index = 0;
+      quizState.answers = new Array(quizState.questions.length).fill('');
+      quizState.submitted = false;
+      $('nextQuizQuestionBtn').classList.remove('hidden');
+      $('submitQuizBtn').classList.add('hidden');
+      $('quizResult').textContent = '';
+      renderQuizQuestion();
+      return;
+    }
+  }
+
   showToast('Generating quiz...');
   const instructions = type === 'multiple' ? 'multiple choice with 4 options (a,b,c,d)' : type === 'truefalse' ? 'true/false' : type === 'written' ? 'written answer' : type === 'fillblank' ? 'fill in the blank' : 'mixed types';
   const prompt = `Generate a ${level} difficulty quiz about "${topic}" (${subject}) with ${count} ${instructions} questions. Return JSON array with objects: {question, options (optional array), answer, type}. Return ONLY valid JSON.`;
   try {
-    const txt = await groqChat([{ role: 'system', content: 'You are a quiz generator. Return only valid JSON.' }, { role: 'user', content: prompt }], { maxTokens: 4096, temperature: 0.5 });
-    const json = JSON.parse(txt.replace(/```json|```/g, '').trim());
+    const txt = await aiCachedChat([{ role: 'system', content: 'You are a quiz generator. Return only valid JSON.' }, { role: 'user', content: prompt }], { maxTokens: 4096, temperature: 0.5 }, 'quiz:' + prompt);
+    const json = parseAIJson(txt);
     quizState.questions = json;
     quizState.index = 0;
     quizState.answers = new Array(json.length).fill('');
@@ -2111,14 +2557,35 @@ function submitQuiz() {
   quizState.submitted = true;
   let correct = 0;
   const topic = $('quizTopic').value || 'General';
+  const missedQ = [];
   quizState.questions.forEach((q, i) => {
     const userAns = (quizState.answers[i] || '').trim().toLowerCase();
     const correctAns = (q.answer || '').trim().toLowerCase();
     if (userAns === correctAns) correct++;
-    else logConfusion(topic, (q.question || '').replace(/^Q\d+[:.]\s*/i, '').trim(), 'quiz');
+    else { logConfusion(topic, (q.question || '').replace(/^Q\d+[:.]\s*/i, '').trim(), 'quiz'); missedQ.push(q); }
   });
   const pct = Math.round(correct / quizState.questions.length * 100);
-  $('quizResult').textContent = `Score: ${correct}/${quizState.questions.length} (${pct}%)`;
+  let resultHtml = `Score: ${correct}/${quizState.questions.length} (${pct}%)`;
+  if (missedQ.length) {
+    resultHtml += ' <button class="btn btn-sm" id="quizSaveMissed">Save ' + missedQ.length + ' missed to flashcards</button>';
+  }
+  $('quizResult').innerHTML = resultHtml;
+  const mBtn = $('quizSaveMissed');
+  if (mBtn) mBtn.addEventListener('click', function () {
+    let n = 0;
+    missedQ.forEach(function (q) {
+      const qtext = String(q.question || '').replace(/^Q\d+[:.]\s*/i, '').trim();
+      const exists = state.flashcards.some(function (f) { return f.deck.toLowerCase() === topic.toLowerCase() && f.question.toLowerCase() === qtext.toLowerCase(); });
+      if (!exists) {
+        state.flashcards.push({ id: uid(), deck: topic, question: qtext, answer: String(q.answer || ''), dueDate: todayStr(), interval: 0, ease: 2.5, repetitions: 0, createdAt: new Date().toISOString() });
+        n++;
+      }
+    });
+    saveState(); renderAllFlashcards();
+    mBtn.textContent = 'Saved ' + n + ' missed to flashcards';
+    mBtn.disabled = true;
+    showToast(n + ' missed questions added to flashcards');
+  });
   const quizId = uid();
   state.quizAttempts.push({ id: quizId, date: todayStr(), topic, score: correct, total: quizState.questions.length, pct });
   if (typeof recordEstimatorPrediction === 'function') recordEstimatorPrediction(topic, pct, 'quiz', quizId);
@@ -2139,6 +2606,492 @@ function renderQuizHistory() {
   });
 }
 
+// ===== QUESTION BANKS TAB =====
+let qbState = { questions: [], index: 0, answers: [], submitted: false, sourceName: '', sourceId: null, timed: false, minutes: 5, seconds: 0, timer: null, marked: [] };
+function qbStopTimer() {
+  if (qbState.timer) { clearInterval(qbState.timer); qbState.timer = null; }
+}
+function qbRenderTimerView() {
+  const t = $('qbTimer');
+  if (!t) return;
+  if (qbState.timed && qbState.questions.length) {
+    t.classList.remove('hidden');
+    const m = Math.floor(qbState.seconds / 60); const s = qbState.seconds % 60;
+    t.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  } else {
+    t.classList.add('hidden');
+  }
+  const mk = $('qbMarkBtn');
+  if (mk) mk.classList.toggle('hidden', !qbState.timed);
+}
+function qbMaybeStartTimer() {
+  qbStopTimer();
+  if (!qbState.timed || !qbState.questions.length) { qbRenderTimerView(); return; }
+  qbState.seconds = Math.max(1, +qbState.minutes || 5) * 60;
+  qbState.marked = new Array(qbState.questions.length).fill(false);
+  qbRenderTimerView();
+  qbState.timer = setInterval(function () {
+    qbState.seconds--;
+    qbRenderTimerView();
+    if (qbState.seconds <= 0) {
+      qbStopTimer();
+      if (typeof submitQbQuiz === 'function' && !qbState.submitted) submitQbQuiz();
+    }
+  }, 1000);
+}
+function qbRenderMarkBtn() {
+  const mk = $('qbMarkBtn');
+  if (!mk) return;
+  if (qbState.marked && qbState.marked[qbState.index]) mk.textContent = 'Unmark';
+  else mk.textContent = 'Mark for Review';
+}
+function setupQuestionBanks() {
+  if (typeof QuestionBank === 'undefined') { if ($('qbBankList')) $('qbBankList').innerHTML = '<div class="empty-state"><p>Question bank data failed to load.</p></div>'; return; }
+  QuestionBank.setCustomBanks(state.customBanks || []);
+  renderBankList();
+  renderBankStats();
+  setupCustomBankManager();
+  var search = $('qbSearch');
+  if (search) search.addEventListener('input', debounce(renderBankList));
+  var catSel = $('qbTriviaCategory');
+  if (catSel) {
+    catSel.innerHTML = '';
+    QuestionBank.triviaCategories.forEach(function (c) {
+      var o = document.createElement('option');
+      o.value = c.id; o.textContent = c.name;
+      catSel.appendChild(o);
+    });
+  }
+  var tf = $('qbTriviaForm');
+  if (tf) tf.addEventListener('submit', function (e) { e.preventDefault(); doQbTrivia(); });
+  var tm = $('qbTimedToggle');
+  if (tm) tm.addEventListener('change', function () {
+    qbState.timed = tm.checked;
+    qbState.minutes = +($('qbTimedMinutes') ? $('qbTimedMinutes').value : 5) || 5;
+    if (qbState.timed) qbMaybeStartTimer(); else { qbStopTimer(); qbRenderTimerView(); }
+  });
+  var min = $('qbTimedMinutes');
+  if (min) min.addEventListener('change', function () {
+    qbState.minutes = +min.value || 5;
+    if (qbState.timed && qbState.questions.length) qbMaybeStartTimer();
+  });
+  var qbMark = $('qbMarkBtn');
+  if (qbMark) qbMark.addEventListener('click', function () {
+    if (qbState.marked) qbState.marked[qbState.index] = !qbState.marked[qbState.index];
+    qbRenderMarkBtn();
+    const mkCount = (qbState.marked || []).filter(Boolean).length;
+    if (mkCount) showToast('Marked ' + mkCount + ' of ' + qbState.questions.length + ' for review');
+  });
+  var prev = $('qbPrevBtn'), nxt = $('qbNextBtn'), sub = $('qbSubmitBtn');
+  if (prev) prev.addEventListener('click', function () { if (qbState.index > 0) { qbState.index--; renderQbQuestion(); } });
+  if (nxt) nxt.addEventListener('click', function () { qbState.index++; if (qbState.index >= qbState.questions.length) { $('qbNextBtn').classList.add('hidden'); $('qbSubmitBtn').classList.remove('hidden'); } renderQbQuestion(); });
+  if (sub) sub.addEventListener('click', submitQbQuiz);
+  var cst = $('qbStartCustom');
+  if (cst) cst.addEventListener('click', function () { if (!qbState.questions.length) return; qbState.index = 0; qbState.answers = new Array(qbState.questions.length).fill(''); qbState.submitted = false; qbState.sourceId = null; $('qbNextBtn').classList.remove('hidden'); $('qbSubmitBtn').classList.add('hidden'); $('qbResult').textContent = ''; $('qbActiveTitle').textContent = 'Online questions (' + qbState.questions.length + ')'; renderQbQuestion(); qbMaybeStartTimer(); });
+}
+function populateCustomBankSelect(sel) {
+  if (!sel || typeof QuestionBank === 'undefined') return;
+  sel.innerHTML = '';
+  QuestionBank.setCustomBanks(state.customBanks || []);
+  const customs = QuestionBank.banks.filter(function (b) { return b.custom; });
+  customs.forEach(function (b) {
+    var o = document.createElement('option');
+    o.value = b.id; o.textContent = b.name + ' (' + b.count + ')';
+    sel.appendChild(o);
+  });
+}
+function setupCustomBankManager() {
+  // Single-question quick add
+  const addForm = $('qbAddQuestionForm');
+  if (addForm) addForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const bankId = $('qbAddBankSelect') ? $('qbAddBankSelect').value : null;
+    const q = $('qbAddQ') ? $('qbAddQ').value.trim() : '';
+    const opts = [$('qbAddO1'), $('qbAddO2'), $('qbAddO3'), $('qbAddO4')].map(function (el) { return el && el.value.trim(); }).filter(Boolean);
+    const a = $('qbAddA') ? $('qbAddA').value.trim() : '';
+    if (!q || !a) { showToast('Question and answer are required'); return; }
+    if (opts.length && opts.indexOf(a) === -1) { showToast('Answer must match one of the options'); return; }
+    let bank = state.customBanks.find(function (b) { return b.id === bankId; });
+    if (!bank) {
+      const bname = $('qbAddBankName') && $('qbAddBankName').value.trim();
+      if (!bname) { showToast('Enter a new bank name or pick an existing bank'); return; }
+      bank = { id: QuestionBank.uid(), name: bname, exam: 'Custom', subject: 'General', icon: '✨', desc: 'Your custom question bank.', questions: [] };
+      state.customBanks.push(bank);
+    }
+    bank.questions.push({ q: q, o: opts.length ? opts : null, a: a });
+    bank.count = bank.questions.length;
+    saveState(); QuestionBank.setCustomBanks(state.customBanks);
+    populateCustomBankSelect($('qbAddBankSelect'));
+    addForm.reset();
+    renderBankList();
+    showToast('Question added to "' + bank.name + '"');
+  });
+  // Import buttons
+  const importJsonBtn = $('qbImportJsonBtn'), importCsvBtn = $('qbImportCsvBtn');
+  if (importJsonBtn) importJsonBtn.addEventListener('click', function () { qbImportBank('json'); });
+  if (importCsvBtn) importCsvBtn.addEventListener('click', function () { qbImportBank('csv'); });
+  populateCustomBankSelect($('qbAddBankSelect'));
+}
+function qbImportBank(kind) {
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = kind === 'csv' ? '.csv,text/csv' : '.json,application/json,.txt,text/plain';
+  input.addEventListener('change', function () {
+    var file = input.files && input.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var text = String(reader.result || '');
+        var name = file.name.replace(/\.[^.]+$/, '') || 'Imported Bank';
+        var banks = null;
+        if (kind === 'json') {
+          banks = QuestionBank.parseBankJSON(text);
+        } else {
+          var b = QuestionBank.bankFromCSV(name, text);
+          banks = b ? [b] : null;
+        }
+        if (!banks || !banks.length) throw new Error('No valid questions found in file');
+        banks.forEach(function (b) {
+          var existing = state.customBanks.find(function (x) { return x.id === b.id; });
+          if (existing) {
+            existing.questions = existing.questions.concat(b.questions);
+            existing.count = existing.questions.length;
+          } else {
+            state.customBanks.push(b);
+          }
+        });
+        saveState(); QuestionBank.setCustomBanks(state.customBanks);
+        populateCustomBankSelect($('qbAddBankSelect'));
+        renderBankList();
+        showToast('Imported ' + banks.reduce(function (s, b) { return s + b.questions.length; }, 0) + ' questions');
+      } catch (err) {
+        showToast('Import failed: ' + (err && err.message ? err.message : 'unsupported file'));
+      }
+    };
+    reader.onerror = function () { showToast('Could not read the file'); };
+    reader.readAsText(file);
+  });
+  input.click();
+}
+function renderBankList() {
+  const el = $('qbBankList');
+  if (!el) return;
+  const q = $('qbSearch') ? $('qbSearch').value.toLowerCase() : '';
+  const banks = QuestionBank.banks.filter(function (b) {
+    if (!q) return true;
+    return (b.name + ' ' + b.exam + ' ' + b.subject + ' ' + b.desc).toLowerCase().indexOf(q) !== -1;
+  });
+  el.innerHTML = '';
+  if (!banks.length) { el.innerHTML = '<div class="empty-state"><p>No banks match your search.</p></div>'; return; }
+  banks.forEach(function (b) {
+    const card = document.createElement('div');
+    card.className = 'item qb-bank-card';
+    if (b.custom) card.className += ' qb-bank-custom';
+    const actions = [];
+    if (b.custom) {
+      actions.push(`<button class="btn btn-sm" data-export-bank="${b.id}">Export</button><button class="btn btn-sm btn-outline" data-delete-bank="${b.id}">Delete</button>`);
+    }
+    card.innerHTML = `<div><strong>${b.icon} ${escapeHtml(b.name)}</strong> <span class="badge">${b.count} Qs</span>${b.custom ? ' <span class="badge badge-custom">Custom</span>' : ''}<br><span class="subtle">${escapeHtml(b.desc)}</span></div><div class="qb-actions"><button class="btn btn-sm" data-start-bank="${b.id}">Practise</button>${actions.join('')}</div>`;
+    el.appendChild(card);
+  });
+  el.querySelectorAll('[data-start-bank]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      startQbFromBank(btn.dataset.startBank);
+    });
+  });
+  el.querySelectorAll('[data-export-bank]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const bank = QuestionBank.getBank(btn.dataset.exportBank);
+      if (!bank) return;
+      qbExportBank(bank);
+    });
+  });
+  el.querySelectorAll('[data-delete-bank]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      qbDeleteBank(btn.dataset.deleteBank);
+    });
+  });
+}
+function qbExportBank(bank) {
+  if (!bank) return;
+  const pickDownload = function (blob, filename) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  };
+  const name = (bank.name || 'bank').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+  const fmt = (window.prompt && window.prompt('Export format — "json", "csv", or "copy"?', 'json') || 'json').toLowerCase().trim();
+  if (fmt === 'copy') {
+    const text = QuestionBank.bankToJSON(bank);
+    const done = function () { showToast('Copied "' + bank.name + '" to clipboard as JSON'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text, done); });
+    } else fallbackCopy(text, done);
+  } else if (fmt === 'csv') {
+    pickDownload(new Blob([QuestionBank.bankToCSV(bank)], { type: 'text/csv;charset=utf-8' }), name + '.csv');
+    showToast('Exported "' + bank.name + '" as CSV');
+  } else {
+    pickDownload(new Blob([QuestionBank.bankToJSON(bank)], { type: 'application/json' }), name + '.json');
+    showToast('Exported "' + bank.name + '" as JSON');
+  }
+}
+function fallbackCopy(text, done) {
+  var ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); done(); } catch (_) { showToast('Copy failed — text shown in the exported file instead'); }
+  ta.remove();
+}
+function qbDeleteBank(id) {
+  const bank = QuestionBank.getBank(id);
+  if (!bank) return;
+  if (!window.confirm('Delete "' + bank.name + '" (' + bank.count + ' questions)? This cannot be undone.')) return;
+  state.customBanks = state.customBanks.filter(function (b) { return b.id !== id; });
+  if (state.bankStats) delete state.bankStats[id];
+  saveState(); QuestionBank.setCustomBanks(state.customBanks);
+  populateCustomBankSelect($('qbAddBankSelect'));
+  renderBankList();
+  showToast('Deleted "' + bank.name + '"');
+}
+function startQbFromBank(bankId) {
+  const bank = QuestionBank.getBank(bankId);
+  if (!bank) return;
+  const picked = QuestionBank.getBankQuestions(bankId, bank.count > 10 ? 10 : bank.count, null);
+  qbState.questions = picked;
+  qbState.index = 0;
+  qbState.answers = new Array(picked.length).fill('');
+  qbState.submitted = false;
+  qbState.sourceName = bank.name;
+  qbState.sourceId = bank.id;
+  $('qbActiveTitle').textContent = bank.name;
+  $('qbMeta').textContent = bank.count + ' questions available — practising a random ' + picked.length + ' now.';
+  $('qbNextBtn').classList.remove('hidden');
+  $('qbSubmitBtn').classList.add('hidden');
+  $('qbResult').textContent = '';
+  renderQbQuestion();
+  qbMaybeStartTimer();
+}
+async function doQbTrivia() {
+  const count = +($('qbTriviaCount').value) || 10;
+  const cat = $('qbTriviaCategory').value;
+  const diff = $('qbTriviaDifficulty').value;
+  $('qbActiveTitle').textContent = 'Fetching online questions…';
+  try {
+    const picked = await QuestionBank.fetchTrivia(count, cat, diff);
+    qbState.questions = picked;
+    qbState.index = 0;
+    qbState.answers = new Array(picked.length).fill('');
+    qbState.submitted = false;
+    qbState.sourceName = 'Open Trivia DB';
+    qbState.sourceId = null;
+    $('qbActiveTitle').textContent = 'Online questions (' + picked.length + ')';
+    $('qbMeta').textContent = 'Fetched from the Open Trivia DB online bank.';
+    $('qbNextBtn').classList.remove('hidden');
+    $('qbSubmitBtn').classList.add('hidden');
+    $('qbResult').textContent = '';
+    renderQbQuestion();
+    qbMaybeStartTimer();
+    showToast('Fetched ' + picked.length + ' online questions');
+  } catch (err) {
+    $('qbActiveTitle').textContent = 'Online questions';
+    $('qbMeta').textContent = err && err.message ? err.message : 'Could not fetch online questions. Check your internet connection.';
+    showToast('Online bank unreachable');
+  }
+}
+function renderQbQuestion() {
+  const q = qbState.questions[qbState.index];
+  if (!q) return;
+  const el = $('qbQuestion');
+  const opt = $('qbOptions');
+  el.textContent = `Q${qbState.index + 1}: ${q.question}`;
+  opt.innerHTML = '';
+  const deckName = (qbState.sourceName || 'Question Bank').trim();
+  if (q.type === 'multiple' || Array.isArray(q.options)) {
+    q.options.forEach(function (o, i) {
+      const label = document.createElement('label'); label.className = 'item';
+      const radio = document.createElement('input'); radio.type = 'radio'; radio.name = 'qbOpt'; radio.value = o;
+      if (qbState.answers[qbState.index] === o) radio.checked = true;
+      radio.addEventListener('change', function () { qbState.answers[qbState.index] = o; });
+      label.appendChild(radio); label.appendChild(document.createTextNode(' ' + o)); opt.appendChild(label);
+    });
+  } else if (q.type === 'truefalse') {
+    ['True', 'False'].forEach(function (v) {
+      const label = document.createElement('label'); label.className = 'item';
+      const radio = document.createElement('input'); radio.type = 'radio'; radio.name = 'qbOpt'; radio.value = v;
+      if (qbState.answers[qbState.index] === v) radio.checked = true;
+      radio.addEventListener('change', function () { qbState.answers[qbState.index] = v; });
+      label.appendChild(radio); label.appendChild(document.createTextNode(' ' + v)); opt.appendChild(label);
+    });
+  } else {
+    const ta = document.createElement('textarea');
+    ta.placeholder = 'Your answer...'; ta.className = 'written-answer'; ta.rows = 4;
+    ta.value = qbState.answers[qbState.index] || '';
+    ta.addEventListener('input', function () { qbState.answers[qbState.index] = ta.value; });
+    opt.appendChild(ta);
+  }
+  qbRenderMarkBtn();
+  const act = $('qbQuestionActions');
+  if (act) {
+    act.innerHTML = '';
+    const mkBtn = function (label, title, onClick) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn btn-sm ghost';
+      b.textContent = label; b.title = title; b.addEventListener('click', onClick);
+      act.appendChild(b); return b;
+    };
+    const qtext = String(q.question || '').replace(/^Q\d+[:.]\s*/i, '').trim();
+    const answer = String(q.answer || '');
+    mkBtn('Save to flashcards', 'Add this question to your spaced-repetition flashcards', function () {
+      if (qbState.questions[qbState.index]._savedFc) return;
+      qbSaveToFlashcard(deckName, qtext, answer);
+      qbState.questions[qbState.index]._savedFc = true;
+      renderQbQuestion();
+    });
+    mkBtn('Add to notes', 'Append this question to a freeform note', function () {
+      qbSaveToNote(deckName, qtext, answer);
+    });
+  }
+}
+function qbSaveToFlashcard(deck, question, answer) {
+  const exists = state.flashcards.some(function (f) {
+    return f.deck.toLowerCase() === String(deck).toLowerCase() && f.question.toLowerCase() === String(question).toLowerCase();
+  });
+  if (exists) { showToast('Already in your flashcards'); return; }
+  state.flashcards.push({ id: uid(), deck: deck, question: question, answer: answer, dueDate: todayStr(), interval: 0, ease: 2.5, repetitions: 0, createdAt: new Date().toISOString() });
+  saveState();
+  renderAllFlashcards();
+  showToast('Saved to flashcards (deck "' + deck + '")');
+}
+function qbSaveToNote(deck, question, answer) {
+  state.notes.push({
+    id: uid(),
+    title: 'From bank: ' + deck,
+    subject: qbState.sourceName || 'Question Bank',
+    tags: 'question-bank',
+    content: question + '\n\nCorrect answer: ' + answer,
+    style: 'freeform',
+    createdAt: todayStr()
+  });
+  saveState();
+  renderNoteList();
+  showToast('Question added to your notes');
+}
+function recordBankStats(questions, answers) {
+  if (!qbState.sourceId || typeof QuestionBank === 'undefined') return;
+  const bank = QuestionBank.getBank(qbState.sourceId);
+  if (!bank) return;
+  const stat = state.bankStats[qbState.sourceId] || { attempts: 0, correct: 0, total: 0, lastPct: 0, byQuestion: {} };
+  const qtext = function (q) { return String(q.question || '').replace(/^Q\d+[:.]\s*/i, '').trim(); };
+  questions.forEach(function (q, i) {
+    const qt = qtext(q);
+    const okB = String(answers[i] || '').trim().toLowerCase() === String(q.answer || '').trim().toLowerCase();
+    const prev = stat.byQuestion[qt] || { correct: 0, tried: 0 };
+    prev.tried++;
+    if (okB) prev.correct++;
+    stat.byQuestion[qt] = prev;
+  });
+  stat.correct += questions.filter(function (q, i) { return String(answers[i] || '').trim().toLowerCase() === String(q.answer || '').trim().toLowerCase(); }).length;
+  stat.total += questions.length;
+  stat.attempts++;
+  stat.lastPct = Math.round(stat.correct / stat.total * 100);
+  state.bankStats[qbState.sourceId] = stat;
+  saveState();
+  renderBankStats();
+}
+function renderBankStats() {
+  const el = $('qbStatsPanel');
+  if (!el) return;
+  el.innerHTML = '';
+  const ids = Object.keys(state.bankStats || {}).filter(function (id) { return state.bankStats[id] && state.bankStats[id].total > 0; });
+  if (!ids.length) {
+    el.innerHTML = '<p class="subtle">No bank progress yet. Finish a practise quiz and your per-bank accuracy will appear here.</p>';
+    return;
+  }
+  ids.forEach(function (id) {
+    const stat = state.bankStats[id];
+    const bank = typeof QuestionBank !== 'undefined' ? QuestionBank.getBank(id) : null;
+    const row = document.createElement('div');
+    row.className = 'item qb-bank-card';
+    const weak = Object.keys(stat.byQuestion || {}).filter(function (qt) { return stat.byQuestion[qt].tried >= 2 && stat.byQuestion[qt].correct / stat.byQuestion[qt].tried < 0.5; }).slice(0, 3);
+    row.innerHTML = '<div><strong>' + (bank ? bank.name : 'Custom bank') + '</strong> <span class="badge">' + stat.lastPct + '% last</span><br>' +
+      '<span class="subtle">' + stat.attempts + ' attempts · ' + stat.total + ' answered · ' + stat.correct + ' correct</span>' +
+      (weak.length ? '<br><span class="subtle">Weak areas: ' + weak.map(function (w) { return escapeHtml(w.length > 40 ? w.slice(0, 40) + '…' : w); }).join('; ') + '</span>' : '') +
+      '</div>' +
+      (weak.length ? '<button class="btn btn-sm" data-review-bank="' + id + '">Review missed</button>' : '');
+    el.appendChild(row);
+    const rb = row.querySelector('[data-review-bank]');
+    if (rb) rb.addEventListener('click', function () {
+      const weakQ = Object.keys(stat.byQuestion).filter(function (qt) { return stat.byQuestion[qt].tried >= 1 && stat.byQuestion[qt].correct / stat.byQuestion[qt].tried < 0.5; });
+      const qlist = weakQ.map(function (qt) {
+        const hit = bank && bank.questions.find(function (q) { return String(q.q).replace(/^Q\d+[:.]\s*/i, '').trim() === qt || q.q === qt; });
+        const src = hit || { q: qt, o: null, a: '' };
+        return { question: src.q, options: src.o || null, answer: src.a, type: (src.o && src.o.length) ? 'multiple' : 'freeform' };
+      });
+      if (!qlist.length) { showToast('No missed questions to review yet'); return; }
+      qbState.questions = qlist;
+      qbState.index = 0; qbState.answers = new Array(qlist.length).fill(''); qbState.submitted = false;
+      qbState.sourceName = bank ? bank.name : 'Review';
+      qbState.sourceId = bank ? bank.id : null;
+      showTab('questionbank');
+      $('qbActiveTitle').textContent = 'Review missed (' + qlist.length + ')';
+      $('qbMeta').textContent = 'Weak questions from "' + (bank ? bank.name : 'custom bank') + '" — try again.';
+      $('qbNextBtn').classList.remove('hidden');
+      $('qbSubmitBtn').classList.add('hidden');
+      $('qbResult').textContent = '';
+      renderQbQuestion();
+      qbMaybeStartTimer();
+    });
+  });
+}
+function submitQbQuiz() {
+  qbStopTimer();
+  qbState.submitted = true;
+  let correct = 0;
+  const topic = qbState.sourceName || 'Question Bank';
+  const missedList = [];
+  qbState.questions.forEach(function (q, i) {
+    const userAns = (qbState.answers[i] || '').trim().toLowerCase();
+    const correctAns = (q.answer || '').trim().toLowerCase();
+    if (userAns === correctAns) correct++;
+    else { logConfusion(topic, (q.question || '').replace(/^Q\d+[:.]\s*/i, '').trim(), 'quiz'); missedList.push(q); }
+  });
+  const pct = Math.round(correct / qbState.questions.length * 100);
+  let resultHtml = `Score: ${correct}/${qbState.questions.length} (${pct}%)`;
+  const markedCount = (qbState.marked || []).filter(Boolean).length;
+  if (qbState.timed && markedCount) {
+    resultHtml += ' · Marked for review: ' + markedCount;
+  }
+  if (missedList.length && typeof QuestionBank !== 'undefined') {
+    resultHtml += ' <button class="btn btn-sm" id="qbSaveMissed">Save missed to flashcards</button>';
+  }
+  $('qbResult').innerHTML = resultHtml;
+  const mBtn = $('qbSaveMissed');
+  if (mBtn) mBtn.addEventListener('click', function () {
+    let n = 0;
+    missedList.forEach(function (q) {
+      const qtext = String(q.question || '').replace(/^Q\d+[:.]\s*/i, '').trim();
+      const exists = state.flashcards.some(function (f) { return f.deck.toLowerCase() === topic.toLowerCase() && f.question.toLowerCase() === qtext.toLowerCase(); });
+      if (!exists) {
+        state.flashcards.push({ id: uid(), deck: topic, question: qtext, answer: String(q.answer || ''), dueDate: todayStr(), interval: 0, ease: 2.5, repetitions: 0, createdAt: new Date().toISOString() });
+        n++;
+      }
+    });
+    saveState(); renderAllFlashcards();
+    mBtn.textContent = 'Saved ' + n + ' missed to flashcards';
+    mBtn.disabled = true;
+    showToast(n + ' missed questions added to flashcards');
+  });
+  recordBankStats(qbState.questions, qbState.answers);
+  const quizId = uid();
+  state.quizAttempts.push({ id: quizId, date: todayStr(), topic, score: correct, total: qbState.questions.length, pct });
+  if (typeof recordEstimatorPrediction === 'function') recordEstimatorPrediction(topic, pct, 'quiz', quizId);
+  saveState(); renderQuizHistory(); renderConfusionHeatmap(); if (pct >= 80) { clearReviewQueueForTopic(topic); if (typeof autoCompleteWtStep === 'function') autoCompleteWtStep('quiz', topic); } else renderReviewQueue(); showToast('Quiz submitted');
+}
+
 // ===== MOCK TESTS =====
 let mockState = { questions: [], index: 0, answers: [], marked: [], submitted: false, timer: null, seconds: 0 };
 function startMockTest() {
@@ -2150,9 +3103,9 @@ function startMockTest() {
   mockState.submitted = false;
   mockState.marked = new Array(count).fill(false);
   showToast('Generating mock test...');
-  groqChat([{ role: 'system', content: 'Generate a mock test as JSON array of objects with {question, options:[4], answer, type:"multiple"}. Return ONLY valid JSON.' }, { role: 'user', content: `Generate ${count} ${level} difficulty ${subject} multiple choice questions` }], { maxTokens: 4096 }).then(txt => {
+  aiCachedChat([{ role: 'system', content: 'Generate a mock test as JSON array of objects with {question, options:[4], answer, type:"multiple"}. Return ONLY valid JSON.' }, { role: 'user', content: `Generate ${count} ${level} difficulty ${subject} multiple choice questions` }], { maxTokens: 4096 }, `mock:${count}:${level}:${subject}`).then(txt => {
     try {
-      const json = JSON.parse(txt.replace(/```json|```/g, '').trim());
+      const json = parseAIJson(txt);
       mockState.questions = json; mockState.answers = new Array(json.length).fill(''); mockState.index = 0;
       $('mockTestMeta').textContent = `${json.length} questions | Marked: 0`;
       $('mockPrevBtn').classList.remove('hidden'); $('mockNextBtn').classList.remove('hidden'); $('mockMarkBtn').classList.remove('hidden'); $('mockSubmitBtn').classList.remove('hidden');
@@ -2280,7 +3233,7 @@ async function generateRecallPrompts() {
   showToast('Generating recall prompts...');
   try {
     const txt = await groqChat([{ role: 'system', content: `Generate ${count} recall prompts as JSON array of strings. Make them specific and testable.` }, { role: 'user', content: `Subject: ${subject}. Context: ${context || 'Generate general prompts.'}` }], { maxTokens: 2048 });
-    const prompts = JSON.parse(txt.replace(/```json|```/g, '').trim());
+    const prompts = parseAIJson(txt);
     const el = $('recallPromptList');
     el.innerHTML = '<h4>Recall Prompts</h4>';
     prompts.forEach(p => {
@@ -2321,7 +3274,7 @@ async function scoreBlurt() {
   showToast('Scoring recall...');
   try {
     const txt = await groqChat([{ role: 'system', content: 'Evaluate this recall attempt. Return JSON with {score:0-100, feedback:string, coverage:string[], missing:string[]}.' }, { role: 'user', content: `Topic: ${topic}. Keywords: ${keywords}. Recall: ${response}` }], { maxTokens: 1024 });
-    const result = JSON.parse(txt.replace(/```json|```/g, '').trim());
+    const result = parseAIJson(txt);
     const el = $('blurtFeedback');
     el.innerHTML = `<div class="score-chip ${result.score > 70 ? 'good' : result.score > 40 ? 'mid' : 'low'}">Score: ${result.score}%</div>
     <p>${escapeHtml(result.feedback)}</p>
@@ -2899,7 +3852,7 @@ function setupNotes() {
     updateBoxingData();
   });
   $('noteForm').addEventListener('submit', saveNote);
-  $('noteSearch').addEventListener('input', renderNoteList);
+  $('noteSearch').addEventListener('input', debounce(renderNoteList));
   const camBtn = $('noteCameraBtn');
   if (camBtn) camBtn.addEventListener('click', () => {
     const status = $('noteCameraStatus');
@@ -3189,7 +4142,7 @@ function analyzeEssay() {
   showToast('Analyzing essay...');
   groqChat([{ role: 'system', content: 'Analyze this essay. Return JSON with {structure:number, readability:number, thesis:string, argument:string, suggestions:string[]}.' }, { role: 'user', content: text }], { maxTokens: 1024 }).then(txt => {
     try {
-      const r = JSON.parse(txt.replace(/```json|```/g, '').trim());
+      const r = parseAIJson(txt);
       $('essayFeedback').innerHTML = `<div class="item"><strong>Structure:</strong> ${r.structure}/10 | <strong>Readability:</strong> ${r.readability}/10</div>
       <div class="item"><strong>Thesis:</strong> ${escapeHtml(r.thesis || 'N/A')}</div>
       <div class="item"><strong>Argument:</strong> ${escapeHtml(r.argument || 'N/A')}</div>
@@ -3297,14 +4250,14 @@ function setupSmartAI() {
     try {
       if (type === 'quiz' || type === 'both') {
         const txt = await groqChat([{ role: 'system', content: `Generate ${count} ${difficulty} quiz questions about "${topic}" as JSON array with {question, options:[4], answer, type:"multiple"}.` }], { maxTokens: 4096 });
-        const json = JSON.parse(txt.replace(/```json|```/g, '').trim());
+        const json = parseAIJson(txt);
         const el = $('generatedContent');
         el.innerHTML += '<h4>Quiz Questions</h4>';
         json.forEach((q, i) => { el.innerHTML += `<div class="item"><strong>Q${i+1}:</strong> ${escapeHtml(q.question)}<br><em>Answer:</em> ${escapeHtml(q.answer)}</div>`; });
       }
       if (type === 'flashcards' || type === 'both') {
         const txt = await groqChat([{ role: 'system', content: `Generate ${count} flashcards about "${topic}" as JSON array with {question, answer}.` }], { maxTokens: 4096 });
-        const json = JSON.parse(txt.replace(/```json|```/g, '').trim());
+        const json = parseAIJson(txt);
         const el = $('generatedContent');
         el.innerHTML += '<h4>Flashcards</h4>';
         json.forEach((c, i) => {
@@ -3344,7 +4297,7 @@ function setupSmartAI() {
     showToast('Analyzing with rubric...');
     try {
       const txt = await groqChat([{ role: 'system', content: 'Evaluate this assignment using a detailed rubric. Return JSON with {score:0-100, feedback:string, strengths:string[], improvements:string[], rubric:{criterion:string, score:number, comment:string}[]}' }, { role: 'user', content: `Type: ${type}, Title: ${title}, Subject: ${subject}, Points Possible: ${points}\n\n${content}` }], { maxTokens: 2048 });
-      const r = JSON.parse(txt.replace(/```json|```/g, '').trim());
+      const r = parseAIJson(txt);
       const el = $('rubricFeedback');
       el.classList.remove('hidden');
       el.innerHTML = `<div class="item"><strong>Score: ${r.score}%</strong></div>
@@ -3526,7 +4479,7 @@ async function gradeExplanation(topic, text, bubble) {
   try {
     const kws = conceptKeywords(topic);
     const txt = await groqChat([{ role: 'system', content: 'You are a kind, precise teacher grading a student\'s spoken explanation. The student was asked to explain a concept in their own words, as if teaching a friend. Return ONLY valid JSON: {score:0-100, strengths:[], gaps:[], followup:string}. Grade for accuracy, completeness, and whether a real learner could understand it. Be encouraging but honest.' }, { role: 'user', content: `Concept: ${topic}. Key terms to look for: ${kws}. Student's explanation: ${text}` }], { maxTokens: 700 });
-    const r = JSON.parse(txt.replace(/```json|```/g, '').trim());
+    const r = parseAIJson(txt);
     renderExplainGrade(topic, text, r.score, r.strengths || [], r.gaps || [], r.followup || '', status);
   } catch (e) {
     const r = offlineExplainScore(topic, text);
@@ -3645,7 +4598,7 @@ function setupAiLessons() {
     showToast('Generating lesson...');
     try {
       const txt = await groqChat([{ role: 'system', content: 'Create a 5-step interactive lesson. Return JSON array with 5 objects: {title, concept:string, quiz:{question:string, options:[4], answer:string}, simulation:string}. Make it engaging and educational.' }, { role: 'user', content: `Topic: ${lessonState.topic}, Level: ${lessonState.difficulty}` }], { maxTokens: 4096, temperature: 0.7 });
-      lessonState.steps = JSON.parse(txt.replace(/```json|```/g, '').trim());
+      lessonState.steps = parseAIJson(txt);
       $('lessonArea').style.display = 'block';
       $('lessonForm').querySelector('button').textContent = 'Regenerate Lesson';
       showLessonStep();
@@ -4191,7 +5144,7 @@ function renderBehindNudge() {
 }
 
 // ===== EXAM LOCK (FOCUS MODE) =====
-const EXAM_LOCK_TABS = ['dashboard', 'planner', 'sessions', 'flashcards', 'recalls', 'quizzes', 'notes', 'ai-tutor', 'ai-voice', 'studyguide', 'studyroom', 'calculator', 'calendar', 'settings', 'downloads'];
+const EXAM_LOCK_TABS = ['dashboard', 'planner', 'sessions', 'flashcards', 'recalls', 'quizzes', 'questionbank', 'notes', 'ai-tutor', 'ai-voice', 'studyguide', 'studyroom', 'calculator', 'calendar', 'settings', 'downloads'];
 function examLockActive() {
   const l = state.settings && state.settings.examLock;
   return !!(l && l.active && l.endsAt && l.endsAt >= todayStr());
@@ -4872,7 +5825,7 @@ $('profileName').value = state.profile.name;
       saveState();
       applyLanguage();
       renderDashboard();
-      showToast('Language changed to ' + (langSelect.value === 'hu' ? 'Magyar' : 'English'));
+      showToast('Language changed to ' + (langSelect.value === 'hu' ? 'Magyar' : langSelect.value === 'es' ? 'Español' : 'English'));
     });
   }
 
@@ -5706,7 +6659,7 @@ function setupStudyMap() {
 
   typeSel.addEventListener('change', () => render({ fit: true }));
   citySel.addEventListener('change', () => render({ fit: true }));
-  search.addEventListener('input', () => render({ fit: true }));
+  search.addEventListener('input', debounce(() => render({ fit: true })));
   resetBtn.addEventListener('click', () => { typeSel.value = ''; citySel.value = ''; search.value = ''; render({ fit: true }); });
 
   // Called from showTab() every time the Study Map tab becomes visible.
@@ -6814,7 +7767,7 @@ function setupSubjects() {
         { role: "user", content: text }
       ], { maxTokens: 1024 });
       try {
-        const r = JSON.parse(txt.replace(/```json|```/g, "").trim());
+        const r = parseAIJson(txt);
         let html = '<div class="item"><strong>Readability:</strong> ' + r.readability + '/100</div>';
         if (r.grammar) html += '<div class="item"><strong>Grammar:</strong> ' + escapeHtml(r.grammar) + '</div>';
         if (r.structure) html += '<div class="item"><strong>Structure:</strong> ' + escapeHtml(r.structure) + '</div>';
@@ -6861,7 +7814,7 @@ function setupSubjects() {
         { role: "user", content: "Topic: " + topic }
       ], { maxTokens: 1024 });
       try {
-        const words = JSON.parse(txt.replace(/```json|```/g, "").trim());
+        const words = parseAIJson(txt);
         let html = "";
         words.forEach(function(w) {
           html += '<div class="item"><strong>' + escapeHtml(w.word) + '</strong> - ' + escapeHtml(w.definition) + '<br><em>' + escapeHtml(w.example || "") + '</em></div>';
@@ -7385,6 +8338,7 @@ function applyLanguage() {
     qsa('option', langSelect).forEach(o => {
       if (o.value === 'en') o.textContent = __('english');
       if (o.value === 'hu') o.textContent = __('hungarian');
+      if (o.value === 'es') o.textContent = __('spanish');
     });
   }
   } catch(e) { console.warn('applyLanguage error:', e); }
@@ -8154,6 +9108,7 @@ function init() {
   safeCall(setupTimer);
   safeCall(setupFlashcards);
   safeCall(setupQuizzes);
+  safeCall(setupQuestionBanks);
   safeCall(setupRecalls);
   safeCall(setupNotes);
   safeCall(setupAssignments);
@@ -9240,7 +10195,7 @@ function buildAutismCoachPrompt(studentMessage) {
 }
 
 function callGroq(prompt) {
-  return groqChat([{ role: 'user', content: prompt }], { model: 'llama-3.3-70b-versatile', maxTokens: 2048 });
+  return groqChat([{ role: 'user', content: prompt }], { maxTokens: 2048 });
 }
 
 if (document.readyState === 'loading') {
@@ -9364,7 +10319,7 @@ function openCommandPalette() {
     // 1) Tabs — always listed, labelled so they group at the top.
     [
       ['dashboard', '🏠', 'Dashboard'], ['planner', '📋', 'Planner'], ['sessions', '⏱️', 'Focus Sessions'],
-      ['flashcards', '🗂️', 'Flashcards'], ['quizzes', '❓', 'Quizzes'], ['recalls', '🔁', 'Recalls'],
+      ['flashcards', '🗂️', 'Flashcards'], ['quizzes', '❓', 'Quizzes'], ['questionbank', '📚', 'Question Banks'], ['recalls', '🔁', 'Recalls'],
       ['notes', '📝', 'Notes'], ['assignments', '📚', 'Assignments'], ['calendar', '📅', 'Calendar'],
       ['ai-tutor', '🤖', 'AI Tutor'], ['ai-lessons', '🎓', 'AI Lessons'], ['studyguide', '📖', 'Study Guide'],
       ['coach', '🧭', 'Study Coach'], ['studyroom', '🖊️', 'Study Room'], ['studymap', '🗺️', 'Study Map'],
@@ -9515,7 +10470,7 @@ function openCommandPalette() {
     };
   }
 
-  input.addEventListener('input', function() { render(buildIndex(input.value)); });
+  input.addEventListener('input', debounce(function() { render(buildIndex(input.value)); }, 120));
   input.addEventListener('keydown', function(e) { if (e.key === 'Escape') overlay.remove(); });
   overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
   render(buildIndex(''));
@@ -10178,7 +11133,7 @@ function setupGenerators() {
       var model = null;
       try {
         var txt = await groqChat([{ role: 'system', content: 'Explain how a concept works as an interactive working model. Return JSON ONLY: {concept:string, parts:[{name:string, howItWorks:string, connectsTo:[string]}], flows:[{from:string, to:string, what:string}]}. Each part must be a short labeled step. Include 4-7 parts.' }, { role: 'user', content: 'Concept: ' + topic }], { maxTokens: 2048, temperature: 0.6 });
-        try { model = JSON.parse(txt.replace(/```json|```/g, '').trim()); }
+        try { model = parseAIJson(txt); }
         catch (e) { model = null; }
         if (!model || !model.parts) throw new Error('bad json');
         renderConceptModel(model, topic);

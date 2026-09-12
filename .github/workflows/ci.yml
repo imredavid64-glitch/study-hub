@@ -20,7 +20,7 @@ jobs:
 
       - name: Syntax-check all JavaScript
         run: |
-          for f in app.js cloud-core.js mobile.js studymap-data.js subject-labs.js build.js; do
+          for f in app.js cloud-core.js mobile.js studymap-data.js subject-labs.js question-bank.js build.js; do
             echo "node --check $f"
             node --check "$f" || exit 1
           done

@@ -364,7 +364,7 @@ function setupBookLibrary() {
     }).join('');
   }
   if (langSel) langSel.addEventListener('change', render);
-  if (search) search.addEventListener('input', render);
+  if (search) search.addEventListener('input', (typeof debounce === 'function' ? debounce(render) : render));
   render();
   // Notes
   var notes = $('bookNotes'), saveBtn = $('bookNotesSave');

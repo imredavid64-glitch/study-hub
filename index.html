@@ -56,6 +56,7 @@
           <button class="nav-btn" data-tab="flashcards">Flashcards</button>
           <button class="nav-btn" data-tab="recalls">Recalls</button>
           <button class="nav-btn" data-tab="quizzes">Quizzes</button>
+          <button class="nav-btn" data-tab="questionbank"><span class="icon icon-sm icon-ai"></span> Question Banks</button>
           <button class="nav-btn" data-tab="notes">Notes</button>
           <button class="nav-btn" data-tab="assignments">Assignments</button>
           <button class="nav-btn" data-tab="coach">Coach</button>
@@ -143,6 +144,11 @@
             </article>
           </div>
           <div id="behindNudge"></div>
+          <article class="card">
+            <h3>🔥 Streak Calendar</h3>
+            <p class="subtle" style="margin-top:0">Daily study activity over the past 4 weeks.</p>
+            <div id="streakCalendar" class="streak-calendar"></div>
+          </article>
           <div class="dash-top-grid">
             <article class="card next15-card">
               <div class="row-between">
@@ -400,6 +406,16 @@
             <article class="card">
               <h3>AI Quiz Generator</h3>
               <form id="quizGeneratorForm" class="stack">
+                <label class="field-label" for="quizSource">Question source</label>
+                <select id="quizSource">
+                  <option value="ai" selected>AI (on-demand generation)</option>
+                  <option value="bank">Question Bank (curated)</option>
+                  <option value="trivia">Online (Open Trivia DB)</option>
+                </select>
+                <div id="quizBankWrap" class="stack hidden">
+                  <label class="field-label" for="quizBank">Choose a bank</label>
+                  <select id="quizBank"></select>
+                </div>
                 <label class="field-label" for="quizTopic">Topic</label>
                 <input id="quizTopic" placeholder="Topic (e.g. 'cell division', 'World War II', 'quadratic equations')" />
                 <label class="field-label" for="quizSubject">Subject</label>
@@ -490,6 +506,108 @@
           <article class="card">
             <h3>Mock Test History</h3>
             <div id="mockTestHistory" class="stack"></div>
+          </article>
+        </section>
+
+        <!-- ===== QUESTION BANKS ===== -->
+        <section id="questionbank" class="tab">
+          <div class="split-grid">
+            <article class="card">
+              <h3>Question Banks</h3>
+              <p class="subtle">Ready-made question banks grouped by exam and subject. Pick a bank to practise now — no AI needed.</p>
+              <div class="stack">
+                <label class="field-label" for="qbSearch">Search all banks</label>
+                <input id="qbSearch" placeholder="Type a topic (e.g. 'photosynthesis', 'derivatives', 'civil war')" />
+              </div>
+              <div id="qbBankList" class="stack qb-bank-grid"></div>
+            </article>
+            <article class="card">
+              <h3>Online Question Bank (Open Trivia DB)</h3>
+              <p class="subtle">Pull live questions from the free Open Trivia DB API.</p>
+              <form id="qbTriviaForm" class="stack">
+                <label class="field-label" for="qbTriviaCategory">Category</label>
+                <select id="qbTriviaCategory"></select>
+                <label class="field-label" for="qbTriviaCount">Number of questions</label>
+                <input id="qbTriviaCount" type="number" min="5" max="30" value="10" />
+                <label class="field-label" for="qbTriviaDifficulty">Difficulty</label>
+                <select id="qbTriviaDifficulty">
+                  <option value="">Any</option>
+                  <option value="easy">Easy</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+                <button type="submit">Fetch Online Questions</button>
+              </form>
+              <div class="inline">
+                <button id="qbStartCustom" class="ghost hidden">Start quiz with fetched questions</button>
+              </div>
+            </article>
+          </div>
+          <article class="card">
+            <h3>My Custom Banks</h3>
+            <p class="subtle">Build your own question banks. Add questions one at a time, or import a whole bank from a JSON or CSV file.</p>
+            <div class="split-grid">
+              <div>
+                <h4>Add a question</h4>
+                <form id="qbAddQuestionForm" class="stack">
+                  <label class="field-label" for="qbAddBankSelect">Bank</label>
+                  <select id="qbAddBankSelect"></select>
+                  <details>
+                    <summary>… or create a new bank</summary>
+                    <label class="field-label" for="qbAddBankName">New bank name</label>
+                    <input id="qbAddBankName" placeholder="e.g. My Chemistry Set" />
+                  </details>
+                  <label class="field-label" for="qbAddQ">Question</label>
+                  <input id="qbAddQ" placeholder="What is the molar mass of water?" required />
+                  <label class="field-label" for="qbAddO1">Option A</label>
+                  <input id="qbAddO1" placeholder="18 g/mol" />
+                  <label class="field-label" for="qbAddO2">Option B</label>
+                  <input id="qbAddO2" placeholder="16 g/mol" />
+                  <label class="field-label" for="qbAddO3">Option C</label>
+                  <input id="qbAddO3" placeholder="1 g/mol" />
+                  <label class="field-label" for="qbAddO4">Option D</label>
+                  <input id="qbAddO4" placeholder="24 g/mol" />
+                  <label class="field-label" for="qbAddA">Correct answer</label>
+                  <input id="qbAddA" placeholder="18 g/mol" required />
+                  <button type="submit">Add Question</button>
+                </form>
+              </div>
+              <div>
+                <h4>Import a bank</h4>
+                <p class="subtle">CSV format: <code>question,optionA,optionB,optionC,optionD,answer</code> (first row may be a header). JSON can be a single bank or an array of banks.</p>
+                <div class="inline top-gap">
+                  <button id="qbImportJsonBtn" class="btn">Import JSON</button>
+                  <button id="qbImportCsvBtn" class="btn btn-outline">Import CSV</button>
+                </div>
+                <h4 class="top-gap">Note</h4>
+                <p class="subtle">Custom banks save automatically to your device and to your cloud sync. Use <strong>Export</strong> on any custom bank card to save it as JSON or CSV, or to copy it for sharing.</p>
+              </div>
+            </div>
+          </article>
+          <article class="card">
+            <h3 id="qbActiveTitle">Select a bank to begin</h3>
+            <p id="qbMeta" class="subtle">Choose a bank on the left, or fetch online questions above, then practise here.</p>
+            <div class="inline" style="align-items:center;">
+              <label class="field-label" for="qbTimedToggle" style="margin:0">Timed mode</label>
+              <input id="qbTimedToggle" type="checkbox" />
+              <label class="field-label" for="qbTimedMinutes" style="margin:0">Minutes</label>
+              <input id="qbTimedMinutes" type="number" min="1" max="60" value="5" style="width:64px" />
+              <span id="qbTimer" role="timer" aria-live="off" class="badge hidden">05:00</span>
+            </div>
+            <div id="qbQuestion" class="review-question"></div>
+            <form id="qbOptions" class="stack"></form>
+            <div id="qbQuestionActions" class="inline"></div>
+            <div class="inline">
+              <button id="qbPrevBtn" class="ghost hidden">Previous</button>
+              <button id="qbNextBtn" class="ghost hidden">Next</button>
+              <button id="qbMarkBtn" class="ghost hidden">Mark for Review</button>
+              <button id="qbSubmitBtn" class="hidden">Submit Quiz</button>
+            </div>
+            <p id="qbResult" class="top-gap"></p>
+          </article>
+          <article class="card">
+            <h3>Bank Progress</h3>
+            <div id="qbStatsPanel" class="stack qb-bank-grid"></div>
           </article>
         </section>
 
@@ -2395,6 +2513,7 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
               <select id="appLanguageSelect" class="top-gap">
                 <option value="en">English</option>
                 <option value="hu">Magyar (Hungarian)</option>
+                <option value="es">Español (Spanish)</option>
               </select>
             </article>
             <article class="card">
@@ -2570,6 +2689,7 @@ That will be three dollars." style="width:100%;margin-top:6px"></textarea>
 
     <script src="studymap-data.js"></script>
     <script src="cloud-core.js"></script>
+    <script src="question-bank.js"></script>
     <script src="subject-labs.js"></script>
     <script src="app.js"></script>
   <!-- ===== SETUP MODAL ===== -->

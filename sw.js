@@ -4,7 +4,7 @@
  * Bump CACHE whenever a release changes app files — returning users get the
  * new build on their next visit (stale-while-revalidate) and offline keeps working.
  */
-const CACHE = 'study-hub-v1.1.8';
+const CACHE = 'study-hub-v1.2.0';
 const SHELL = [
   './',
   './index.html',
@@ -13,6 +13,8 @@ const SHELL = [
   './cloud-core.js',
   './mobile.js',
   './studymap-data.js',
+  './question-bank.js',
+  './subject-labs.js',
   './manifest.webmanifest'
 ];
 

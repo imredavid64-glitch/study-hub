@@ -771,6 +771,18 @@ body {
 
 /* ===== GOAL WALKTHROUGHS ===== */
 .goal-walk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin-top: 10px; }
+/* ===== STREAK CALENDAR ===== */
+.streak-calendar { margin-top: 10px; }
+.sc-metrics { display: flex; flex-wrap: wrap; gap: 18px; margin-bottom: 12px; font-size: .85rem; color: var(--text, #1b2f2a); }
+.sc-metrics span { display: inline-flex; align-items: baseline; gap: 5px; }
+.sc-metrics strong { font-size: 1.3rem; color: var(--accent, #0f766e); }
+.sc-metrics .sc-total { margin-left: auto; }
+.sc-grid { display: grid; grid-template-columns: repeat(28, 1fr); gap: 4px; }
+.sc-cell { position: relative; aspect-ratio: 1; border-radius: 4px; background: color-mix(in srgb, var(--border, #d6e3df) 45%, var(--surface, #fff)); min-width: 10px; }
+.sc-cell.sc-active { background: var(--accent, #0f766e); }
+.sc-cell.sc-today { box-shadow: 0 0 0 2px var(--bg, #fff) inset, 0 0 0 3px var(--accent, #0f766e); }
+.sc-dow { position: absolute; top: -1.3em; left: 0; font-size: .6rem; color: var(--muted, #6b7f7a); }
+@media (max-width: 640px) { .sc-grid { gap: 3px; } }
 /* ===== NEXT 15 MINUTES ===== */
 .next15-pick { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: var(--radius); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border)); }
 .next15-icon { font-size: 1.9rem; flex-shrink: 0; animation: pulse-soft 2.4s ease-in-out infinite; }
@@ -5660,3 +5672,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   cursor: pointer;
 }
 .undo-toast-btn:hover { background: rgba(255,255,255,0.28); }
+
+/* ===== Question Banks ===== */
+.qb-bank-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.qb-bank-card { display: flex; flex-direction: column; gap: 6px; justify-content: space-between; align-items: flex-start; }
+.qb-bank-card .btn { align-self: stretch; margin-top: 2px; }
+.qb-bank-custom { border-left: 3px solid var(--accent, #0f766e); }
+.qb-actions { display: flex; gap: 6px; width: 100%; align-self: stretch; }
+.qb-actions .btn { flex: 1; margin-top: 2px; }
+.badge-custom { background: rgba(15, 118, 110, 0.15); color: var(--accent, #0f766e); }

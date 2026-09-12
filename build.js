@@ -10,6 +10,7 @@ function checkDependencies() {
     'app.js',
     'styles.css',
     'cloud-core.js',
+    'question-bank.js',
     'studymap-data.js',
     'subject-labs.js'
   ];

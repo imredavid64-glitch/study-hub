@@ -194,6 +194,92 @@ app.whenReady().then(() => {
     })()
   `;
 
+  // Custom question bank flow: add a question to a brand-new bank through the
+  // real form, then verify it registers with QuestionBank, appears in the bank
+  // list and the quiz-source dropdown, and can be practised.
+  async function runCustomBankTest() {
+    const failures = [];
+    try {
+      await webContents.executeJavaScript(`showTab('questionbank'); 'tabbed'`);
+      const before = await webContents.executeJavaScript(`(typeof QuestionBank !== 'undefined' ? QuestionBank.totalCount() : -1)`);
+      const flow = await webContents.executeJavaScript(`(() => {
+        const set = (el, v) => { const n = document.getElementById(el); if (n) n.value = v; return !!n; };
+        set('qbAddBankName', 'QA Custom Bank');
+        set('qbAddQ', 'What is 2 + 2?');
+        set('qbAddO1', '3'); set('qbAddO2', '4'); set('qbAddO3', '5'); set('qbAddO4', '6');
+        set('qbAddA', '4');
+        const form = document.getElementById('qbAddQuestionForm');
+        const submit = (typeof form.requestSubmit === 'function' ? form.requestSubmit : form.submit).call(form);
+        return { submitted: true, hasManager: !!document.getElementById('qbAddQuestionForm') };
+      })()`);
+      await new Promise(r => setTimeout(r, 300));
+      const after = await webContents.executeJavaScript(`(() => {
+        const bank = QuestionBank ? QuestionBank.banks.find(b => b.name === 'QA Custom Bank') : null;
+        const inSelect = [...(document.getElementById('qbAddBankSelect') || {options:[]}).options].some(o => o.value === (bank && bank.id));
+        const inList = (document.getElementById('qbBankList') || {textContent:''}).textContent.indexOf('QA Custom Bank') !== -1;
+        const custom = (state.customBanks || []).some(b => b.name === 'QA Custom Bank');
+        return { total: QuestionBank.totalCount(), found: !!bank, bankQ: bank && bank.count, inSelect, inList, custom, bankCount: (state.customBanks || []).length };
+      })()`);
+      if (!flow.hasManager) failures.push('Custom bank test: manager form missing (#qbAddQuestionForm)');
+      if (after.found && after.bankQ !== 1) failures.push('Custom bank test: bank should hold 1 added question (got ' + after.bankQ + ')');
+      if (!after.found) failures.push('Custom bank test: bank did not register with QuestionBank');
+      if (!after.custom || after.bankCount !== 1) failures.push('Custom bank test: state.customBanks not persisted (' + after.bankCount + ')');
+      if (!after.inSelect) failures.push('Custom bank test: bank missing from the "add question" bank select');
+      if (!after.inList) failures.push('Custom bank test: bank missing from the bank list');
+      if (before >= 0 && (after.total - before) !== 1) failures.push('Custom bank test: totalCount should rise by exactly 1 (was ' + before + ', now ' + after.total + ')');
+      // Practise it headlessly.
+      const startable = await webContents.executeJavaScript(`(() => {
+        showTab('questionbank');
+        const bank = QuestionBank.banks.find(b => b.name === 'QA Custom Bank');
+        startQbFromBank(bank.id);
+        return { title: document.getElementById('qbActiveTitle').textContent, qText: (document.getElementById('qbQuestion') || {}).textContent || '', hasSubmit: !document.getElementById('qbSubmitBtn').classList.contains('hidden') };
+      })()`);
+      if (startable.title.indexOf('QA Custom Bank') === -1) failures.push('Custom bank test: practise did not start (title "' + startable.title + '")');
+      if (!startable.qText.trim()) failures.push('Custom bank test: question did not render');
+      // Save-to-flashcards + bank-stats + timed-mode exercise.
+      const extra = await webContents.executeJavaScript(`(() => {
+        const bank = QuestionBank.banks.find(b => b.name === 'QA Custom Bank');
+        const beforeCards = state.flashcards.length;
+        // Save the current question to flashcards (per-question action button).
+        const btn = [...document.querySelectorAll('#qbQuestionActions button')].find(b => b.textContent.indexOf('Save to flashcards') !== -1);
+        if (btn) btn.click();
+        const savedCard = state.flashcards.some(f => f.deck === 'QA Custom Bank' && f.question === 'What is 2 + 2?');
+        // Answer correctly and submit in timed mode.
+        document.getElementById('qbTimedToggle').checked = true;
+        document.getElementById('qbTimedMinutes').value = '1';
+        qbState.timed = true; qbState.minutes = 1;
+        qbMaybeStartTimer();
+        const radio = [...document.querySelectorAll('#qbOptions input[type=radio]')].find(r => r.value === '4');
+        if (radio) { radio.checked = true; radio.dispatchEvent(new Event('change', { bubbles: true })); }
+        submitQbQuiz();
+        const stat = state.bankStats['QA Custom Bank']; // id may differ; find by bank
+        const statFor = Object.keys(state.bankStats || {}).some(k => state.bankStats[k].total === 1 && state.bankStats[k].correct === 1);
+        const res = document.getElementById('qbResult').textContent;
+        return { beforeCards, savedCard, statFor, res, timerHidden: document.getElementById('qbTimer').classList.contains('hidden') };
+      })()`);
+      if (!extra.savedCard && extra.beforeCards === 0) failures.push('Custom bank test: save-to-flashcards did not add a card');
+      if (extra.savedCard && extra.beforeCards !== 0) failures.push('Custom bank test: unexpected flashcard setup');
+      if (!extra.statFor) failures.push('Custom bank test: bank correctness stats not recorded (' + JSON.stringify(extra) + ')');
+      if (extra.res.indexOf('Score: 1/1') === -1) failures.push('Custom bank test: quiz not submitted in timed mode (' + extra.res + ')');
+      // Clean up so later keyboard tests see a pristine bank list + state.
+      await webContents.executeJavaScript(`(() => {
+        const bank = (state.customBanks || []).find(b => b.name === 'QA Custom Bank');
+        if (bank) { state.customBanks = state.customBanks.filter(b => b.id !== bank.id); if (state.bankStats) delete state.bankStats[bank.id]; saveState(); }
+        if (typeof QuestionBank !== 'undefined') QuestionBank.setCustomBanks(state.customBanks || []);
+        qbStopTimer();
+        state.flashcards = state.flashcards.filter(f => f.question !== 'What is 2 + 2?');
+        saveState();
+        renderBankList();
+        showTab('dashboard');
+        return 'cleaned';
+      })()`);
+      report.customBank = { before, after, startable, flow };
+    } catch (e) {
+      failures.push('Custom bank test threw: ' + e);
+    }
+    return failures;
+  }
+
   // Keyboard navigation walk: press real Tab keys and verify focus lands on
   // focusable controls with a visible focus ring (and never gets stuck).
   async function runKeyboardWalk() {
@@ -551,6 +637,9 @@ app.whenReady().then(() => {
           if ((result.a11y.noAlt || []).length > 0) {
             report.failures.push('A11y: images without alt: ' + result.a11y.noAlt.slice(0, 5).join(', '));
           }
+          // Custom question bank flow (add → register → practise → clean up).
+          const bankFailures = await runCustomBankTest();
+          bankFailures.forEach(f => report.failures.push(f));
           // Keyboard navigation walk.
           const kb = await runKeyboardWalk();
           report.keyboard = { steps: kb.steps, landed: kb.landed };

@@ -253,9 +253,18 @@ class CloudSyncManager {
   }
 
   async upsertUserState(data) {
+    // Supabase JSONB columns have a ~2 MB row limit.  Strip non-essential
+    // fields if the payload is too large, to avoid silent failures.
+    let payload = data;
+    const jsonSize = new Blob([JSON.stringify(payload)]).size;
+    const MAX_BYTES = 1_500_000; // 1.5 MB, leaves headroom below 2 MB limit
+    if (jsonSize > MAX_BYTES) {
+      payload = { ...payload, state_data: this._trimForCloud(payload.state_data) };
+    }
+
     const { error } = await supabase
       .from('user_state_snapshots')
-      .upsert(data, {
+      .upsert(payload, {
         onConflict: 'user_id',
         returning: 'minimal'
       });
@@ -263,6 +272,32 @@ class CloudSyncManager {
     if (error) {
       throw error;
     }
+  }
+
+  // Largest, least-critical fields are dropped first; bounded arrays are
+  // trimmed to a hard cap so the sync payload stays below the JSONB limit.
+  _trimForCloud(s) {
+    const trimmed = { ...s };
+    // 1. Drop unbounded free-form chat / transcript history — fully
+    //    disposable on sync since it regenerates locally.
+    delete trimmed.aiChatHistory;
+    delete trimmed.lessonChatHistory;
+    delete trimmed.voiceTranscript;
+    delete trimmed.subjectTutorChats;
+
+    // 2. Cap bounded arrays that can grow without limit.
+    const CAP = 100;
+    if (Array.isArray(trimmed.flashcards) && trimmed.flashcards.length > CAP)
+      trimmed.flashcards = trimmed.flashcards.slice(-CAP);
+    if (Array.isArray(trimmed.notes) && trimmed.notes.length > CAP)
+      trimmed.notes = trimmed.notes.slice(-CAP);
+    if (Array.isArray(trimmed.quizAttempts) && trimmed.quizAttempts.length > CAP)
+      trimmed.quizAttempts = trimmed.quizAttempts.slice(-CAP);
+    if (Array.isArray(trimmed.mockTestHistory) && trimmed.mockTestHistory.length > CAP)
+      trimmed.mockTestHistory = trimmed.mockTestHistory.slice(-CAP);
+    if (Array.isArray(trimmed.recallHistory) && trimmed.recallHistory.length > CAP)
+      trimmed.recallHistory = trimmed.recallHistory.slice(-CAP);
+    return trimmed;
   }
 
   async flushSyncQueue() {

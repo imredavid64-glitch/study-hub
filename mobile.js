@@ -264,7 +264,7 @@ const Mobile = (() => {
     });
   }
 
-  const TAB_ORDER = ['dashboard','planner','sessions','flashcards','recalls','quizzes','notes','assignments','coach','ai-content-generator','ai-tutor','ai-lessons','ai-voice','warmup','studyguide','studyroom','resources','studymap','generators','calculator','tutorial','autism','subjects','calendar','social','analytics','settings'];
+  const TAB_ORDER = ['dashboard','planner','sessions','flashcards','recalls','quizzes','questionbank','notes','assignments','coach','ai-content-generator','ai-tutor','ai-lessons','ai-voice','warmup','studyguide','studyroom','resources','studymap','generators','calculator','tutorial','autism','subjects','calendar','social','analytics','settings'];
 
   function setupSwipeNavigation() {
     // Snapchat / Tinder-style mobile gesture support:
