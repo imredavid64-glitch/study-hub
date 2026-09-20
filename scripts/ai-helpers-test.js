@@ -69,7 +69,7 @@ function runInScope(body, overrides = {}) {
     Math, Date, JSON, String, Number, Array, Object, RegExp, RangeError, Error,
     Promise, setTimeout, clearTimeout, DOMException,
     console, navigator: {}, location: {},
-    GROQ_ENDPOINT: 'https://api-test.local/v1/chat/completions',
+    GEMINI_ENDPOINT: 'https://generativelanguage.googleapis.com/v1beta/models',
     state: { settings: {} },
     showToast() {}
   }, overrides);
@@ -173,11 +173,11 @@ async function main() {
     {
       let n = 0;
       const s = runInScope(body + '\n;globalThis.__g = groqChat;', {
-        state: { settings: { customGroqKey: 'user-key' } },
-        GROQ_ENDPOINT: EP,
+        state: { settings: { customGeminiKey: 'user-key' } },
+        GEMINI_ENDPOINT: EP,
         fetch: genFetch((url) => {
           n++;
-          if (url === EP) return { status: 200, body: { choices: [{ message: { content: 'custom-fallback' } }] } };
+          if (url.startsWith(EP)) return { status: 200, body: { candidates: [{ content: { parts: [{ text: 'custom-fallback' }] } }] } };
           return { status: 500, body: {} };
         })
       });

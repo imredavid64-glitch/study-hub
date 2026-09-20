@@ -185,16 +185,16 @@ The app is organized into **28 tabs**. Feature groups:
                 │  fetch (same-origin)
 ┌───────────────▼─────────────────────────────────────────────┐
 │  Serverless API (Vercel)                                     │
-│   /api/groq      — AI chat proxy (Groq) + rate limiting      │
+│   /api/gemini    — AI chat proxy (Gemini) + rate limiting    │
 │   /api/mates     — study-mate matcher (Supabase service key) │
 │   /api/config    — runtime feature/config endpoint           │
 └───────────────┬─────────────────────────────────────────────┘
                 │
-        ┌───────▼───────┐      ┌──────────────────────────┐
-        │  Supabase     │      │  Groq API (LLM provider) │
-        │  auth + RLS   │      └──────────────────────────┘
-        │  tables       │
-        └───────────────┘
+┌───────▼───────┐      ┌──────────────────────────┐
+         │  Supabase     │      │  Gemini API (LLM provider)│
+         │  auth + RLS   │      └──────────────────────────┘
+         │  tables       │
+         └───────────────┘
 ```
 
 **State management**: a single `state` object is hydrated from
@@ -202,9 +202,9 @@ The app is organized into **28 tabs**. Feature groups:
 Cloud sync (opt-in) mirrors snapshots and events to Supabase with conflict
 resolution.
 
-**AI flow**: `groqChat()` first calls the same-origin `/api/groq` proxy
+**AI flow**: `groqChat()` first calls the same-origin `/api/gemini` proxy
 (server-side key — never shipped to the client). If that fails, it falls
-back to a per-user Groq key the user can paste in **Settings → Cloud Sync &
+back to a per-user Gemini key the user can paste in **Settings → Cloud Sync &
 Privacy** (stored only on that device). If neither exists, features degrade
 to offline templates and the built-in knowledge base.
 
@@ -236,7 +236,7 @@ Study Hub/
 ├── electron-updater-core.js  sha256 + asset-picking helpers (pure)
 ├── capacitor.config.json     Capacitor mobile config
 ├── api/                      Serverless functions (Vercel)
-│   ├── groq.js               AI chat proxy + rate limiting
+│   ├── gemini.js             AI chat proxy + rate limiting
 │   ├── mates.js              Study-mate matcher
 │   └── config.js             Runtime config endpoint
 ├── lib/guard.js              Rate-limit + origin-allowlist guard
@@ -422,7 +422,7 @@ required; you can side-load or distribute via your own channels.
 
 | Variable | Where | Purpose |
 |---|---|---|
-| `GROQ_API_KEY` | Vercel env (`.env.local` locally) | Server-side key for `/api/groq`; never shipped to the client |
+| `GEMINI_API_KEY` | Vercel env (`.env.local` locally) | Server-side key for `/api/gemini`; never shipped to the client |
 | `SUPABASE_SERVICE_KEY` | Vercel env | Service-role key for `/api/mates` (server-side only) |
 | `SUPABASE_URL` | Vercel env | Supabase project URL (also hardcoded fallback in `api/config.js`) |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_ID` | Vercel env (optional) | Google sign-in / OAuth |
@@ -443,7 +443,7 @@ deployed automatically.
 ### 8.3 Rate limiting
 
 `lib/guard.js` enforces an origin allowlist and per-IP rate limits
-(30 req/min, 400 req/day for `/api/groq`). Without Upstash it is
+(30 req/min, 400 req/day for `/api/gemini`). Without Upstash it is
 per-instance in-memory; with the Upstash env vars it is durable and shared
 across instances.
 
@@ -546,9 +546,9 @@ limiting and `INSTALLERS_PAT`. Full click-path runbook:
 
 ## 14. AI integration
 
-- **Provider**: Groq (`llama-3.1-8b-instant` default; `llama-3.3-70b-*` /
-  `llama-3.1-70b-versatile` allowed). Models are allowlisted server-side.
-- **Proxy**: `/api/groq` enforces model allowlist, token caps (≤8192),
+- **Provider**: Gemini (`gemini-1.5-flash` default; `gemini-1.5-pro` /
+  `gemini-1.0-pro` allowed). Models are allowlisted server-side.
+- **Proxy**: `/api/gemini` enforces model allowlist, token caps (≤8192),
   message caps (≤30, ≤12k chars each), origin allowlist, and rate limits.
 - **Client**: `groqChat(messages, opts)` in `app.js`; used by the tutor,
   quiz/mock generators, flashcard generators, study guide/plan generators,
@@ -559,7 +559,7 @@ limiting and `INSTALLERS_PAT`. Full click-path runbook:
   `offlineWalkthroughGuide`, the `TOPIC_KB` knowledge base, and template
   generators — so nothing dead-ends.
 - **The user's own key**: Settings → Cloud Sync & Privacy lets users paste
-  their own Groq key for local/desktop builds (device-local only).
+  their own Gemini key for local/desktop builds (device-local only).
 
 ## 15. Security model
 
@@ -568,7 +568,7 @@ See **[SECURITY.md](../SECURITY.md)** for full details. Highlights:
 - **Identity & RLS**: Supabase Auth anonymous sign-ins; every table has
   `FORCE ROW LEVEL SECURITY` with `auth.uid()`-scoped policies. If auth is
   unavailable the app runs local-only rather than unsafely.
-- **No client secrets**: Groq key lives server-side; the only cross-user
+- **No client secrets**: Gemini key lives server-side; the only cross-user
   readable data is the opt-in `mate_profiles` table, served by `/api/mates`
   with the service key and returned as name/subjects only.
 - **XSS posture**: all user/AI content escaped before DOM insertion;
@@ -600,13 +600,13 @@ See **[SECURITY.md](../SECURITY.md)** for full details. Highlights:
 
 | Symptom | Fix |
 |---|---|
-| "AI proxy unreachable and no custom key set" | Add your own Groq key in Settings → Cloud Sync & Privacy, or deploy the backend with `GROQ_API_KEY`. |
+| "AI proxy unreachable and no custom key set" | Add your own Gemini key in Settings → Cloud Sync & Privacy, or deploy the backend with `GEMINI_API_KEY`. |
 | Cloud sync shows local-only mode | Complete the Supabase setup runbook (`docs/supabase-setup.md`). |
-| 403 on `/api/groq` | Rate limit hit (30/min, 400/day per IP) — wait, or add Upstash env for durable limits. |
+| 403 on `/api/gemini` | Rate limit hit (30/min, 400/day per IP) — wait, or add Upstash env for durable limits. |
 | Mind map shows template labels | That's the offline fallback; the built-in KB covers 30 common topics. Online, AI produces full content. |
 | Undo toast disappears | A later toast (e.g. cloud sync) re-attaches the Undo button — it stays available for 6s. |
 | Installer not listed in Downloads | Release workflow needs `INSTALLERS_PAT`; check CI logs. |
-| Health check fails a row | Follow the per-row hint (e.g. cloud row → Supabase setup; AI row → Groq key). |
+| Health check fails a row | Follow the per-row hint (e.g. cloud row → Supabase setup; AI row → Gemini key). |
 
 ## 19. References
 
@@ -617,7 +617,7 @@ See **[SECURITY.md](../SECURITY.md)** for full details. Highlights:
 - **Security**: [../SECURITY.md](../SECURITY.md)
 - **SDG 4 (Quality Education)**: https://sdgs.un.org/goals/goal4
 - **Study Map (reference project)**: https://github.com/StudentSuite/StudyMap
-- **Groq API**: https://console.groq.com/docs
+- **Gemini API**: https://aistudio.google.com/apikey
 - **Electron**: https://www.electronjs.org/docs
 - **Capacitor**: https://capacitorjs.com/docs
 - **Supabase RLS**: https://supabase.com/docs/guides/database/postgres/row-level-security

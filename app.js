@@ -825,15 +825,15 @@ function getSubjectColor(subject) {
   return colors[subject] || 'var(--accent)';
 }
 
-// ===== GROQ AI =====
-const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
-// The API key lives server-side only (.env.local / Vercel GROQ_API_KEY); all
-// normal calls go through the /api/groq proxy. Static/file:// and Electron
+// ===== GEMINI AI =====
+const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
+// The API key lives server-side only (.env.local / Vercel GEMINI_API_KEY); all
+// normal calls go through the /api/gemini proxy. Static/file:// and Electron
 // builds can optionally set their own key in Settings (stored on this device
 // only, never uploaded) for when the proxy is unreachable.
 let studentLearningStyle = '';
 async function groqChat(messages, options = {}) {
-  const model = options.model || 'groq/compound-mini';
+  const model = options.model || 'gemini-1.5-flash';
   const maxTokens = options.maxTokens || 2048;
   const temperature = options.temperature ?? 0.7;
   const retries = options.retries !== undefined ? options.retries : 2;
@@ -847,15 +847,15 @@ async function groqChat(messages, options = {}) {
     const t = setTimeout(() => { signal.removeEventListener('abort', onAbort); resolve(); }, ms);
     signal.addEventListener('abort', onAbort, { once: true });
   });
-  const customKey = (state && state.settings && state.settings.customGroqKey) || '';
+  const customKey = (state && state.settings && state.settings.customGeminiKey) || '';
 
-  // Proxy leg — one network attempt through /api/groq (keeps the API key out of
+  // Proxy leg — one network attempt through /api/gemini (keeps the API key out of
   // the browser bundle). Throws tagged errors: {retryable:true} for transient
   // network/5xx/429, {rateLimited:true} for hard 403 quota/denial.
   async function proxyAttempt() {
     const throwHttp = err => { err.httpStatus = true; throw err; };
     try {
-      const proxied = await fetch('/api/groq', {
+      const proxied = await fetch('/api/gemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -886,24 +886,30 @@ async function groqChat(messages, options = {}) {
     }
   }
 
-  // User's own Groq key — used as a last resort for file:// or dev builds where
+  // User's own Gemini key — used as a last resort for file:// or dev builds where
   // the proxy is unavailable. Never a bundled/shared key.
   async function customKeyAttempt() {
     if (!customKey) return null;
-    const res = await fetch(GROQ_ENDPOINT, {
+    const res = await fetch(`${GEMINI_ENDPOINT}/${model}:generateContent?key=${customKey}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${customKey}` },
-      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: messages.map(m => ({
+          role: m.role === 'assistant' ? 'model' : m.role === 'system' ? 'user' : m.role,
+          parts: [{ text: m.content }]
+        })),
+        generationConfig: { maxOutputTokens: maxTokens, temperature }
+      }),
       signal
     });
     if (res.status === 429) {
-      const err = new Error('Groq daily limit reached — the free tier allows 400/day. Try again tomorrow.');
+      const err = new Error('Gemini daily limit reached. Try again tomorrow.');
       err.rateLimited = true;
       throw err;
     }
-    if (!res.ok) throw new Error(`Groq API error ${res.status}`);
+    if (!res.ok) throw new Error(`Gemini API error ${res.status}`);
     const data = await res.json();
-    return data.choices?.[0]?.message?.content || '';
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   }
 
   // With a custom key set, don't burn retries on the proxy — desktop/file://
@@ -4375,7 +4381,7 @@ async function sendAiChat() {
     if (state.aiChatHistory.length > 200) state.aiChatHistory = state.aiChatHistory.slice(-200);
     saveState(); renderAiSessionHistory();
     convHistory.scrollTop = convHistory.scrollHeight;
-  } catch (e) { const reason = (e && e.message && /AI proxy unreachable|Groq API error/.test(e.message)) ? ' — ' + escapeHtml(e.message) : ''; convHistory.innerHTML += `<div class="chat-bubble assistant">I apologize, but I encountered an error${reason}. Please try again.</div>`; }
+  } catch (e) { const reason = (e && e.message && /AI proxy unreachable|Gemini API error/.test(e.message)) ? ' — ' + escapeHtml(e.message) : ''; convHistory.innerHTML += `<div class="chat-bubble assistant">I apologize, but I encountered an error${reason}. Please try again.</div>`; }
 }
 function parseAiActions(txt) {
   const actions = [];
@@ -5581,20 +5587,20 @@ function setupSettings() {
       showToast('Cloud status refreshed');
     });
   }
-  const groqKeyInput = $('customGroqKeyInput');
-  if (groqKeyInput) {
-    groqKeyInput.value = (state.settings && state.settings.customGroqKey) || '';
+  const geminiKeyInput = $('customGroqKeyInput');
+  if (geminiKeyInput) {
+    geminiKeyInput.value = (state.settings && state.settings.customGeminiKey) || '';
     const saveKey = $('saveGroqKeyBtn');
     const clearKey = $('clearGroqKeyBtn');
     if (saveKey) saveKey.addEventListener('click', () => {
-      const v = groqKeyInput.value.trim();
-      if (!/^gsk_[A-Za-z0-9]+$/.test(v)) { showToast('Enter a valid Groq key (starts with gsk_)'); return; }
-      state.settings.customGroqKey = v;
+      const v = geminiKeyInput.value.trim();
+      if (v && !v.startsWith('AIza')) { showToast('Enter a valid Gemini key (starts with AIza)'); return; }
+      state.settings.customGeminiKey = v;
       saveState(); showToast('Custom AI key saved for offline builds');
     });
     if (clearKey) clearKey.addEventListener('click', () => {
-      state.settings.customGroqKey = '';
-      groqKeyInput.value = '';
+      state.settings.customGeminiKey = '';
+      geminiKeyInput.value = '';
       saveState(); showToast('Custom AI key cleared');
     });
   }
@@ -5945,7 +5951,7 @@ function darken(hex, amt) {
 async function runHealthCheck() {
   const results = [];
   results.push({ check: 'Local Storage', status: (() => { try { localStorage.setItem('_test', '1'); localStorage.removeItem('_test'); return 'OK'; } catch (e) { return 'FAIL'; } })() });
-  results.push({ check: 'Groq AI API', status: 'Checking...' });
+  results.push({ check: 'Gemini AI API', status: 'Checking...' });
   try {
     const r = await groqChat([{ role: 'user', content: 'Say "ok" if you can read this.' }], { maxTokens: 10 });
     results[1].status = r.includes('ok') || r.includes('OK') ? 'OK' : 'Unexpected response';
@@ -8889,7 +8895,7 @@ function setupLectureRecording() {
       if (!lastRec) { showToast('No recordings to generate from'); return; }
       if (lastRec.exercisesGenerated) { showToast('Exercises already generated for this lecture'); return; }
       showToast('Generating exercises from lecture recording...');
-      // Use Groq to generate exercises based on the lecture title/date (audio transcription would need Whisper API)
+      // Use Gemini to generate exercises based on the lecture title/date (audio transcription would need Whisper API)
       const prompt = `Create 10 practice exercises based on a lecture titled "${lastRec.title}" recorded on ${lastRec.date}. Include: 5 recall questions, 3 application questions, 2 analysis questions. Provide answers for each.`;
       try {
         const result = await groqChat([{ role: 'system', content: 'You create educational exercises from lecture content.' }, { role: 'user', content: prompt }], { maxTokens: 2048 });
@@ -9501,7 +9507,7 @@ function generateStudyGuide() {
     '- Study tips for this topic\n' +
     'Use markdown formatting. Keep it educational and well-structured.';
 
-  callGroq(prompt).then(function(text) {
+  callGemini(prompt).then(function(text) {
     loading.classList.add('hidden');
     output.classList.remove('hidden');
     output.innerHTML = formatStudyGuide(text, topic.value);
@@ -9542,7 +9548,7 @@ function generateStudyPlan() {
     'Continue for all ' + d + ' days. Also include a final summary with tips for success.\n' +
     'Make it specific and actionable. Use markdown.';
 
-  callGroq(prompt).then(function(text) {
+  callGemini(prompt).then(function(text) {
     loading.classList.add('hidden');
     output.classList.remove('hidden');
     output.innerHTML = formatStudyPlan(text, s, d);
@@ -10138,7 +10144,7 @@ function setupAutismSupport() {
       aiChat.innerHTML += '<div class="chat-bubble user">' + escapeHtml(q) + '</div>';
       aiChat.innerHTML += '<div class="chat-bubble ai subtle" id="' + typingId + '">Thinking…</div>';
       aiChat.scrollTop = aiChat.scrollHeight;
-      callGroq(buildAutismCoachPrompt(q)).then(function(text) {
+      callGemini(buildAutismCoachPrompt(q)).then(function(text) {
         var t = $(typingId); if (t) t.remove();
         aiChat.innerHTML += '<div class="chat-bubble ai">' + formatInline(text) + '</div>';
         aiChat.scrollTop = aiChat.scrollHeight;
@@ -10194,7 +10200,7 @@ function buildAutismCoachPrompt(studentMessage) {
   return prefs + adhd + '\n\nThe student wrote: "' + studentMessage + '"';
 }
 
-function callGroq(prompt) {
+function callGemini(prompt) {
   return groqChat([{ role: 'user', content: prompt }], { maxTokens: 2048 });
 }
 

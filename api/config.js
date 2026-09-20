@@ -3,7 +3,7 @@ module.exports = async function configEndpoint(req, res) {
   res.setHeader('Content-Type', 'application/json');
   res.status(200).json({
     provider: 'study-hub',
-    ai: { proxy: '/api/groq', configured: !!process.env.GROQ_API_KEY },
+    ai: { proxy: '/api/gemini', configured: !!process.env.GEMINI_API_KEY },
     google: {
       clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || '',
       configured: !!(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID)

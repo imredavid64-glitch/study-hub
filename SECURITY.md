@@ -19,21 +19,21 @@
 
 | Secret | Where | Status |
 |---|---|---|
-| `GROQ_API_KEY` | Vercel env (`.env.local` locally) | Server-side only via `/api/groq` |
+| `GEMINI_API_KEY` | Vercel env (`.env.local` locally) | Server-side only via `/api/gemini` |
 | `SUPABASE_SERVICE_KEY` | Vercel env | Server-side only via `/api/mates` |
 | Supabase `anon_key` | `cloud-core.js` (client) | Public by design; RLS is the boundary |
-| Groq fallback key | ~~`app.js`~~ | **Removed from code** — see below |
+| Gemini fallback key | ~~`app.js`~~ | **Removed from code** — see below |
 
-> The client-side Groq fallback key (`window._GROQ_FALLBACK_KEY`) shipped in
+> The client-side Gemini fallback key (`window._GEMINI_FALLBACK_KEY`) shipped in
 > earlier versions and was committed to git history. It has been **removed**
 > from the code; offline/desktop builds now use a per-user key entered in
 > Settings (stored only on that device). Because the old key is visible in
-> repo history, **rotate it in the Groq dashboard** to invalidate the exposed
+> repo history, **rotate it in the Google AI Studio** to invalidate the exposed
 > copy.
 
 ## Serverless endpoints
 
-- `/api/groq` — Groq chat proxy. Guarded by an **origin allowlist**, a
+- `/api/gemini` — Gemini chat proxy. Guarded by an **origin allowlist**, a
   **durable rate limit** (30 req/min/IP + 400 req/day/IP), a **model
   allowlist**, and server-side caps on `max_tokens` (≤ 8192), message count
   (≤ 30), and per-message length (≤ 12k chars). Set `UPSTASH_REDIS_REST_URL`

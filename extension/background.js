@@ -1,4 +1,4 @@
-const STUDYHUB_API = 'https://study-hub-plum-omega.vercel.app/api/groq';
+const STUDYHUB_API = 'https://study-hub-plum-omega.vercel.app/api/gemini';
 
 chrome.action.onClicked.addListener((tab) => {
   chrome.sidePanel.open({ tabId: tab.id });
@@ -28,7 +28,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'groq/compound-mini',
+        model: 'gemini-1.5-flash',
         messages: msg.messages,
         max_tokens: 600,
         temperature: 0.7

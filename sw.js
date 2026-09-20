@@ -38,7 +38,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Never touch API calls or cross-origin requests (CDNs, Supabase, Groq proxy…)
+  // Never touch API calls or cross-origin requests (CDNs, Supabase, Gemini proxy…)
   if (url.origin !== self.location.origin || url.pathname.indexOf('/api/') === 0) return;
 
   // Navigations: network-first, fall back to cached shell for offline use
