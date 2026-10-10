@@ -1,93 +1,36 @@
 {
-  "name": "study-hub",
-  "version": "1.1.9",
-  "description": "Study Hub - Plan smarter. Practice deeper. Improve daily.",
-  "main": "electron-main.js",
+  "name": "study-hub-v2",
+  "version": "1.0.0",
+  "type": "module",
   "scripts": {
-    "start": "electron .",
-    "desktop:dev": "electron .",
-    "desktop:build": "electron-packager . \"Study Hub\" --platform=darwin --arch=universal --icon=assets/icon --overwrite --asar --out=release --app-version=1.0.0",
-    "desktop:build-win": "electron-packager . \"Study Hub\" --platform=win32 --arch=x64 --icon=assets/icon --overwrite --asar --out=release",
-    "desktop:build-linux": "electron-packager . \"Study Hub\" --platform=linux --arch=x64 --overwrite --asar --out=release",
-    "desktop:dmg": "electron-builder --mac dmg",
-    "build:mobile": "mkdir -p www && cp index.html styles.css app.js cloud-core.js mobile.js build.js studymap-data.js subject-labs.js question-bank.js sw.js manifest.webmanifest favicon.svg favicon-dark.svg www/ && cp -r assets www/ && cp -r music www/",
-    "cap:sync": "npm run build:mobile && npx cap sync",
-    "cap:ios": "npm run build:mobile && npx cap sync ios && npx cap open ios",
-    "cap:android": "npm run build:mobile && npx cap sync android && npx cap open android",
-    "test": "node --check app.js && node --check cloud-core.js && node --check electron-main.js && node --check electron-menu.js && node --check electron-window-state.js && node --check electron-updater-core.js && node --check question-bank.js && node scripts/window-state-test.js && node scripts/updater-test.js && node scripts/exam-estimator-test.js && node scripts/question-bank-test.js && node scripts/ai-helpers-test.js",
-    "test:qa": "electron scripts/qa-smoke.js",
-    "cleanup:demo": "node scripts/cleanup-demo-data.js"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "lint": "eslint src --ext ts,tsx",
+    "format": "prettier --write src"
   },
-  "keywords": [
-    "study",
-    "education",
-    "productivity",
-    "ai"
-  ],
-  "author": {
-    "name": "Study Hub",
-    "email": "30dimrekatai@student.aisb.hu"
-  },
-  "license": "ISC",
   "dependencies": {
-    "@capacitor/android": "^8.4.2",
-    "@capacitor/app": "^8.1.1",
-    "@capacitor/cli": "^8.4.2",
-    "@capacitor/core": "^8.4.2",
-    "@capacitor/haptics": "^8.0.2",
-    "@capacitor/ios": "^8.4.2",
-    "@capacitor/local-notifications": "^8.2.1",
-    "@vercel/analytics": "^2.0.1",
-    "body-parser": "^2.3.0"
+    "chart.js": "^4.4.5",
+    "clsx": "^2.1.1",
+    "date-fns": "^3.6.0",
+    "lucide": "^0.447.0",
+    "tailwind-merge": "^2.5.4",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "electron": "^43.2.0",
-    "electron-builder": "^25.1.8",
-    "electron-packager": "^17.1.2"
-  },
-  "build": {
-    "appId": "com.studyhub.desktop",
-    "productName": "Study Hub",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "**/*",
-      "!www",
-      "!ios",
-      "!android",
-      "!src-tauri",
-      "!downloads",
-      "!release",
-      "!.freebuff",
-      "!.vercel",
-      "!.env*",
-      "!node_modules/**/*"
-    ],
-    "mac": {
-      "category": "public.app-category.education",
-      "icon": "assets/icon.png",
-      "target": [
-        "dmg",
-        "zip"
-      ],
-      "minimumSystemVersion": "12.0"
-    },
-    "win": {
-      "target": [
-        "nsis",
-        "zip"
-      ],
-      "icon": "assets/icon.png"
-    },
-    "linux": {
-      "target": [
-        "AppImage",
-        "deb"
-      ],
-      "icon": "assets/icon.png",
-      "category": "Education",
-      "maintainer": "Study Hub <30dimrekatai@student.aisb.hu>"
-    }
+    "@playwright/test": "^1.47.2",
+    "@types/node": "^22.7.5",
+    "@typescript-eslint/eslint-plugin": "^8.7.0",
+    "@typescript-eslint/parser": "^8.7.0",
+    "eslint": "^9.11.1",
+    "eslint-config-prettier": "^9.1.0",
+    "jsdom": "^30.1.2",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.8",
+    "vitest": "^2.1.1"
   }
 }
