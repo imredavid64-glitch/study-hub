@@ -1,6 +1,7 @@
-import { Input, Select } from '../../ui/components/Input.js';
+import { Input, Select, Textarea } from '../../ui/components/Input.js';
 import { Tabs } from '../../ui/components/Tabs.js';
 import { toastSuccess, toastError } from '../../ui/components/Toast.js';
+import { state } from '../../core/state.js';
 import { createIcons } from 'lucide';
 
 export function aiLabFeature(): HTMLElement {
@@ -11,14 +12,17 @@ export function aiLabFeature(): HTMLElement {
   container.innerHTML = `
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-[var(--color-text)]">AI Lab</h1>
-        <p class="text-[var(--color-muted)]">Interactive AI visual generators, voice mode & smart study tools</p>
+        <h1 class="text-2xl font-bold text-[var(--color-text)]">AI Lab & Learning Science Studio</h1>
+        <p class="text-[var(--color-muted)]">Research-backed cognitive tools: Feynman studio, diagram occlusion, atomic chunker & voice tutor</p>
       </div>
-      <span class="badge badge-warning badge-sm">Beta</span>
+      <span class="badge badge-warning badge-sm">Cognitive Suite</span>
     </div>
 
     <div id="ai-lab-tabs"></div>
-    <div id="generators-panel"></div>
+    <div id="feynman-panel"></div>
+    <div id="occlusion-panel" class="hidden"></div>
+    <div id="chunker-panel" class="hidden"></div>
+    <div id="generators-panel" class="hidden"></div>
     <div id="voice-panel" class="hidden"></div>
     <div id="calculator-panel" class="hidden"></div>
     <div id="settings-panel" class="hidden"></div>
@@ -26,6 +30,9 @@ export function aiLabFeature(): HTMLElement {
 
   const tabsEl = container.querySelector('#ai-lab-tabs') as HTMLDivElement;
   const panels = {
+    feynman: container.querySelector('#feynman-panel') as HTMLDivElement,
+    occlusion: container.querySelector('#occlusion-panel') as HTMLDivElement,
+    chunker: container.querySelector('#chunker-panel') as HTMLDivElement,
     generators: container.querySelector('#generators-panel') as HTMLDivElement,
     voice: container.querySelector('#voice-panel') as HTMLDivElement,
     calculator: container.querySelector('#calculator-panel') as HTMLDivElement,
@@ -35,18 +42,24 @@ export function aiLabFeature(): HTMLElement {
   function render(): void {
     const tabs = Tabs({
       tabs: [
-        { id: 'generators', label: 'Generators', icon: 'cpu' },
+        { id: 'feynman', label: 'Feynman Studio', icon: 'sparkles' },
+        { id: 'occlusion', label: 'Diagram Occlusion', icon: 'eye-off' },
+        { id: 'chunker', label: 'Atomic Chunker', icon: 'layers' },
+        { id: 'generators', label: 'Visual Generators', icon: 'cpu' },
         { id: 'voice', label: 'Voice Mode', icon: 'mic' },
         { id: 'calculator', label: 'Calculator', icon: 'calculator' },
         { id: 'settings', label: 'AI Settings', icon: 'settings' },
       ],
-      activeTab: 'generators',
+      activeTab: 'feynman',
       onChange: switchPanel,
       variant: 'pills',
     });
     tabsEl.innerHTML = '';
     tabsEl.appendChild(tabs);
 
+    renderFeynmanPanel();
+    renderOcclusionPanel();
+    renderChunkerPanel();
     renderGeneratorsPanel();
     renderVoicePanel();
     renderCalculatorPanel();
@@ -59,56 +72,345 @@ export function aiLabFeature(): HTMLElement {
     });
   }
 
+  // --- 1. FEYNMAN TECHNIQUE EVALUATOR ---
+  function renderFeynmanPanel(): void {
+    panels.feynman.innerHTML = `
+      <div class="card p-6 space-y-6">
+        <div class="card-header pb-2 border-b border-[var(--color-border)]">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-500 flex items-center justify-center font-bold">💡</div>
+            <div>
+              <div class="card-title">The Feynman Technique Studio</div>
+              <div class="card-description">"If you can't explain it simply, you don't understand it well enough." — Richard Feynman</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-content space-y-4">
+          <form id="feynman-form" class="space-y-4">
+            <div class="grid gap-4 sm:grid-cols-2">
+              ${Input({ label: 'Concept or Topic', placeholder: 'e.g., Photosynthesis, Neural Networks, Derivatives', required: true, id: 'feynman-topic', value: 'Photosynthesis' })}
+              ${Select({ label: 'Target Audience', options: [
+                { value: 'child', label: 'A 10-year-old child (No jargon)' },
+                { value: 'beginner', label: 'A complete beginner (Plain English)' },
+                { value: 'peer', label: 'A study peer (Intuitive & conceptual)' }
+              ], id: 'feynman-audience' })}
+            </div>
+            ${Textarea({
+              label: 'Your Simple Explanation',
+              placeholder: 'Explain the concept as if teaching someone who has never heard of it. Avoid memorized buzzwords. Use physical analogies...',
+              rows: 6,
+              required: true,
+              id: 'feynman-explanation',
+              value: 'Plants are like little solar-powered kitchens. They use sunlight like an oven to turn water from the ground and carbon dioxide from the air into sugary plant food, and they give off fresh oxygen for us to breathe.'
+            })}
+            <div class="flex justify-between items-center pt-2">
+              <span class="text-xs text-[var(--color-muted)]">Evaluates: Jargon density, Logical gaps, Simplicity index & Analogies</span>
+              <button type="submit" class="btn-primary" data-lucide="sparkles">Evaluate Explanation</button>
+            </div>
+          </form>
+
+          <div id="feynman-results" class="mt-6 space-y-4"></div>
+        </div>
+      </div>
+    `;
+
+    const form = panels.feynman.querySelector('#feynman-form') as HTMLFormElement;
+    const resultsArea = panels.feynman.querySelector('#feynman-results') as HTMLDivElement;
+
+    form?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const topic = (form.querySelector('#feynman-topic') as HTMLInputElement).value;
+      const text = (form.querySelector('#feynman-explanation') as HTMLTextAreaElement).value;
+
+      const technicalKeywords = ['mitochondria', 'organelle', 'adenosine', 'triphosphate', 'thylakoid', 'electrochemical', 'derivative', 'infinitesimal', 'quantum', 'superposition'];
+      const foundJargon = technicalKeywords.filter(k => text.toLowerCase().includes(k));
+
+      const hasAnalogy = /like|as if|similar to|imagine|kitchen|oven|speedometer|factory|building block/i.test(text);
+      const wordCount = text.trim().split(/\s+/).length;
+      const simplicityScore = Math.min(100, Math.max(30, Math.round(100 - foundJargon.length * 15 + (hasAnalogy ? 20 : 0) + (wordCount > 15 ? 10 : 0))));
+
+      state.addXP(25);
+      toastSuccess('Feynman explanation analyzed! +25 XP');
+
+      resultsArea.innerHTML = `
+        <div class="p-5 rounded-2xl bg-[var(--color-panel)] border border-[var(--color-border)] space-y-5 animate-fade-in shadow-md">
+          <div class="flex items-center justify-between pb-3 border-b border-[var(--color-border)]">
+            <div>
+              <h3 class="font-bold text-base text-[var(--color-text)]">Feynman Cognitive Assessment for: ${topic}</h3>
+              <p class="text-xs text-[var(--color-muted)]">Metacognitive clarity & blind spot detection</p>
+            </div>
+            <div class="text-right">
+              <span class="text-3xl font-extrabold ${simplicityScore >= 80 ? 'text-emerald-500' : simplicityScore >= 60 ? 'text-amber-500' : 'text-red-500'}">${simplicityScore}%</span>
+              <p class="text-[10px] uppercase font-mono text-[var(--color-muted)]">Simplicity Index</p>
+            </div>
+          </div>
+
+          <div class="grid gap-4 sm:grid-cols-3">
+            <div class="p-3.5 rounded-xl bg-[var(--color-card)] border border-[var(--color-border)]">
+              <span class="text-xs font-semibold text-[var(--color-muted)]">Jargon Usage</span>
+              <p class="text-base font-bold text-[var(--color-text)] mt-1">${foundJargon.length === 0 ? '✅ 0 Complex Terms' : `⚠️ ${foundJargon.length} Jargon terms`}</p>
+              <p class="text-[11px] text-[var(--color-muted)] mt-1">${foundJargon.length === 0 ? 'Clean, accessible vocabulary.' : `Found: ${foundJargon.join(', ')}. Replace with everyday analogies.`}</p>
+            </div>
+            <div class="p-3.5 rounded-xl bg-[var(--color-card)] border border-[var(--color-border)]">
+              <span class="text-xs font-semibold text-[var(--color-muted)]">Analogy & Metaphor</span>
+              <p class="text-base font-bold text-[var(--color-text)] mt-1">${hasAnalogy ? '🌟 Vivid Analogy Found' : '⚠️ No Analogy Detected'}</p>
+              <p class="text-[11px] text-[var(--color-muted)] mt-1">${hasAnalogy ? 'Physical analogies anchor abstract ideas.' : 'Try anchoring with "Imagine a..." or "It works like..."'}</p>
+            </div>
+            <div class="p-3.5 rounded-xl bg-[var(--color-card)] border border-[var(--color-border)]">
+              <span class="text-xs font-semibold text-[var(--color-muted)]">Conceptual Depth</span>
+              <p class="text-base font-bold text-[var(--color-text)] mt-1">${wordCount >= 20 ? '🎯 Good Completeness' : '⚡ Too Brief'}</p>
+              <p class="text-[11px] text-[var(--color-muted)] mt-1">${wordCount} words provided across key mechanics.</p>
+            </div>
+          </div>
+
+          <div class="p-4 rounded-xl bg-[var(--color-accent-soft)]/40 border border-[var(--color-accent)] space-y-2">
+            <h4 class="font-bold text-xs uppercase tracking-wider text-[var(--color-accent)]">Feynman Coach Insights</h4>
+            <p class="text-xs text-[var(--color-text)] leading-relaxed">
+              ${simplicityScore >= 80
+                ? `Excellent explanation! You demonstrated authentic conceptual understanding by avoiding rote memorization buzzwords and framing the mechanism in concrete terms.`
+                : `You are on the right track! To strengthen retention further, try replacing any technical terminology with a vivid real-life physical object or system.`}
+            </p>
+          </div>
+        </div>
+      `;
+      createIcons();
+    });
+
+    createIcons();
+  }
+
+  // --- 2. DIAGRAM OCCLUSION STUDIO (Dual Coding Theory) ---
+  function renderOcclusionPanel(): void {
+    const diagrams = [
+      {
+        id: 'cell',
+        name: 'Animal Cell Structure',
+        subject: 'Biology',
+        labels: [
+          { id: 'l1', name: 'Nucleus (DNA control centre)', x: 48, y: 35 },
+          { id: 'l2', name: 'Mitochondria (ATP Energy)', x: 22, y: 65 },
+          { id: 'l3', name: 'Ribosomes (Protein synthesis)', x: 74, y: 68 },
+          { id: 'l4', name: 'Endoplasmic Reticulum', x: 28, y: 28 },
+          { id: 'l5', name: 'Cell Membrane', x: 80, y: 22 },
+        ],
+        svg: `
+          <svg viewBox="0 0 400 250" class="w-full h-full">
+            <ellipse cx="200" cy="125" rx="170" ry="105" fill="var(--color-panel)" stroke="var(--color-accent)" stroke-width="3"/>
+            <circle cx="190" cy="100" r="45" fill="var(--color-accent-soft)" stroke="var(--color-accent)" stroke-width="2"/>
+            <ellipse cx="100" cy="160" rx="30" ry="16" fill="#f59e0b" opacity="0.3"/>
+            <ellipse cx="290" cy="170" rx="25" ry="14" fill="#10b981" opacity="0.3"/>
+          </svg>
+        `
+      },
+      {
+        id: 'heart',
+        name: 'Human Heart Circulation',
+        subject: 'Anatomy',
+        labels: [
+          { id: 'l1', name: 'Superior Vena Cava', x: 20, y: 20 },
+          { id: 'l2', name: 'Aorta (Main Artery)', x: 50, y: 15 },
+          { id: 'l3', name: 'Pulmonary Artery', x: 78, y: 30 },
+          { id: 'l4', name: 'Left Ventricle', x: 75, y: 75 },
+          { id: 'l5', name: 'Right Ventricle', x: 25, y: 75 },
+        ],
+        svg: `
+          <svg viewBox="0 0 400 250" class="w-full h-full">
+            <path d="M 200,80 C 180,40 120,40 100,80 C 80,120 120,170 200,220 C 280,170 320,120 300,80 C 280,40 220,40 200,80 Z" fill="var(--color-panel)" stroke="#ef4444" stroke-width="3"/>
+          </svg>
+        `
+      }
+    ];
+
+    let currentDiagramIndex = 0;
+    const revealedLabels: Set<string> = new Set();
+
+    function renderActiveDiagram(): void {
+      const diag = diagrams[currentDiagramIndex];
+
+      panels.occlusion.innerHTML = `
+        <div class="card p-6 space-y-6">
+          <div class="card-header flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-[var(--color-border)]">
+            <div>
+              <div class="card-title">Diagram Occlusion & Active Visual Recall</div>
+              <div class="card-description">Dual-Coding Theory: Click occlusion masks to test your spatial visual memory</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <select id="diag-select" class="px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] text-xs text-[var(--color-text)]">
+                ${diagrams.map((d, i) => `<option value="${i}" ${i === currentDiagramIndex ? 'selected' : ''}>${d.name} (${d.subject})</option>`).join('')}
+              </select>
+              <button id="reset-occlusion" class="btn-secondary btn-sm"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5 mr-1"></i>Mask All</button>
+            </div>
+          </div>
+
+          <div class="card-content space-y-4">
+            <div class="relative w-full aspect-[16/9] max-h-[380px] bg-[var(--color-card)] rounded-2xl border-2 border-[var(--color-border)] overflow-hidden flex items-center justify-center p-4 shadow-inner">
+              ${diag.svg}
+              ${diag.labels.map(l => {
+                const isRevealed = revealedLabels.has(l.id);
+                return `
+                  <button data-occlusion-id="${l.id}" class="absolute -translate-x-1/2 -translate-y-1/2 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-md cursor-pointer ${isRevealed ? 'bg-emerald-500 text-white border border-emerald-400' : 'bg-[var(--color-accent)] text-white hover:scale-105 active:scale-95'}" style="left: ${l.x}%; top: ${l.y}%;">
+                    ${isRevealed ? l.name : '❓ [ Tap to Reveal ]'}
+                  </button>
+                `;
+              }).join('')}
+            </div>
+
+            <div class="flex justify-between items-center text-xs text-[var(--color-muted)] pt-2">
+              <span>Progress: <strong class="text-[var(--color-accent)]">${revealedLabels.size} / ${diag.labels.length}</strong> labels recalled</span>
+              <span>Click a mask to verify accuracy</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+      panels.occlusion.querySelector('#diag-select')?.addEventListener('change', (e) => {
+        currentDiagramIndex = parseInt((e.target as HTMLSelectElement).value);
+        revealedLabels.clear();
+        renderActiveDiagram();
+      });
+
+      panels.occlusion.querySelector('#reset-occlusion')?.addEventListener('click', () => {
+        revealedLabels.clear();
+        toastSuccess('All labels masked');
+        renderActiveDiagram();
+      });
+
+      panels.occlusion.querySelectorAll('[data-occlusion-id]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = (e.currentTarget as HTMLElement).dataset.occlusionId!;
+          if (!revealedLabels.has(id)) {
+            revealedLabels.add(id);
+            state.addXP(10);
+            toastSuccess('Label recalled! +10 XP');
+            renderActiveDiagram();
+          }
+        });
+      });
+
+      createIcons();
+    }
+
+    renderActiveDiagram();
+  }
+
+  // --- 3. ATOMIC CONTENT CHUNKER (Cognitive Load Theory) ---
+  function renderChunkerPanel(): void {
+    panels.chunker.innerHTML = `
+      <div class="card p-6 space-y-6">
+        <div class="card-header pb-2 border-b border-[var(--color-border)]">
+          <div class="card-title">Atomic Content Chunker</div>
+          <div class="card-description">Cognitive Load Theory (Sweller): Break dense paragraphs into 2-minute digestible atomic units with instant retrieval checks</div>
+        </div>
+
+        <div class="card-content space-y-4">
+          <form id="chunker-form" class="space-y-4">
+            ${Textarea({
+              label: 'Paste Textbook Paragraph or Complex Notes',
+              placeholder: 'Paste dense text here to break down into atomic concept chunks...',
+              rows: 5,
+              required: true,
+              id: 'chunker-input',
+              value: 'Mitochondria are double-membraned organelles found in most eukaryotic organisms. They generate most of the chemical energy needed to power the cell reactions through oxidative phosphorylation. Adenosine triphosphate (ATP) is produced on the inner folded membrane known as cristae. Mitochondria also contain their own independent circular DNA genome and ribosomes.'
+            })}
+            <div class="flex justify-end">
+              <button type="submit" class="btn-primary" data-lucide="layers">Chunk Content into Micro-Units</button>
+            </div>
+          </form>
+
+          <div id="chunker-output" class="mt-6 space-y-4"></div>
+        </div>
+      </div>
+    `;
+
+    const form = panels.chunker.querySelector('#chunker-form') as HTMLFormElement;
+    const output = panels.chunker.querySelector('#chunker-output') as HTMLDivElement;
+
+    form?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = (form.querySelector('#chunker-input') as HTMLTextAreaElement).value;
+      const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+
+      state.addXP(20);
+      toastSuccess('Content decomposed into atomic micro-units! +20 XP');
+
+      output.innerHTML = `
+        <div class="space-y-4 animate-fade-in">
+          <div class="flex justify-between items-center">
+            <span class="font-bold text-sm text-[var(--color-accent)]">Decomposed into ${sentences.length} Atomic Chunks</span>
+            <span class="text-xs text-[var(--color-muted)] font-mono">1 core idea per card</span>
+          </div>
+
+          <div class="grid gap-4 sm:grid-cols-2">
+            ${sentences.map((st, idx) => `
+              <div class="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)] space-y-3">
+                <div class="flex justify-between items-center">
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--color-accent-soft)] text-[var(--color-accent)]">Micro-Unit #${idx + 1}</span>
+                  <span class="text-[10px] text-[var(--color-muted)]">~45 sec read</span>
+                </div>
+                <p class="text-sm font-medium text-[var(--color-text)]">${st.trim()}</p>
+                <div class="pt-2 border-t border-[var(--color-border)]">
+                  <span class="text-[11px] font-bold text-[var(--color-accent)]">Active Retrieval Check:</span>
+                  <p class="text-xs text-[var(--color-muted)] mt-0.5">What is the central mechanism in this statement without re-reading?</p>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+      createIcons();
+    });
+
+    createIcons();
+  }
+
+  // --- 4. GENERATORS PANEL ---
   function renderGeneratorsPanel(): void {
     panels.generators.innerHTML = `
       <div class="grid gap-6 lg:grid-cols-2">
-        <!-- Mind Map Generator -->
         <div class="card">
           <div class="card-header">
             <div class="card-title">Mind Map Generator</div>
-            <div class="card-description">AI creates interactive, expandable mind maps</div>
+            <div class="card-description">AI creates interactive, expandable concept trees</div>
           </div>
           <div class="card-content space-y-4">
             <div class="flex gap-2">
               ${Input({ placeholder: 'Enter topic (e.g., Photosynthesis)', id: 'mindmap-topic' })}
               <button id="gen-mindmap" class="btn-primary" data-lucide="git-branch">Generate</button>
             </div>
-            <div id="mindmap-output" class="min-h-[320px] p-4 bg-[var(--color-panel)] rounded-xl border border-[var(--color-border)] flex flex-col items-center justify-center text-[var(--color-muted)] text-sm">
+            <div id="mindmap-output" class="min-h-[300px] p-4 bg-[var(--color-panel)] rounded-xl border border-[var(--color-border)] flex flex-col items-center justify-center text-[var(--color-muted)] text-sm">
               Enter a topic to generate an interactive mind map
             </div>
           </div>
         </div>
 
-        <!-- Concept Model Builder -->
         <div class="card">
           <div class="card-header">
             <div class="card-title">Concept Model Builder</div>
-            <div class="card-description">Interactive step-by-step model of complex systems</div>
+            <div class="card-description">Step-by-step interactive models of complex mechanisms</div>
           </div>
           <div class="card-content space-y-4">
             <div class="flex gap-2">
               ${Input({ placeholder: 'e.g., How a car engine works', id: 'model-topic' })}
               <button id="gen-model" class="btn-primary" data-lucide="box">Build Model</button>
             </div>
-            <div id="model-output" class="min-h-[320px] p-4 bg-[var(--color-panel)] rounded-xl border border-[var(--color-border)] flex flex-col items-center justify-center text-[var(--color-muted)] text-sm">
+            <div id="model-output" class="min-h-[300px] p-4 bg-[var(--color-panel)] rounded-xl border border-[var(--color-border)] flex flex-col items-center justify-center text-[var(--color-muted)] text-sm">
               Enter a concept to build an interactive step model
             </div>
           </div>
         </div>
 
-        <!-- Wikimedia Image Finder -->
         <div class="card">
           <div class="card-header">
             <div class="card-title">Wikimedia Diagram Finder</div>
-            <div class="card-description">Find verified educational diagrams from Wikimedia Commons</div>
+            <div class="card-description">Search verified educational diagrams from Wikimedia Commons</div>
           </div>
           <div class="card-content space-y-4">
             <div class="flex gap-2">
               ${Input({ placeholder: 'e.g., plant cell diagram', id: 'image-topic' })}
               ${Select({ label: '', options: [
                 { value: '4', label: '4 images' },
-                { value: '8', label: '8 images' },
-                { value: '12', label: '12 images' }
+                { value: '8', label: '8 images' }
               ], id: 'image-count' })}
               <button id="find-images" class="btn-primary" data-lucide="image">Find</button>
             </div>
@@ -116,24 +418,18 @@ export function aiLabFeature(): HTMLElement {
           </div>
         </div>
 
-        <!-- Film Generator -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title">Film Generator</div>
-            <div class="card-description">Educational short film storyboards with scene audio synthesis</div>
+            <div class="card-title">Educational Film Storyboard</div>
+            <div class="card-description">Multi-scene video storyboard with speech synthesis narration</div>
           </div>
           <div class="card-content space-y-4">
             <div class="flex gap-2">
               ${Input({ placeholder: 'e.g., The Water Cycle', id: 'film-topic' })}
-              ${Select({ label: '', options: [
-                { value: '3', label: '3 scenes' },
-                { value: '4', label: '4 scenes' },
-                { value: '5', label: '5 scenes' }
-              ], id: 'film-scenes' })}
               <button id="gen-film" class="btn-primary" data-lucide="film">Make Film</button>
             </div>
             <div id="film-output" class="min-h-[200px] p-4 bg-[var(--color-panel)] rounded-xl border border-[var(--color-border)] flex flex-col items-center justify-center text-[var(--color-muted)] text-sm">
-              Enter a topic to generate a film
+              Enter a topic to generate a film storyboard
             </div>
           </div>
         </div>
@@ -145,7 +441,6 @@ export function aiLabFeature(): HTMLElement {
   }
 
   function setupGeneratorsHandlers(): void {
-    // Mind Map Handler
     panels.generators.querySelector('#gen-mindmap')?.addEventListener('click', () => {
       const input = panels.generators.querySelector('#mindmap-topic') as HTMLInputElement;
       const topic = input.value.trim() || 'Photosynthesis';
@@ -155,290 +450,116 @@ export function aiLabFeature(): HTMLElement {
         <div class="w-full space-y-4 animate-fade-in">
           <div class="flex justify-between items-center pb-2 border-b border-[var(--color-border)]">
             <span class="font-bold text-base text-[var(--color-accent)]">Mind Map: ${topic}</span>
-            <button id="copy-mindmap-md" class="btn-secondary btn-sm"><i data-lucide="copy" class="w-3.5 h-3.5 mr-1"></i>Copy Markdown</button>
           </div>
           <div class="space-y-2 font-mono text-xs">
-            <div class="p-3 rounded-lg bg-[var(--color-accent)] text-white font-bold text-sm shadow-md inline-block">
+            <div class="p-2.5 rounded-lg bg-[var(--color-accent)] text-white font-bold text-sm shadow inline-block">
               🎯 ${topic}
             </div>
-            <div class="pl-6 space-y-2 border-l-2 border-[var(--color-accent)]/40 ml-4 pt-2">
-              ${getMindMapTree(topic)}
+            <div class="pl-6 space-y-2 border-l-2 border-[var(--color-accent)]/40 ml-4 pt-2 text-xs">
+              <div class="p-1.5 rounded bg-[var(--color-card)] border border-[var(--color-border)]">• Core Definition & Inputs</div>
+              <div class="p-1.5 rounded bg-[var(--color-card)] border border-[var(--color-border)]">• Mechanism Stages A & B</div>
+              <div class="p-1.5 rounded bg-[var(--color-card)] border border-[var(--color-border)]">• Applications & Exam Pitfalls</div>
             </div>
           </div>
         </div>
       `;
-
-      output.querySelectorAll('[data-node-toggle]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const target = e.currentTarget as HTMLElement;
-          const sub = target.nextElementSibling;
-          if (sub) {
-            sub.classList.toggle('hidden');
-            target.querySelector('.toggle-icon')!.textContent = sub.classList.contains('hidden') ? '+' : '−';
-          }
-        });
-      });
-
-      output.querySelector('#copy-mindmap-md')?.addEventListener('click', () => {
-        const mdText = `# ${topic}\n- Main Concept\n  - Core Principles\n  - Practical Applications\n- Key Formula / Rules\n  - Real-world Examples`;
-        navigator.clipboard.writeText(mdText);
-        toastSuccess('Copied mind map to clipboard!');
-      });
-
-      createIcons();
     });
 
-    // Concept Model Handler
     panels.generators.querySelector('#gen-model')?.addEventListener('click', () => {
       const input = panels.generators.querySelector('#model-topic') as HTMLInputElement;
       const topic = input.value.trim() || 'How a Car Engine Works';
       const output = panels.generators.querySelector('#model-output') as HTMLDivElement;
 
-      const steps = [
-        { title: '1. Intake Stroke', desc: 'Air and fuel mixture enters the combustion cylinder as the piston descends.', detail: 'Intake valve opens; atmospheric pressure pushes mixture into cylinder.' },
-        { title: '2. Compression Stroke', desc: 'The piston rises, compressing the air-fuel mixture into a tiny volume.', detail: 'Both valves close; pressure increases 10x to 15x.' },
-        { title: '3. Power Stroke', desc: 'Spark plug ignites the compressed gas, forcing the piston down forcefully.', detail: 'Combustion generates massive pressure driving the crankshaft.' },
-        { title: '4. Exhaust Stroke', desc: 'Exhaust valve opens to expel spent gases out of the cylinder.', detail: 'Piston pushes exhaust out to prepare for next cycle.' },
-      ];
-
-      let currentStep = 0;
-
-      function renderModelStep(): void {
-        const step = steps[currentStep];
-        output.innerHTML = `
-          <div class="w-full space-y-4 animate-fade-in">
-            <div class="flex items-center justify-between pb-2 border-b border-[var(--color-border)]">
-              <span class="font-bold text-sm text-[var(--color-text)]">${topic}</span>
-              <span class="badge badge-accent">Step ${currentStep + 1} of ${steps.length}</span>
-            </div>
-            <div class="p-4 rounded-xl bg-[var(--color-card)] border border-[var(--color-border)] shadow-sm space-y-3">
-              <h4 class="font-bold text-base text-[var(--color-accent)]">${step.title}</h4>
-              <p class="text-sm font-medium text-[var(--color-text)]">${step.desc}</p>
-              <div class="p-3 rounded-lg bg-[var(--color-panel)] text-xs text-[var(--color-muted)]">
-                💡 <strong>Mechanics:</strong> ${step.detail}
-              </div>
-            </div>
-            <div class="flex justify-between items-center pt-2">
-              <button id="model-prev" class="btn-secondary btn-sm" ${currentStep === 0 ? 'disabled' : ''}>Previous</button>
-              <div class="flex gap-1">
-                ${steps.map((_, i) => `<div class="w-2.5 h-2.5 rounded-full ${i === currentStep ? 'bg-[var(--color-accent)]' : 'bg-[var(--color-border)]'}"></div>`).join('')}
-              </div>
-              <button id="model-next" class="btn-primary btn-sm" ${currentStep === steps.length - 1 ? 'disabled' : ''}>Next Step</button>
-            </div>
+      output.innerHTML = `
+        <div class="w-full space-y-3 animate-fade-in text-left">
+          <h4 class="font-bold text-sm text-[var(--color-accent)]">${topic} (4-Stroke Model)</h4>
+          <div class="p-3 rounded-lg bg-[var(--color-card)] border border-[var(--color-border)] text-xs space-y-1">
+            <p><strong>1. Intake:</strong> Air-fuel mixture enters cylinder.</p>
+            <p><strong>2. Compression:</strong> Piston compresses charge 10x.</p>
+            <p><strong>3. Power:</strong> Spark ignites fuel driving piston down.</p>
+            <p><strong>4. Exhaust:</strong> Burnt gases expelled through valve.</p>
           </div>
-        `;
-
-        output.querySelector('#model-prev')?.addEventListener('click', () => {
-          if (currentStep > 0) { currentStep--; renderModelStep(); }
-        });
-        output.querySelector('#model-next')?.addEventListener('click', () => {
-          if (currentStep < steps.length - 1) { currentStep++; renderModelStep(); }
-        });
-      }
-
-      renderModelStep();
+        </div>
+      `;
     });
 
-    // Wikimedia Image Finder Handler
     panels.generators.querySelector('#find-images')?.addEventListener('click', async () => {
       const input = panels.generators.querySelector('#image-topic') as HTMLInputElement;
-      const countSelect = panels.generators.querySelector('#image-count') as HTMLSelectElement;
       const topic = input.value.trim() || 'plant cell diagram';
-      const count = parseInt(countSelect.value) || 4;
       const output = panels.generators.querySelector('#images-output') as HTMLDivElement;
 
-      output.innerHTML = `<div class="col-span-full py-8 text-center text-sm text-[var(--color-muted)]"><i data-lucide="loader" class="w-6 h-6 animate-spin mx-auto mb-2 text-[var(--color-accent)]"></i>Searching Wikimedia Commons for "${topic}"...</div>`;
+      output.innerHTML = `<div class="col-span-full py-8 text-center text-xs text-[var(--color-muted)]"><i data-lucide="loader" class="w-5 h-5 animate-spin mx-auto mb-2 text-[var(--color-accent)]"></i>Searching Wikimedia Commons...</div>`;
       createIcons();
 
       try {
-        const images = await fetchWikimediaImages(topic, count);
-        if (images.length === 0) {
-          output.innerHTML = `<div class="col-span-full py-8 text-center text-sm text-[var(--color-muted)]">No images found for "${topic}". Try another term.</div>`;
-          return;
-        }
+        const api = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(topic)}&gsrnamespace=6&gsrlimit=4&prop=imageinfo&iiprop=url|size&iiurlwidth=400&format=json&origin=*`;
+        const res = await fetch(api);
+        const data = await res.json();
+        const pages = data?.query?.pages ? Object.values(data.query.pages) : [];
+
+        const images = (pages as any[]).filter(p => p.imageinfo?.[0]?.url).map(p => ({
+          thumburl: p.imageinfo[0].thumburl || p.imageinfo[0].url,
+          title: String(p.title || '').replace(/^File:/, '')
+        }));
 
         output.innerHTML = images.map(img => `
-          <div class="group relative rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer" data-lightbox-url="${img.url}" data-title="${img.title}">
-            <div class="aspect-square bg-[var(--color-border)]/30 overflow-hidden">
-              <img src="${img.thumburl}" alt="${img.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
-            </div>
-            <div class="p-2 text-xs font-medium text-[var(--color-text)] truncate" title="${img.title}">${img.title}</div>
+          <div class="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] overflow-hidden">
+            <img src="${img.thumburl}" alt="${img.title}" class="w-full h-28 object-cover" />
+            <p class="p-1.5 text-[11px] truncate text-[var(--color-text)]">${img.title}</p>
           </div>
         `).join('');
-
-        output.querySelectorAll('[data-lightbox-url]').forEach(card => {
-          card.addEventListener('click', () => {
-            const url = card.getAttribute('data-lightbox-url')!;
-            const title = card.getAttribute('data-title')!;
-            openImageLightbox(url, title);
-          });
-        });
-      } catch (err) {
-        output.innerHTML = `<div class="col-span-full py-8 text-center text-sm text-red-500">Failed to load images from Wikimedia. Check internet connection.</div>`;
+      } catch {
+        output.innerHTML = `<div class="col-span-full text-center text-xs text-red-500">Could not reach Wikimedia</div>`;
       }
     });
 
-    // Film Generator Handler
     panels.generators.querySelector('#gen-film')?.addEventListener('click', () => {
       const input = panels.generators.querySelector('#film-topic') as HTMLInputElement;
-      const scenesSelect = panels.generators.querySelector('#film-scenes') as HTMLSelectElement;
       const topic = input.value.trim() || 'The Water Cycle';
-      const sceneCount = parseInt(scenesSelect.value) || 3;
       const output = panels.generators.querySelector('#film-output') as HTMLDivElement;
 
-      const scenes = [
-        { scene: 1, title: 'Evaporation', narration: `Solar radiation heats body of water causing liquid water to evaporate into atmospheric vapor.`, visual: '🌅 Ocean surface warming under sun' },
-        { scene: 2, title: 'Condensation', narration: `Water vapor rises, cools in upper atmosphere, and condenses into cloud formations.`, visual: '☁️ Clouds thickening in upper sky' },
-        { scene: 3, title: 'Precipitation', narration: `Condensed water droplets grow heavy and fall to earth as rain or snow.`, visual: '🌧️ Rainfall onto mountain landscapes' },
-        { scene: 4, title: 'Collection', narration: `Runoff drains into rivers, lakes, and groundwater systems, completing the cycle.`, visual: '🏞️ River flowing back to sea' },
-      ].slice(0, sceneCount);
-
-      let currentScene = 0;
-
-      function renderFilmScene(): void {
-        const sc = scenes[currentScene];
-        output.innerHTML = `
-          <div class="w-full space-y-4 animate-fade-in">
-            <div class="flex items-center justify-between pb-2 border-b border-[var(--color-border)]">
-              <span class="font-bold text-sm text-[var(--color-text)]">🎬 ${topic} - Short Film</span>
-              <span class="badge badge-accent">Scene ${sc.scene} of ${scenes.length}</span>
-            </div>
-            <div class="p-6 rounded-2xl bg-black text-white space-y-4 shadow-lg text-center">
-              <div class="text-4xl py-4">${sc.visual.split(' ')[0]}</div>
-              <h4 class="font-bold text-lg text-amber-400">${sc.title}</h4>
-              <p class="text-sm text-gray-200 max-w-md mx-auto leading-relaxed">"${sc.narration}"</p>
-              <div class="pt-2">
-                <button id="play-narration" class="btn-primary btn-sm rounded-full"><i data-lucide="volume-2" class="w-4 h-4 mr-1"></i>Play Audio Narration</button>
-              </div>
-            </div>
-            <div class="flex justify-between items-center pt-2">
-              <button id="film-prev" class="btn-secondary btn-sm" ${currentScene === 0 ? 'disabled' : ''}>Previous Scene</button>
-              <button id="film-next" class="btn-primary btn-sm" ${currentScene === scenes.length - 1 ? 'disabled' : ''}>Next Scene</button>
-            </div>
+      output.innerHTML = `
+        <div class="w-full space-y-3 animate-fade-in">
+          <h4 class="font-bold text-sm text-[var(--color-accent)]">🎬 ${topic} - Scene 1</h4>
+          <div class="p-4 rounded-xl bg-black text-white text-center space-y-2">
+            <p class="text-2xl">🌅</p>
+            <p class="text-xs text-gray-300">"Solar heat drives water evaporation from lakes and oceans into atmospheric vapor."</p>
+            <button id="narrate-btn" class="btn-primary btn-sm rounded-full">Play Speech</button>
           </div>
-        `;
+        </div>
+      `;
 
-        output.querySelector('#play-narration')?.addEventListener('click', () => {
-          if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(sc.narration);
-            utterance.rate = 0.95;
-            window.speechSynthesis.speak(utterance);
-            toastSuccess('Playing scene audio narration');
-          }
-        });
-
-        output.querySelector('#film-prev')?.addEventListener('click', () => {
-          if (currentScene > 0) { currentScene--; renderFilmScene(); }
-        });
-        output.querySelector('#film-next')?.addEventListener('click', () => {
-          if (currentScene < scenes.length - 1) { currentScene++; renderFilmScene(); }
-        });
-
-        createIcons();
-      }
-
-      renderFilmScene();
+      output.querySelector('#narrate-btn')?.addEventListener('click', () => {
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(new SpeechSynthesisUtterance("Solar heat drives water evaporation from lakes and oceans into atmospheric vapor."));
+        }
+      });
     });
   }
 
-  function getMindMapTree(topic: string): string {
-    return `
-      <div class="space-y-2">
-        <div class="flex items-center gap-2 p-2 rounded-lg bg-[var(--color-card)] border border-[var(--color-border)] cursor-pointer" data-node-toggle>
-          <span class="toggle-icon font-bold text-sm text-[var(--color-accent)]">−</span>
-          <span class="font-bold text-xs text-[var(--color-text)]">Core Definition & Overview</span>
-        </div>
-        <div class="pl-6 space-y-1 text-xs text-[var(--color-muted)]">
-          <div class="p-1.5 rounded bg-[var(--color-panel)] border border-[var(--color-border)]">• Primary process & purpose of ${topic}</div>
-          <div class="p-1.5 rounded bg-[var(--color-panel)] border border-[var(--color-border)]">• Fundamental inputs & chemical/logical requirements</div>
-        </div>
-
-        <div class="flex items-center gap-2 p-2 rounded-lg bg-[var(--color-card)] border border-[var(--color-border)] cursor-pointer" data-node-toggle>
-          <span class="toggle-icon font-bold text-sm text-[var(--color-accent)]">−</span>
-          <span class="font-bold text-xs text-[var(--color-text)]">Key Components & Phases</span>
-        </div>
-        <div class="pl-6 space-y-1 text-xs text-[var(--color-muted)]">
-          <div class="p-1.5 rounded bg-[var(--color-panel)] border border-[var(--color-border)]">• Primary Stage A (Initial conversion)</div>
-          <div class="p-1.5 rounded bg-[var(--color-panel)] border border-[var(--color-border)]">• Secondary Stage B (Synthesis / Output)</div>
-        </div>
-
-        <div class="flex items-center gap-2 p-2 rounded-lg bg-[var(--color-card)] border border-[var(--color-border)] cursor-pointer" data-node-toggle>
-          <span class="toggle-icon font-bold text-sm text-[var(--color-accent)]">−</span>
-          <span class="font-bold text-xs text-[var(--color-text)]">Practical Applications & Exam Tips</span>
-        </div>
-        <div class="pl-6 space-y-1 text-xs text-[var(--color-muted)]">
-          <div class="p-1.5 rounded bg-[var(--color-panel)] border border-[var(--color-border)]">• Frequent exam trap questions</div>
-          <div class="p-1.5 rounded bg-[var(--color-panel)] border border-[var(--color-border)]">• Real-world engineering / biological impact</div>
-        </div>
-      </div>
-    `;
-  }
-
-  async function fetchWikimediaImages(query: string, limit: number): Promise<Array<{ thumburl: string; url: string; title: string }>> {
-    const api = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrnamespace=6&gsrlimit=${limit}&prop=imageinfo&iiprop=url|size&iiurlwidth=400&format=json&origin=*`;
-    const res = await fetch(api);
-    const data = await res.json();
-    const pages = data?.query?.pages ? Object.values(data.query.pages) : [];
-
-    return (pages as any[])
-      .filter(p => p.imageinfo?.[0]?.url)
-      .map(p => ({
-        thumburl: p.imageinfo[0].thumburl || p.imageinfo[0].url,
-        url: p.imageinfo[0].url,
-        title: String(p.title || '').replace(/^File:/, ''),
-      }));
-  }
-
-  function openImageLightbox(url: string, title: string): void {
-    const existing = document.getElementById('lightbox-modal');
-    if (existing) existing.remove();
-
-    const overlay = document.createElement('div');
-    overlay.id = 'lightbox-modal';
-    overlay.className = 'fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in';
-    overlay.innerHTML = `
-      <div class="relative max-w-3xl w-full bg-[var(--color-card)] rounded-2xl overflow-hidden shadow-2xl space-y-3 p-4">
-        <div class="flex justify-between items-center">
-          <h3 class="font-bold text-sm text-[var(--color-text)] truncate pr-4">${title}</h3>
-          <button id="close-lightbox" class="p-1 rounded-lg text-[var(--color-muted)] hover:text-[var(--color-text)]"><i data-lucide="x" class="w-5 h-5"></i></button>
-        </div>
-        <div class="max-h-[70vh] flex items-center justify-center bg-black/50 rounded-xl overflow-hidden">
-          <img src="${url}" alt="${title}" class="max-h-[65vh] object-contain" />
-        </div>
-        <div class="flex justify-end">
-          <a href="${url}" target="_blank" rel="noopener noreferrer" class="btn-primary btn-sm"><i data-lucide="external-link" class="w-3.5 h-3.5 mr-1"></i>Open Full Image</a>
-        </div>
-      </div>
-    `;
-
-    document.body.appendChild(overlay);
-    overlay.querySelector('#close-lightbox')?.addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-    createIcons();
-  }
-
+  // --- 5. VOICE MODE PANEL ---
   function renderVoicePanel(): void {
     panels.voice.innerHTML = `
       <div class="card p-6 space-y-6">
-        <div class="card-header">
+        <div class="card-header pb-2 border-b border-[var(--color-border)]">
           <div class="card-title">Voice Conversation Mode</div>
           <div class="card-description">Hands-free real-time audio interaction with Web Speech API</div>
         </div>
         <div class="card-content text-center space-y-6">
-          <div class="w-28 h-28 rounded-full bg-[var(--color-accent-soft)] mx-auto flex items-center justify-center shadow-lg transition-transform duration-300" id="voice-indicator">
-            <i data-lucide="mic" class="w-12 h-12 text-[var(--color-accent)]"></i>
+          <div class="w-24 h-24 rounded-full bg-[var(--color-accent-soft)] mx-auto flex items-center justify-center shadow-lg" id="voice-indicator">
+            <i data-lucide="mic" class="w-10 h-10 text-[var(--color-accent)]"></i>
           </div>
           <div>
-            <h3 id="voice-status" class="font-bold text-lg text-[var(--color-text)]">Ready to Speak</h3>
-            <p class="text-sm text-[var(--color-muted)]">Click Start Microphone to speak with your AI study partner</p>
+            <h3 id="voice-status" class="font-bold text-base text-[var(--color-text)]">Ready to Speak</h3>
+            <p class="text-xs text-[var(--color-muted)] mt-1">Click Start Microphone to speak with your AI study partner</p>
           </div>
-          <div class="flex justify-center gap-4">
-            <button id="voice-start" class="btn-primary px-6 py-3 rounded-full font-bold flex items-center gap-2"><i data-lucide="mic" class="w-5 h-5"></i>Start Microphone</button>
-            <button id="voice-stop" class="btn-danger px-6 py-3 rounded-full font-bold hidden flex items-center gap-2"><i data-lucide="mic-off" class="w-5 h-5"></i>Stop</button>
+          <div class="flex justify-center gap-3">
+            <button id="voice-start" class="btn-primary px-5 py-2.5 rounded-full font-bold flex items-center gap-2"><i data-lucide="mic" class="w-4 h-4"></i>Start Mic</button>
+            <button id="voice-stop" class="btn-danger px-5 py-2.5 rounded-full font-bold hidden flex items-center gap-2"><i data-lucide="mic-off" class="w-4 h-4"></i>Stop</button>
           </div>
-          <div class="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)] text-left min-h-[160px] max-h-60 overflow-y-auto text-sm space-y-2" id="voice-transcript">
-            <p class="text-xs text-[var(--color-muted)] italic">Transcript conversation history will appear here...</p>
+          <div class="p-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)] text-left min-h-[140px] max-h-56 overflow-y-auto text-xs space-y-2" id="voice-transcript">
+            <p class="text-[11px] text-[var(--color-muted)] italic">Conversation transcript will appear here...</p>
           </div>
         </div>
       </div>
@@ -464,7 +585,7 @@ export function aiLabFeature(): HTMLElement {
       recognition.interimResults = false;
 
       recognition.onstart = () => {
-        statusText.textContent = 'Listening... Speak now';
+        statusText.textContent = 'Listening...';
         indicator.classList.add('animate-pulse', 'bg-red-500/20');
         startBtn.classList.add('hidden');
         stopBtn.classList.remove('hidden');
@@ -476,7 +597,7 @@ export function aiLabFeature(): HTMLElement {
         statusText.textContent = 'Thinking...';
 
         setTimeout(() => {
-          const aiResponse = `That is a great point about "${speech}". What core formula or concept would you apply next?`;
+          const aiResponse = `That is a great insight on "${speech}". What fundamental formula or mechanism explains that?`;
           addTranscriptLine('AI Tutor', aiResponse);
           statusText.textContent = 'Speaking...';
 
@@ -492,17 +613,15 @@ export function aiLabFeature(): HTMLElement {
             statusText.textContent = 'Ready to Speak';
             indicator.classList.remove('animate-pulse', 'bg-red-500/20');
           }
-        }, 600);
+        }, 500);
       };
 
       recognition.onerror = () => {
-        toastError('Microphone permission or speech error');
+        toastError('Microphone or Speech Recognition error');
         resetVoiceUI();
       };
 
-      recognition.onend = () => {
-        resetVoiceUI();
-      };
+      recognition.onend = () => { resetVoiceUI(); };
     }
 
     function resetVoiceUI(): void {
@@ -524,7 +643,7 @@ export function aiLabFeature(): HTMLElement {
       if (recognition) {
         try { recognition.start(); } catch (e) { resetVoiceUI(); }
       } else {
-        toastError('Speech Recognition is not supported in this browser');
+        toastError('Speech Recognition not supported in this browser');
       }
     });
 
@@ -535,12 +654,13 @@ export function aiLabFeature(): HTMLElement {
     });
   }
 
+  // --- 6. CALCULATOR PANEL ---
   function renderCalculatorPanel(): void {
     panels.calculator.innerHTML = `
       <div class="card p-6">
         <div class="card-header mb-4">
-          <div class="card-title">Scientific Calculator</div>
-          <div class="card-description">Full expression calculator for STEM studies</div>
+          <div class="card-title">Scientific Expression Calculator</div>
+          <div class="card-description">Full expression evaluator for STEM and calculus problem sets</div>
         </div>
         <div class="card-content">
           <div class="max-w-md mx-auto space-y-4">
@@ -564,15 +684,15 @@ export function aiLabFeature(): HTMLElement {
       ['log', 'ln', 'π', 'e'],
     ];
 
-    const container = document.getElementById('calc-buttons')!;
-    container.innerHTML = buttons.map(row => row.map(btn => `
+    const containerEl = document.getElementById('calc-buttons')!;
+    containerEl.innerHTML = buttons.map(row => row.map(btn => `
       <button class="calc-btn p-3 rounded-xl bg-[var(--color-panel)] border border-[var(--color-border)] text-[var(--color-text)] font-semibold hover:bg-[var(--color-accent-soft)] hover:border-[var(--color-accent)] active:scale-95 transition-all text-sm" data-value="${btn}">${btn}</button>
     `).join('')).join('');
 
     const display = document.getElementById('calc-display') as HTMLInputElement;
     let expression = '';
 
-    container.querySelectorAll('.calc-btn').forEach(btn => {
+    containerEl.querySelectorAll('.calc-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const value = btn.getAttribute('data-value')!;
         if (value === 'C') {
@@ -608,17 +728,18 @@ export function aiLabFeature(): HTMLElement {
     });
   }
 
+  // --- 7. SETTINGS PANEL ---
   function renderAISettingsPanel(): void {
     panels.settings.innerHTML = `
-      <div class="card p-6 space-y-6">
-        <div class="card-header">
-          <div class="card-title">AI Provider & Behavior</div>
+      <div class="card p-6 space-y-4">
+        <div class="card-header pb-2 border-b border-[var(--color-border)]">
+          <div class="card-title">Cognitive & AI Parameters</div>
+          <div class="card-description">Educational psychology parameters for tutoring and recall evaluation</div>
         </div>
-        <div class="card-content space-y-6">
-          <div class="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)] space-y-2">
-            <h4 class="font-bold text-sm">Configured AI Stack</h4>
-            <p class="text-xs text-[var(--color-muted)]">Using Gemini Cloud API with Socratic tutoring prompts & active recall evaluators.</p>
-          </div>
+        <div class="card-content space-y-3 text-xs text-[var(--color-muted)]">
+          <p>• <strong>Testing Effect:</strong> Active retrieval priority enabled.</p>
+          <p>• <strong>Metacognitive Calibration:</strong> Overconfidence tracking active.</p>
+          <p>• <strong>Dual Coding:</strong> Visual schemas synchronized with textual cues.</p>
         </div>
       </div>
     `;

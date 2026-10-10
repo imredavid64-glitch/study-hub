@@ -38,6 +38,9 @@ export function learnFeature(): HTMLElement {
 
   let currentCardIndex = 0;
   let isAnswerRevealed = false;
+  let pendingConfidence: number | null = null;
+  let isInterleaved = false;
+  let interleavedIds: string[] = [];
 
   function render(): void {
     const tabsEl = Tabs({
@@ -67,15 +70,41 @@ export function learnFeature(): HTMLElement {
 
   let selectedDeckId: string = '';
 
+  function getActiveCards(): Flashcard[] {
+    const allCards = state.getState().flashcards;
+    if (!isInterleaved) {
+      return selectedDeckId ? allCards.filter(c => c.deckId === selectedDeckId) : allCards;
+    }
+    if (interleavedIds.length === 0) {
+      const bySubject = new Map<string, Flashcard[]>();
+      allCards.forEach(c => {
+        const list = bySubject.get(c.subject) || [];
+        list.push(c);
+        bySubject.set(c.subject, list);
+      });
+      const queues = Array.from(bySubject.values());
+      const result: Flashcard[] = [];
+      let added = true;
+      while (added) {
+        added = false;
+        for (const q of queues) {
+          if (q.length > 0) { result.push(q.shift()!); added = true; }
+        }
+      }
+      interleavedIds = result.map(c => c.id);
+    }
+    return interleavedIds.map(id => allCards.find(c => c.id === id)).filter((c): c is Flashcard => !!c);
+  }
+
   function renderCardsPanel(): void {
     const decks = state.getState().decks;
     if (!selectedDeckId && decks.length > 0) {
       selectedDeckId = decks[0].id;
     }
 
-    const allCards = state.getState().flashcards;
-    const cards = selectedDeckId ? allCards.filter(c => c.deckId === selectedDeckId) : allCards;
+    const cards = getActiveCards();
     const currentCard: Flashcard | undefined = cards[currentCardIndex];
+    const cal = state.getCalibrationStats();
 
     panels.cards.innerHTML = `
       <div class="card p-6 space-y-4">
@@ -85,13 +114,21 @@ export function learnFeature(): HTMLElement {
             <div class="card-description">Spaced repetition review using SM-2 algorithm</div>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <select id="deck-select" class="px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] text-sm text-[var(--color-text)]">
+            <select id="deck-select" class="px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] text-sm text-[var(--color-text)] ${isInterleaved ? 'opacity-50 pointer-events-none' : ''}">
               ${decks.map(d => `<option value="${d.id}" ${d.id === selectedDeckId ? 'selected' : ''}>${d.name} (${d.subject})</option>`).join('')}
             </select>
+            <button id="interleave-btn" class="${isInterleaved ? 'btn-primary btn-sm' : 'btn-secondary btn-sm'}" title="Mix cards from all subjects round-robin (proven to improve long-term retention)"><i data-lucide="shuffle" class="w-4 h-4 mr-1"></i>${isInterleaved ? 'Interleaved' : 'Interleave'}</button>
             <button id="new-deck-btn" class="btn-secondary btn-sm"><i data-lucide="folder-plus" class="w-4 h-4 mr-1"></i>New Deck</button>
             <button id="add-card-btn" class="btn-primary btn-sm"><i data-lucide="plus" class="w-4 h-4 mr-1"></i>Add Card</button>
           </div>
         </div>
+
+        ${cal.sampleSize > 0 ? `
+        <div class="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--color-panel)] border border-[var(--color-border)] text-xs">
+          <span class="text-[var(--color-muted)]">Metacognitive calibration (${cal.sampleSize} samples):</span>
+          <span class="font-semibold ${cal.gap > 15 ? 'text-amber-500' : cal.gap < -15 ? 'text-blue-500' : 'text-emerald-500'}">${cal.label}</span>
+          <span class="text-[var(--color-muted)]">Confidence ${Math.round(cal.avgConfidence)}% vs Accuracy ${Math.round(cal.accuracy)}% (gap ${cal.gap > 0 ? '+' : ''}${Math.round(cal.gap)})</span>
+        </div>` : ''}
 
         <div class="card-content flex flex-col items-center justify-center min-h-[320px]">
           ${cards.length === 0 || !currentCard ? `
@@ -111,7 +148,17 @@ export function learnFeature(): HTMLElement {
                 <p class="text-lg font-bold text-[var(--color-text)]">${isAnswerRevealed ? currentCard.answer : currentCard.question}</p>
                 <p class="text-xs text-[var(--color-muted)] mt-6">${isAnswerRevealed ? 'Select your recall performance below' : 'Click card to flip'}</p>
               </div>
-              ${isAnswerRevealed ? `
+              ${isAnswerRevealed && pendingConfidence === null ? `
+                <div class="pt-2 space-y-2">
+                  <p class="text-xs text-[var(--color-muted)]">How confident were you before revealing? (calibrates your metacognition)</p>
+                  <div class="grid grid-cols-3 gap-2">
+                    <button id="conf-low" class="px-3 py-2 text-xs font-semibold rounded-lg bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-colors" title="30% confident">Guessed</button>
+                    <button id="conf-mid" class="px-3 py-2 text-xs font-semibold rounded-lg bg-amber-500/20 text-amber-500 hover:bg-amber-500 hover:text-white transition-colors" title="60% confident">Fairly Sure</button>
+                    <button id="conf-high" class="px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-colors" title="90% confident">Knew It</button>
+                  </div>
+                </div>
+              ` : ''}
+              ${isAnswerRevealed && pendingConfidence !== null ? `
                 <div class="grid grid-cols-4 gap-2 pt-2">
                   <button id="rate-again" class="px-3 py-2 text-xs font-semibold rounded-lg bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-colors" title="Rating 1 (Reset interval)">Again</button>
                   <button id="rate-hard" class="px-3 py-2 text-xs font-semibold rounded-lg bg-amber-500/20 text-amber-500 hover:bg-amber-500 hover:text-white transition-colors" title="Rating 3 (Hard recall)">Hard</button>
@@ -131,6 +178,16 @@ export function learnFeature(): HTMLElement {
       selectedDeckId = (e.target as HTMLSelectElement).value;
       currentCardIndex = 0;
       isAnswerRevealed = false;
+      pendingConfidence = null;
+      renderCardsPanel();
+    });
+
+    panels.cards.querySelector('#interleave-btn')?.addEventListener('click', () => {
+      isInterleaved = !isInterleaved;
+      interleavedIds = [];
+      currentCardIndex = 0;
+      isAnswerRevealed = false;
+      pendingConfidence = null;
       renderCardsPanel();
     });
 
@@ -141,14 +198,27 @@ export function learnFeature(): HTMLElement {
     const cardEl = panels.cards.querySelector('#flashcard');
     cardEl?.addEventListener('click', () => {
       isAnswerRevealed = !isAnswerRevealed;
+      if (!isAnswerRevealed) pendingConfidence = null;
       renderCardsPanel();
     });
+
+    const handleConfidence = (confidence: number) => {
+      pendingConfidence = confidence;
+      renderCardsPanel();
+    };
+    panels.cards.querySelector('#conf-low')?.addEventListener('click', () => handleConfidence(30));
+    panels.cards.querySelector('#conf-mid')?.addEventListener('click', () => handleConfidence(60));
+    panels.cards.querySelector('#conf-high')?.addEventListener('click', () => handleConfidence(90));
 
     const handleRating = (rating: number) => {
       if (currentCard) {
         state.reviewFlashcard(currentCard.id, rating);
+        if (pendingConfidence !== null) {
+          state.logCalibration('flashcard', pendingConfidence, rating >= 3);
+        }
         toastSuccess(`Reviewed with SM-2 algorithm!`);
         isAnswerRevealed = false;
+        pendingConfidence = null;
         currentCardIndex = (currentCardIndex + 1) % Math.max(1, cards.length);
         renderCardsPanel();
       }
@@ -294,6 +364,12 @@ export function learnFeature(): HTMLElement {
                   </label>
                 `).join('')}
               </div>
+              <div class="flex items-center gap-2 pl-2">
+                <span class="text-[10px] uppercase tracking-wider text-[var(--color-muted)]">Confidence:</span>
+                <label class="flex items-center gap-1 text-xs text-[var(--color-muted)] cursor-pointer"><input type="radio" name="conf-${q.id}" value="30" class="accent-[var(--color-accent)]" /> Guessed</label>
+                <label class="flex items-center gap-1 text-xs text-[var(--color-muted)] cursor-pointer"><input type="radio" name="conf-${q.id}" value="60" class="accent-[var(--color-accent)]" /> Fairly Sure</label>
+                <label class="flex items-center gap-1 text-xs text-[var(--color-muted)] cursor-pointer"><input type="radio" name="conf-${q.id}" value="90" class="accent-[var(--color-accent)]" /> Sure</label>
+              </div>
             </div>
           `).join('')}
           <button id="submit-quiz-btn" class="btn-primary w-full">Submit Quiz</button>
@@ -304,18 +380,31 @@ export function learnFeature(): HTMLElement {
         let score = 0;
         questions.forEach(q => {
           const selected = quizArea.querySelector(`input[name="q-${q.id}"]:checked`) as HTMLInputElement;
-          if (selected && parseInt(selected.value) === q.correct) score++;
+          const correct = selected && parseInt(selected.value) === q.correct;
+          if (correct) score++;
+          const confRadio = quizArea.querySelector(`input[name="conf-${q.id}"]:checked`) as HTMLInputElement;
+          const confidence = confRadio ? parseInt(confRadio.value) : 60;
+          state.logCalibration('quiz', confidence, !!correct);
         });
 
         const percentage = Math.round((score / questions.length) * 100);
         state.addXP(score * 15 + 10);
         toastSuccess(`Quiz Completed! Score: ${percentage}% (+${score * 15 + 10} XP)`);
 
+        const cal = state.getCalibrationStats();
         quizArea.innerHTML = `
           <div class="p-6 rounded-xl bg-[var(--color-accent-soft)]/40 border border-[var(--color-accent)] text-center space-y-3">
             <h3 class="font-bold text-xl text-[var(--color-text)]">Quiz Results</h3>
             <p class="text-3xl font-extrabold text-[var(--color-accent)]">${score} / ${questions.length} (${percentage}%)</p>
             <p class="text-sm text-[var(--color-muted)]">${percentage >= 70 ? 'Great job! You showed strong mastery of this topic.' : 'Good attempt! Review notes and try again.'}</p>
+            ${cal.sampleSize > 0 ? `
+              <div class="mt-2 pt-3 border-t border-[var(--color-border)] text-xs text-[var(--color-muted)] space-y-1">
+                <p><strong class="text-[var(--color-text)]">Calibration check:</strong> ${cal.label}</p>
+                <p>Average confidence ${Math.round(cal.avgConfidence)}% vs accuracy ${Math.round(cal.accuracy)}% (${cal.sampleSize} samples, gap ${cal.gap > 0 ? '+' : ''}${Math.round(cal.gap)})</p>
+                ${cal.gap > 10 ? `<p class="text-amber-500">You tend to be overconfident — try doubting yourself once per quiz.</p>` : ''}
+                ${cal.gap < -10 ? `<p class="text-blue-500">You under-estimate yourself — your accuracy is better than you think.</p>` : ''}
+              </div>
+            ` : ''}
           </div>
         `;
       });

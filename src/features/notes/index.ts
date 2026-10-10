@@ -31,6 +31,7 @@ export function notesFeature(): HTMLElement {
 
   let currentStyle = state.getState().currentNoteStyle;
   let searchQuery = '';
+  let graphView = false;
 
   function render(): void {
     const tabsEl = Tabs({
@@ -246,11 +247,17 @@ export function notesFeature(): HTMLElement {
             <div class="card-title">Knowledge Base (${filteredNotes.length})</div>
             <div class="card-description">Your saved notes across all study styles</div>
           </div>
-          <div class="w-full sm:w-64">
-            <input type="text" id="note-search" placeholder="Search notes..." value="${searchQuery}" class="w-full text-sm px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] text-[var(--color-text)]" />
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <div class="w-full sm:w-64">
+              <input type="text" id="note-search" placeholder="Search notes..." value="${searchQuery}" class="w-full text-sm px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] text-[var(--color-text)]" />
+            </div>
+            <button id="toggle-graph-btn" class="${graphView ? 'btn-primary btn-sm' : 'btn-secondary btn-sm'} shrink-0" title="Zettelkasten knowledge graph — notes linked by shared tags and subjects">
+              <i data-lucide="share-2" class="w-4 h-4 mr-1"></i>${graphView ? 'Graph' : 'List'}
+            </button>
           </div>
         </div>
         <div class="card-content">
+          ${graphView ? renderKnowledgeGraph(filteredNotes) : `
           ${filteredNotes.length === 0 ? `
             <div class="text-center py-12 text-[var(--color-muted)]">
               <i data-lucide="file-text" class="w-12 h-12 mx-auto mb-4 opacity-50"></i>
@@ -276,9 +283,15 @@ export function notesFeature(): HTMLElement {
               `).join('')}
             </div>
           `}
+          `}
         </div>
       </div>
     `;
+
+    notesList.querySelector('#toggle-graph-btn')?.addEventListener('click', () => {
+      graphView = !graphView;
+      renderNotesList();
+    });
 
     notesList.querySelector('#note-search')?.addEventListener('input', (e) => {
       searchQuery = (e.target as HTMLInputElement).value;
@@ -305,6 +318,73 @@ export function notesFeature(): HTMLElement {
     if (c.mapping) return `[Topic] ${c.mapping.center} (${c.mapping.branches.length} branches)`;
     if (c.sentence) return c.sentence.join(' ');
     return 'Saved Note';
+  }
+
+  function renderKnowledgeGraph(notes: Note[]): string {
+    if (notes.length === 0) {
+      return `
+        <div class="text-center py-12 text-[var(--color-muted)]">
+          <i data-lucide="share-2" class="w-12 h-12 mx-auto mb-4 opacity-50"></i>
+          <p>No notes to graph. Create notes and link them by tags to see the Zettelkasten graph.</p>
+        </div>`;
+    }
+
+    const W = 720;
+    const H = 420;
+    const cx = W / 2;
+    const cy = H / 2;
+    const radius = Math.min(W, H) / 2 - 70;
+
+    const positions = notes.map((_, i) => {
+      const angle = (i / notes.length) * Math.PI * 2 - Math.PI / 2;
+      return { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) };
+    });
+
+    const edges: { a: number; b: number; strength: number }[] = [];
+    for (let i = 0; i < notes.length; i++) {
+      for (let j = i + 1; j < notes.length; j++) {
+        const sharedTags = notes[i].tags.filter(t => notes[j].tags.includes(t)).length;
+        const sameSubject = notes[i].subject === notes[j].subject ? 1 : 0;
+        const strength = sharedTags + sameSubject;
+        if (strength > 0) edges.push({ a: i, b: j, strength });
+      }
+    }
+
+    const subjectColors: Record<string, string> = {
+      'Biology': '#10b981', 'Mathematics': '#3b82f6', 'Physics': '#8b5cf6',
+      'Chemistry': '#f59e0b', 'Computer Science': '#ef4444', 'History': '#64748b',
+      'Other': '#6b7280',
+    };
+
+    const nodeR = (note: Note) => 10 + Math.min(12, note.tags.length * 2 + getNotePreview(note).length / 80);
+
+    const svg = `
+      <svg viewBox="0 0 ${W} ${H}" class="w-full h-auto max-h-[420px]" xmlns="http://www.w3.org/2000/svg">
+        ${edges.map(e => {
+          const p1 = positions[e.a];
+          const p2 = positions[e.b];
+          return `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="var(--color-border)" stroke-width="${Math.min(3, e.strength)}" opacity="${Math.min(0.9, 0.3 + e.strength * 0.2)}" />`;
+        }).join('')}
+        ${notes.map((note, i) => {
+          const p = positions[i];
+          const color = subjectColors[note.subject] || subjectColors.Other;
+          const r = nodeR(note);
+          const shortTitle = note.title.length > 18 ? note.title.slice(0, 16) + '…' : note.title;
+          return `
+            <g class="cursor-pointer" data-graph-note="${note.id}">
+              <circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${color}" opacity="0.9" stroke="var(--color-bg)" stroke-width="2" />
+              <text x="${p.x}" y="${p.y + r + 12}" text-anchor="middle" class="fill-[var(--color-text)]" font-size="10" font-weight="600">${shortTitle}</text>
+            </g>`;
+        }).join('')}
+      </svg>
+      <div class="mt-2 flex flex-wrap gap-3 justify-center text-[10px] text-[var(--color-muted)]">
+        ${Array.from(new Set(notes.map(n => n.subject))).map(s => `
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:${subjectColors[s] || subjectColors.Other}"></span>${s}</span>
+        `).join('')}
+        <span>${edges.length} links (shared tags & subjects)</span>
+      </div>`;
+
+    return `<div class="py-2">${svg}</div>`;
   }
 
   container.querySelector('#new-note-btn')?.addEventListener('click', () => {

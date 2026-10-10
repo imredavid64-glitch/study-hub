@@ -71,6 +71,14 @@ export interface ModalityScore {
   tutor: number;
 }
 
+export interface CalibrationEntry {
+  id: string;
+  source: 'flashcard' | 'quiz';
+  confidence: number;
+  correct: boolean;
+  timestamp: number;
+}
+
 export interface Goal {
   id: string;
   userId: string;
@@ -417,6 +425,7 @@ export interface AppState {
   mockTests: MockTest[];
   aiChats: AIChat[];
   confusionLogs: ConfusionLogEntry[];
+  calibrationLog: CalibrationEntry[];
   currentTab: TabId;
   currentLearnMode: LearnModeId;
   currentNoteStyle: NoteStyleId;

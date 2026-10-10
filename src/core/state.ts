@@ -1,6 +1,6 @@
 import type {
   AppState, UserProfile, UserSettings, UserModel, Goal, Task,
-  StudySession, Note, Deck, Flashcard
+  StudySession, Note, Deck, Flashcard, CalibrationEntry
 } from './types.js';
 import { STORAGE_KEYS, DEFAULT_SESSION_MINUTES, DEFAULT_BREAK_MINUTES, TabId } from './config.js';
 
@@ -243,6 +243,7 @@ class StateManager {
     mockTests: [],
     aiChats: [],
     confusionLogs: [],
+    calibrationLog: [],
     currentTab: 'today',
     currentLearnMode: 'cards',
     currentNoteStyle: 'freeform',
@@ -289,6 +290,9 @@ class StateManager {
 
       const storedFlashcards = localStorage.getItem(STORAGE_KEYS.FLASHCARDS);
       if (storedFlashcards) this.state.flashcards = JSON.parse(storedFlashcards);
+
+      const storedCalibration = localStorage.getItem(STORAGE_KEYS.CALIBRATION);
+      if (storedCalibration) this.state.calibrationLog = JSON.parse(storedCalibration);
 
       const lastTab = localStorage.getItem(STORAGE_KEYS.LAST_TAB);
       if (lastTab && this.isValidTab(lastTab)) {
@@ -359,6 +363,7 @@ class StateManager {
       localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(this.state.notes));
       localStorage.setItem(STORAGE_KEYS.DECKS, JSON.stringify(this.state.decks));
       localStorage.setItem(STORAGE_KEYS.FLASHCARDS, JSON.stringify(this.state.flashcards));
+      localStorage.setItem(STORAGE_KEYS.CALIBRATION, JSON.stringify(this.state.calibrationLog));
       localStorage.setItem(STORAGE_KEYS.LAST_TAB, this.state.currentTab);
       if (this.state.onboardingStep >= 3) {
         localStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETE, 'true');
@@ -618,6 +623,35 @@ class StateManager {
     return updatedCard;
   }
 
+  logCalibration(source: 'flashcard' | 'quiz', confidence: number, correct: boolean): void {
+    const entry: CalibrationEntry = {
+      id: 'cal-' + Date.now(),
+      source,
+      confidence: Math.min(100, Math.max(0, confidence)),
+      correct,
+      timestamp: Date.now(),
+    };
+    this.state.calibrationLog = [...this.state.calibrationLog, entry].slice(-200);
+    this.persist();
+    this.notify();
+  }
+
+  getCalibrationStats(): { sampleSize: number; avgConfidence: number; accuracy: number; gap: number; label: string } {
+    const log = this.state.calibrationLog;
+    if (log.length === 0) {
+      return { sampleSize: 0, avgConfidence: 0, accuracy: 0, gap: 0, label: 'No data yet' };
+    }
+    const avgConfidence = log.reduce((s, e) => s + e.confidence, 0) / log.length;
+    const accuracy = (log.filter(e => e.correct).length / log.length) * 100;
+    const gap = avgConfidence - accuracy;
+    let label = 'Well calibrated';
+    if (gap > 15) label = 'Overconfident';
+    else if (gap > 5) label = 'Slightly overconfident';
+    else if (gap < -15) label = 'Underconfident';
+    else if (gap < -5) label = 'Slightly underconfident';
+    return { sampleSize: log.length, avgConfidence, accuracy, gap, label };
+  }
+
   deleteDeck(id: string): void {
     this.state.decks = this.state.decks.filter(d => d.id !== id);
     this.state.flashcards = this.state.flashcards.filter(c => c.deckId !== id);
@@ -658,6 +692,7 @@ class StateManager {
       mockTests: [],
       aiChats: [],
       confusionLogs: [],
+      calibrationLog: [],
       currentTab: 'today',
       currentLearnMode: 'cards',
       currentNoteStyle: 'freeform',

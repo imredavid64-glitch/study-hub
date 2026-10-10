@@ -82,6 +82,7 @@ export const STORAGE_KEYS = {
   NOTES: 'studyhub_notes',
   DECKS: 'studyhub_decks',
   FLASHCARDS: 'studyhub_flashcards',
+  CALIBRATION: 'studyhub_calibration',
 } as const;
 
 export const AI_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
